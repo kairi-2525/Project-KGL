@@ -1,0 +1,10 @@
+/.vs
+/Project/.vs
+/Project/ExecutionProject/Game/Debug
+/Project/ExecutionProject/Game/Release
+/Project/ExecutionProject/Game/x64
+/Project/ExecutionProject/Game/Win32
+/Project/KGL/Debug
+/Project/KGL/Release
+/Project/Build/x64
+/Project/Build/Win32
