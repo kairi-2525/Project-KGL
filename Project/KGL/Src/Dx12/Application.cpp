@@ -1,6 +1,7 @@
 #include <Dx12/Application.hpp>
 #include <cassert>
 #include <Helper/ThrowAssert.hpp>
+#include <Helper/Cast.hpp>
 #include <DirectXTex/d3dx12.h>
 
 using namespace KGL;
@@ -102,6 +103,9 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 			D3D_FEATURE_LEVEL_11_1,
 			D3D_FEATURE_LEVEL_11_0
 		};
+		ComPtr<IDXGIAdapter1> top_adapter;
+		UINT8 top_lv = 0u;
+		constexpr UINT8 max_lv = std::size(levels);
 
 		while (DXGI_ERROR_NOT_FOUND != (hr = factory->EnumAdapters1(adapter_index++, &set_adapter)))
 		{
@@ -110,16 +114,23 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 				continue;
 			//DirectX12が使えるか確認
+			UINT8 lv_count = std::size(levels);
 			for (auto& lv : levels)
 			{
 				hr = D3D12CreateDevice(set_adapter.Get(), lv, __uuidof(ID3D12Device), nullptr);
 				if (SUCCEEDED(hr))
 				{
-					use_lv = lv;
-					break;
+					if (top_lv < lv_count)
+					{
+						top_lv = lv_count;
+						use_lv = lv;
+						set_adapter.As(&top_adapter);
+						break;
+					}
 				}
+				lv_count--;
 			}
-			if (SUCCEEDED(hr)) break;
+			if (top_lv == max_lv) break;
 		}
 		try
 		{
@@ -130,7 +141,7 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 			RuntimeErrorStop(exception);
 		}
 		//使用するアダプターをセット
-		set_adapter.As(&use_adapter);
+		top_adapter.As(&use_adapter);
 	}
 	hr = D3D12CreateDevice(use_adapter.Get(), use_lv, IID_PPV_ARGS(m_dev.ReleaseAndGetAddressOf()));
 	assert(SUCCEEDED(hr) && "デバイスの生成に失敗！");
@@ -158,7 +169,7 @@ HRESULT Application::CreateSwapchain(ComPtr<IDXGIFactory6> factory, HWND hwnd) n
 		// コマンドリストと合わせる
 		cmd_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-		hr = m_dev->CreateCommandQueue(&cmd_queue_desc, IID_PPV_ARGS(m_cmd_queue.ReleaseAndGetAddressOf()));
+		m_cmd_queue = std::make_shared<CommandQueue>(m_dev, cmd_queue_desc);
 		RCHECK(FAILED(hr), "コマンドキューの生成に失敗！", hr);
 	}
 	{	// スワップチェインの生成
@@ -180,10 +191,10 @@ HRESULT Application::CreateSwapchain(ComPtr<IDXGIFactory6> factory, HWND hwnd) n
 		// ウィンドウ⇔フルスクリーン切り替え可能
 		swapchain_desc.Flags = 
 			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-			| m_tearing_support ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+			| (m_tearing_support ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
 
 		hr = factory->CreateSwapChainForHwnd(
-			m_cmd_queue.Get(),
+			m_cmd_queue->Data().Get(),
 			hwnd,
 			&swapchain_desc,
 			nullptr,
@@ -241,6 +252,38 @@ HRESULT Application::CreateHeaps()
 		}
 	}
 	{
+		DXGI_SWAP_CHAIN_DESC1 swc_desc = {};
+		m_swapchain->GetDesc1(&swc_desc);
+		D3D12_RESOURCE_DESC depth_res_desc = {};
+		depth_res_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;		// 2次元のテクスチャデータ
+		depth_res_desc.Width = swc_desc.Width;								// 幅と高さはレンダーターゲットと同じ
+		depth_res_desc.Height = swc_desc.Height;
+		depth_res_desc.DepthOrArraySize = 1;								// テクスチャ配列でも３D配列でもない
+		depth_res_desc.Format = DXGI_FORMAT_D32_FLOAT;						// 深度値書き込み用フォーマット
+		depth_res_desc.SampleDesc.Count = 1;								// サンプルは１ピクセル当たり１つ
+		depth_res_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;		// デプスステンシルとして使用
+
+		// 深度値用ヒーププロパティ
+		D3D12_HEAP_PROPERTIES depth_heap_prop = {};
+		depth_heap_prop.Type = D3D12_HEAP_TYPE_DEFAULT;
+		depth_heap_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		depth_heap_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+		//CD3DX12_CLEAR_VALUE depth_clear_value(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);
+		D3D12_CLEAR_VALUE depth_clear_value = {};
+		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
+		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
+
+		hr = m_dev->CreateCommittedResource(
+			&depth_heap_prop,
+			D3D12_HEAP_FLAG_NONE,
+			&depth_res_desc,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE,	// 深度書き込みに使用
+			&depth_clear_value,
+			IID_PPV_ARGS(m_depth_buff.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "DSVのリソース確保に失敗", hr);
+
 		// 深度のためのディスクリプタヒープ
 		D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc = {};
 		dsv_heap_desc.NumDescriptors = 1;
@@ -264,4 +307,39 @@ HRESULT Application::CreateHeaps()
 		);
 	}
 	return hr;
+}
+
+void Application::SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
+{
+	assert(cmd_list);
+	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
+	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, &dsv_handle);
+}
+
+void Application::ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
+	const DirectX::XMFLOAT4& clear_color) const noexcept
+{
+	assert(cmd_list);
+	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
+	cmd_list->ClearRenderTargetView(rtv_handle, (float*)&clear_color, 0, nullptr);
+	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+}
+
+D3D12_RESOURCE_BARRIER Application::GetRtvResourceBarrier(bool render_target) const noexcept
+{
+	return render_target ?
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_rtv_buffers[m_swapchain->GetCurrentBackBufferIndex()].Get(),
+			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		) :
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_rtv_buffers[m_swapchain->GetCurrentBackBufferIndex()].Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
 }

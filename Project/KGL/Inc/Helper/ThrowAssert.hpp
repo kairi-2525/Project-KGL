@@ -3,6 +3,7 @@
 #include <utility>
 #include <string>
 #include <stdexcept>
+#include <cassert>
 
 #ifdef _M_IX86
 #define _X86_
