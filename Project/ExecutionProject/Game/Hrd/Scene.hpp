@@ -62,6 +62,8 @@ public:
 	HRESULT Init(const SceneDesc& desc)
 	{
 		m_scene = std::make_shared<_Scene>();
+		auto hr = m_scene->Load(desc);
+		if (FAILED(hr)) return hr;
 		return m_scene->Init(desc);
 	}
 	HRESULT UnInit(const SceneDesc& desc)

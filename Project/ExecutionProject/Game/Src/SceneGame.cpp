@@ -2,6 +2,7 @@
 
 HRESULT SceneGame::Load(const SceneDesc& desc)
 {
+	texture = std::make_shared<KGL::Texture>(desc.app->GetDevice(), 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
 	return S_OK;
 }
 
