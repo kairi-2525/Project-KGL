@@ -51,6 +51,12 @@ Application::Application(HWND hwnd, bool debug_layer, bool gbv) noexcept
 	}
 }
 
+Application::~Application()
+{
+	m_cmd_queue->Signal();
+	m_cmd_queue->Wait();
+}
+
 HRESULT Application::CreateFactory(ComPtr<IDXGIFactory6>& factory, bool debug_layer, bool gbv)
 {
 	HRESULT hr = S_OK;
@@ -105,7 +111,7 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 		};
 		ComPtr<IDXGIAdapter1> top_adapter;
 		UINT8 top_lv = 0u;
-		constexpr UINT8 max_lv = std::size(levels);
+		constexpr UINT8 max_lv = SCAST<UINT8>(std::size(levels));
 
 		while (DXGI_ERROR_NOT_FOUND != (hr = factory->EnumAdapters1(adapter_index++, &set_adapter)))
 		{
@@ -114,7 +120,7 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 				continue;
 			//DirectX12が使えるか確認
-			UINT8 lv_count = std::size(levels);
+			UINT8 lv_count = SCAST<UINT8>(std::size(levels));
 			for (auto& lv : levels)
 			{
 				hr = D3D12CreateDevice(set_adapter.Get(), lv, __uuidof(ID3D12Device), nullptr);
@@ -242,6 +248,7 @@ HRESULT Application::CreateHeaps()
 		{
 			hr = m_swapchain->GetBuffer(idx, IID_PPV_ARGS(m_rtv_buffers[idx].ReleaseAndGetAddressOf()));
 			RCHECK(FAILED(hr), "RTVのバッファー確保に失敗", hr);
+			m_rtv_buffers[idx]->SetName((L" Application's RTV Buffer [" + std::to_wstring(idx) + L"]").c_str());
 
 			m_dev->CreateRenderTargetView(
 				m_rtv_buffers[idx].Get(),
@@ -283,6 +290,7 @@ HRESULT Application::CreateHeaps()
 			IID_PPV_ARGS(m_depth_buff.ReleaseAndGetAddressOf())
 		);
 		RCHECK(FAILED(hr), "DSVのリソース確保に失敗", hr);
+		m_depth_buff->SetName(L" Application's DSV Buffer");
 
 		// 深度のためのディスクリプタヒープ
 		D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc = {};

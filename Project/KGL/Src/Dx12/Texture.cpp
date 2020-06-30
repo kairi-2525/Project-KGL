@@ -156,6 +156,8 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		SCAST<UINT>(img->slicePitch)
 	);
 	RCHECK(FAILED(hr), "WriteToSubresource‚ÉŽ¸”s");
+
+	m_buffer->SetName(m_path.wstring().c_str());
 }
 
 Texture::Texture(ComPtr<ID3D12Device> device,

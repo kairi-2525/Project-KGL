@@ -3,6 +3,7 @@
 HRESULT SceneGame::Load(const SceneDesc& desc)
 {
 	texture = std::make_shared<KGL::Texture>(desc.app->GetDevice(), 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
+	pmd_data = std::make_shared<KGL::PMDLoader>("./Assets/Models/‹¾‰¹ƒŠƒ“.pmd");
 	return S_OK;
 }
 

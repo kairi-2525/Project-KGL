@@ -21,7 +21,7 @@ namespace KGL
 			CommandQueue& operator=(const CommandQueue&) = delete;
 		public:
 			explicit CommandQueue(ComPtr<ID3D12CommandQueue> queue, ComPtr<ID3D12Fence> fence) noexcept;
-			explicit CommandQueue(ComPtr<ID3D12Device> dev, const D3D12_COMMAND_QUEUE_DESC& desc) noexcept;
+			explicit CommandQueue(ComPtr<ID3D12Device> device, const D3D12_COMMAND_QUEUE_DESC& desc) noexcept;
 			HRESULT Signal() noexcept;
 			HRESULT Wait() const noexcept { return Wait(m_value); }
 			HRESULT Wait(UINT64 value) const noexcept;

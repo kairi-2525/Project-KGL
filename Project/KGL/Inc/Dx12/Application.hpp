@@ -44,7 +44,7 @@ namespace KGL
 			HRESULT CreateHeaps();
 		public:
 			explicit Application(HWND hwnd, bool debug_layer = false, bool gbv = false) noexcept;
-			~Application() = default;
+			~Application();
 
 			void SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			void ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,

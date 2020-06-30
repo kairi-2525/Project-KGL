@@ -12,15 +12,15 @@ CommandQueue::CommandQueue(ComPtr<ID3D12CommandQueue> queue,
 	m_value = m_fence->GetCompletedValue();
 }
 
-CommandQueue::CommandQueue(ComPtr<ID3D12Device> dev,
+CommandQueue::CommandQueue(ComPtr<ID3D12Device> device,
 	const D3D12_COMMAND_QUEUE_DESC& desc) noexcept
 	: m_value(0ULL)
 {
-	assert(dev);
+	assert(device);
 	HRESULT hr = S_OK;
-	hr = dev->CreateCommandQueue(&desc, IID_PPV_ARGS(m_queue.GetAddressOf()));
+	hr = device->CreateCommandQueue(&desc, IID_PPV_ARGS(m_queue.GetAddressOf()));
 	RCHECK(FAILED(hr), "コマンドキューの生成に失敗！");
-	hr = dev->CreateFence(m_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
+	hr = device->CreateFence(m_value, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(m_fence.GetAddressOf()));
 	RCHECK(FAILED(hr), "フェンスの生成に失敗！");
 }
 
