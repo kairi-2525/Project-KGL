@@ -2,6 +2,7 @@
 #include <cassert>
 #include <Helper/ThrowAssert.hpp>
 #include <Helper/Cast.hpp>
+#include <Dx12/SetName.hpp>
 #include <DirectXTex/d3dx12.h>
 
 using namespace KGL;
@@ -248,7 +249,7 @@ HRESULT Application::CreateHeaps()
 		{
 			hr = m_swapchain->GetBuffer(idx, IID_PPV_ARGS(m_rtv_buffers[idx].ReleaseAndGetAddressOf()));
 			RCHECK(FAILED(hr), "RTVのバッファー確保に失敗", hr);
-			m_rtv_buffers[idx]->SetName((L" Application's RTV Buffer [" + std::to_wstring(idx) + L"]").c_str());
+			SetName(m_rtv_buffers[idx], RCAST<INT_PTR>(this), L" Application", L"RTV");
 
 			m_dev->CreateRenderTargetView(
 				m_rtv_buffers[idx].Get(),
@@ -290,7 +291,7 @@ HRESULT Application::CreateHeaps()
 			IID_PPV_ARGS(m_depth_buff.ReleaseAndGetAddressOf())
 		);
 		RCHECK(FAILED(hr), "DSVのリソース確保に失敗", hr);
-		m_depth_buff->SetName(L" Application's DSV Buffer");
+		SetName(m_depth_buff, RCAST<INT_PTR>(this), L" Application", L"DSV");
 
 		// 深度のためのディスクリプタヒープ
 		D3D12_DESCRIPTOR_HEAP_DESC dsv_heap_desc = {};

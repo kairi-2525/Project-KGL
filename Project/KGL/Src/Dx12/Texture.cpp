@@ -233,7 +233,6 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 {
 	{
 #pragma warning( disable : 4293 )
-		// TODO
 		std::stringstream ss;
 		UINT32 top = (tr << 0xff) | (tg << 16) | (tb << 8) | ta;
 		UINT32 bottom = (br << 0xff) | (bg << 16) | (bb << 8) | ba;

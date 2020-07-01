@@ -4,7 +4,7 @@
 
 using namespace KGL;
 
-PMDLoader::PMDLoader(std::filesystem::path path) noexcept
+PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 {
 	m_desc.path = path;
 

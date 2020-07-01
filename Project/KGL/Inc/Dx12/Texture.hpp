@@ -20,7 +20,7 @@ namespace KGL
 			TextureManager(const TextureManager&) = delete;
 			TextureManager& operator=(const TextureManager&) = delete;
 		public:
-			TextureManager() noexcept = default;
+			TextureManager() = default;
 			bool GetResource(const std::filesystem::path& path, ComPtr<ID3D12Resource>* resource) const noexcept;
 			bool SetResource(const std::filesystem::path& path, ComPtr<ID3D12Resource> resource) noexcept;
 		};
@@ -41,7 +41,7 @@ namespace KGL
 			// グラデーションテクスチャ
 			explicit Texture(ComPtr<ID3D12Device> device,
 				UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
-				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 255, TextureManager* mgr = nullptr) noexcept;
+				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 256, TextureManager* mgr = nullptr) noexcept;
 		};
 	}
 }

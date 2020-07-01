@@ -19,10 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Inc\Base\Model.hpp" />
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
     <ClInclude Include="Inc\Dx12\PMDModel.hpp" />
+    <ClInclude Include="Inc\Dx12\SetName.hpp" />
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
     <ClInclude Include="Inc\Helper\Cast.hpp" />
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
@@ -32,6 +34,7 @@
     <ClInclude Include="Inc\Loader\PMDLoader.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Base\Model.cpp" />
     <ClCompile Include="Src\Dx12\Application.cpp" />
     <ClCompile Include="Src\Base\Window.cpp" />
     <ClCompile Include="Src\Dx12\CommandQueue.cpp" />
