@@ -8,7 +8,8 @@
 using namespace KGL;
 
 PMD_Model::PMD_Model(ComPtr<ID3D12Device> device,
-	const PMD::Desc& desc, TextureManager* mgr) noexcept
+	const PMD::Desc& desc,
+	const std::filesystem::path& toon_folder, TextureManager* mgr) noexcept
 	: m_vb_view{}, m_ib_view{}
 {
 	if (!device)
@@ -18,10 +19,6 @@ PMD_Model::PMD_Model(ComPtr<ID3D12Device> device,
 	}
 
 	if (!mgr) mgr = &m_tex_mgr;
-
-	m_tex_white = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, mgr);
-	m_tex_black = std::make_unique<Texture>(device, 0x00, 0x00, 0x00, 0xff, mgr);
-	m_tex_gradation = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff, 256, mgr);
 
 	HRESULT hr = S_OK;
 
@@ -36,6 +33,8 @@ PMD_Model::PMD_Model(ComPtr<ID3D12Device> device,
 	hr = CreateMaterialBuffers(device, desc.materials);
 	RCHECK(FAILED(hr), "マテリアルバッファの作成に失敗");
 	SetName(m_idx_buff, RCAST<INT_PTR>(this), desc.path.wstring(), L"Material");
+
+	hr = CreateTextureBuffers(device, desc.materials, desc.path, toon_folder, mgr);
 }
 
 HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<UCHAR>& vert) noexcept
@@ -132,4 +131,112 @@ HRESULT PMD_Model::CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std:
 	m_mtr_buff->Unmap(0, nullptr);
 
 	return hr;
+}
+
+HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Material>& mtr,
+	const std::filesystem::path& path, const std::filesystem::path& toon_folder,
+	TextureManager* mgr) noexcept
+{
+	HRESULT hr = S_OK;
+	const size_t material_size = mtr.size();
+
+	auto tex_white = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, mgr);
+	auto tex_black = std::make_unique<Texture>(device, 0x00, 0x00, 0x00, 0xff, mgr);
+	auto tex_gradation = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff, 256, mgr);
+
+	m_textures.resize(material_size);
+
+	auto model_folder = path;
+	const bool has_toon_file = !toon_folder.empty();
+	model_folder.remove_filename();
+
+	for (size_t i = 0u; i < material_size; i++)
+	{
+		auto& tex = m_textures[i];
+		auto& material = mtr[i];
+		if (has_toon_file)
+		{
+			char toon_file_name[16];
+			sprintf_s(
+				toon_file_name,
+				_countof(toon_file_name),
+				"toon%02d.bmp",
+				material.toon_idx + 1
+			);
+
+			tex.toon_buff = std::make_unique<Texture>();
+			hr = tex.toon_buff->Create(device, toon_folder.string() + toon_file_name, mgr);
+			if (!Texture::IsFound(hr))
+			{
+				*tex.toon_buff = *tex_gradation;
+			}
+			RCHECK(FAILED(hr), "トーンバッファの作成に失敗", hr);
+		}
+		else
+		{
+			tex.toon_buff = std::make_unique<Texture>();
+			*tex.toon_buff = *tex_gradation;
+		}
+
+		const std::filesystem::path diffuse_tex_path = material.tex_file_Path;
+		if (diffuse_tex_path.empty()) continue;
+
+		std::pair<std::filesystem::path, std::filesystem::path> tex_files;
+		std::pair<std::string, std::string> extensions;
+		auto star_pos = diffuse_tex_path.string().rfind('*');
+		if (star_pos != std::string::npos)
+		{
+			tex_files.first = diffuse_tex_path.string().substr(0, star_pos);
+			auto& etsf = extensions.first;
+			etsf = tex_files.first.extension().string();
+			std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
+
+			tex_files.second = diffuse_tex_path.string().substr(star_pos + 1);
+			auto& etss = extensions.second;
+			etss = tex_files.second.extension().string();
+			std::transform(etss.begin(), etss.end(), etss.begin(), static_cast<int (*)(int)>(&std::toupper));
+		}
+		else
+		{
+			tex_files.first = diffuse_tex_path;
+			auto& etsf = extensions.first;
+			etsf = tex_files.first.extension().string();
+			std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
+		}
+
+		if (!tex_files.first.empty())
+			tex_files.first = model_folder.string() + tex_files.first.string();
+		if (!tex_files.second.empty())
+			tex_files.second = model_folder.string() + tex_files.second.string();
+
+		if (extensions.first == ".SPH")
+			tex.sph_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+		else if (extensions.first == ".SPA")
+			tex.spa_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+		else if (!extensions.first.empty())
+			tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+
+		if (extensions.second == ".SPH")
+			tex.sph_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+		else if (extensions.second == ".SPA")
+			tex.spa_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+		else if (!extensions.second.empty())
+			tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+		
+		if (!tex.sph_buff)
+		{
+			tex.sph_buff = std::make_unique<Texture>();
+			*tex.sph_buff = *tex_white;
+		}
+		if (!tex.spa_buff)
+		{
+			tex.spa_buff = std::make_unique<Texture>();
+			*tex.spa_buff = *tex_black;
+		}
+		if (!tex.diffuse_buff)
+		{
+			tex.diffuse_buff = std::make_unique<Texture>();
+			*tex.diffuse_buff = *tex_white;
+		}
+	}
 }

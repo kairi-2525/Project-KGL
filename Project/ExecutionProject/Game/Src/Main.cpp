@@ -90,9 +90,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				scene_mgr.UnInit(scene_desc);
 			}
 		}
+#if DEBUG_LAYER
 		ComPtr<ID3D12DebugDevice> debug_interface;
 		HRESULT hr = device->QueryInterface(IID_PPV_ARGS(debug_interface.ReleaseAndGetAddressOf()));
 		debug_interface->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
+#endif
 	}
 
 	return 0;

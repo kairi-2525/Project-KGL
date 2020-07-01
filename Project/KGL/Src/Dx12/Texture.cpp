@@ -10,7 +10,6 @@
 #pragma comment(lib, "DirectXTex.lib")
 
 #include <Helper/Cast.hpp>
-#include <Helper/ThrowAssert.hpp>
 
 using namespace KGL;
 using namespace DirectX;
@@ -71,44 +70,67 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 	return false;
 }
 
-Texture::Texture(ComPtr<ID3D12Device> device, 
-	const std::filesystem::path& path, TextureManager* mgr) noexcept
-	: m_path(path)
+void Texture::AssertLoadResult(HRESULT hr, const std::string& file_name) noexcept
 {
+	try
+	{
+		if (!IsFound(hr))
+			throw std::runtime_error(
+				(file_name.empty() ?
+					"指定されたファイル"
+					: "[ " + file_name + " ] ")
+				+ "が見つかりませんでした。"
+			);
+	}
+	catch (std::runtime_error& exception)
+	{
+		RuntimeErrorStop(exception);
+	}
+	assert(SUCCEEDED(hr) && "AssertLoadResult::原因不明のエラーが発生しました。");
+}
+
+HRESULT Texture::Create(ComPtr<ID3D12Device> device,
+	const std::filesystem::path& path, TextureManager* mgr) noexcept
+{
+	m_path = path;
 	TexMetadata metadata = {};
 	ScratchImage scratch_img = {};
 
 	if (mgr)
 	{
 		if (mgr->GetResource(m_path, &m_buffer))
-			return;
+			return S_OK;
 	}
 
 	if (!device)
 	{
 		assert(!"デバイスにNULLが渡されました。");
-		return;
+		return E_FAIL;
 	}
 
 	std::string extension = m_path.extension().string();
 	std::transform(extension.begin(), extension.end(), extension.begin(), static_cast<int (*)(int)>(&std::toupper));
-
-	assert(TEX_LOAD_LAMBDA_TBL.count(extension) == 0u && "非対応の拡張子が入力されました。");
+	assert(TEX_LOAD_LAMBDA_TBL.count(extension) != 0u && "非対応の拡張子が入力されました。");
 
 	HRESULT hr = TEX_LOAD_LAMBDA_TBL.at(extension)(
-			m_path,
-			&metadata,
-			scratch_img
+		m_path,
+		&metadata,
+		scratch_img
 		);
 	try
 	{
-		if (FAILED(hr)) throw std::runtime_error("[" + m_path.string() + "] が見つかりませんでした。");
+		if (FAILED(hr) && hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+			throw std::runtime_error(
+				"[" 
+				+ m_path.string() 
+				+ "] の読み込み中に原因不明のエラーが発生しました。"
+			);
 	}
 	catch (std::runtime_error& exception)
 	{
 		RuntimeErrorStop(exception);
 	}
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗");
+	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 
 	// 生データの抽出
 	auto img = scratch_img.GetImage(0, 0, 0);
@@ -121,7 +143,7 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 	tex_heap_prop.CreationNodeMask = 0;		// 単一アダプタのため
 	tex_heap_prop.VisibleNodeMask = 0;		// 単一アダプタのため
 
-	auto res_desc = 
+	auto res_desc =
 		CD3DX12_RESOURCE_DESC::Tex2D(
 			metadata.format,
 			metadata.width,
@@ -141,7 +163,7 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		nullptr,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗");
+	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 
 	if (mgr)
 	{
@@ -155,12 +177,13 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		SCAST<UINT>(img->rowPitch),
 		SCAST<UINT>(img->slicePitch)
 	);
-	RCHECK(FAILED(hr), "WriteToSubresourceに失敗");
+	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
 
 	m_buffer->SetName(m_path.wstring().c_str());
+	return hr;
 }
 
-Texture::Texture(ComPtr<ID3D12Device> device,
+HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	UCHAR r, UCHAR g, UCHAR b, UCHAR a, TextureManager* mgr) noexcept
 {
 	{
@@ -175,13 +198,13 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 	if (mgr)
 	{
 		if (mgr->GetResource(m_path, &m_buffer))
-			return;
+			return S_OK;
 	}
 
 	if (!device)
 	{
 		assert(!"デバイスにNULLが渡されました。");
-		return;
+		return E_FAIL;
 	}
 
 	D3D12_HEAP_PROPERTIES tex_heap_prop = CD3DX12_HEAP_PROPERTIES(
@@ -199,7 +222,7 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		nullptr,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗");
+	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 
 	std::vector<UCHAR> data(4 * 4 * 4);	 // 色 * 幅 * 高さ
 	// 全部255で埋める
@@ -209,10 +232,10 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 	{
 		switch (j)
 		{
-		case 0: data[i] = r; break;
-		case 1: data[i] = g; break;
-		case 2: data[i] = b; break;
-		case 3: data[i] = a; break;
+			case 0: data[i] = r; break;
+			case 1: data[i] = g; break;
+			case 2: data[i] = b; break;
+			case 3: data[i] = a; break;
 		}
 		j = j == 3 ? 0 : j + 1;
 	}
@@ -224,10 +247,11 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		4u * 4u,
 		SCAST<UINT>(data.size())
 	);
-	RCHECK(FAILED(hr), "WriteToSubresourceに失敗");
+	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
+	return hr;
 }
 
-Texture::Texture(ComPtr<ID3D12Device> device,
+HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
 	UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height, TextureManager* mgr) noexcept
 {
@@ -243,13 +267,13 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 	if (mgr)
 	{
 		if (mgr->GetResource(m_path, &m_buffer))
-			return;
+			return S_OK;
 	}
 
 	if (!device)
 	{
 		assert(!"デバイスにNULLが渡されました。");
-		return;
+		return E_FAIL;
 	}
 
 	D3D12_HEAP_PROPERTIES tex_heap_prop = CD3DX12_HEAP_PROPERTIES(
@@ -267,7 +291,7 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		nullptr,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗");
+	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 
 	std::vector<UINT32> data(4 * height);
 	auto itr = data.begin();
@@ -277,7 +301,7 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 	{
 		auto col = (cr << 0xff) | (cg << 16) | (cb << 8) | ca;
 		std::fill(itr, itr + 4, col);
-		
+
 		cr = tr + ((SCAST<INT16>(br) - tr) / height) * i;
 		cg = tg + ((SCAST<INT16>(bg) - tg) / height) * i;
 		cb = tb + ((SCAST<INT16>(bb) - tb) / height) * i;
@@ -292,5 +316,6 @@ Texture::Texture(ComPtr<ID3D12Device> device,
 		4u * sizeof(UINT32),
 		SCAST<UINT>(data.size())
 	);
-	RCHECK(FAILED(hr), "WriteToSubresourceに失敗");
+	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
+	return hr;
 }
