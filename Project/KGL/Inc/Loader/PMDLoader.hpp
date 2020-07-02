@@ -1,6 +1,6 @@
 #pragma once
 
-#define NOMINMAX
+
 #include "../Base/PMD.hpp"
 
 namespace KGL

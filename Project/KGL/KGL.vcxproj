@@ -23,14 +23,17 @@
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
+    <ClInclude Include="Inc\Dx12\PipelineState.hpp" />
     <ClInclude Include="Inc\Dx12\PMDModel.hpp" />
     <ClInclude Include="Inc\Dx12\SetName.hpp" />
+    <ClInclude Include="Inc\Dx12\Shader.hpp" />
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
     <ClInclude Include="Inc\Helper\Cast.hpp" />
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
     <ClInclude Include="Inc\Helper\ThrowAssert.hpp" />
     <ClInclude Include="Inc\Base\Window.hpp" />
     <ClInclude Include="Inc\Helper\Timer.hpp" />
+    <ClInclude Include="Inc\Loader\Loader.hpp" />
     <ClInclude Include="Inc\Loader\PMDLoader.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -38,7 +41,9 @@
     <ClCompile Include="Src\Dx12\Application.cpp" />
     <ClCompile Include="Src\Base\Window.cpp" />
     <ClCompile Include="Src\Dx12\CommandQueue.cpp" />
+    <ClCompile Include="Src\Dx12\PipelineState.cpp" />
     <ClCompile Include="Src\Dx12\PMDModel.cpp" />
+    <ClCompile Include="Src\Dx12\Shader.cpp" />
     <ClCompile Include="Src\Dx12\Texture.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />
     <ClCompile Include="Src\Loader\PMDLoader.cpp" />

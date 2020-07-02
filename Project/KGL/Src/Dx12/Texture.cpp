@@ -70,25 +70,6 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 	return false;
 }
 
-void Texture::AssertLoadResult(HRESULT hr, const std::string& file_name) noexcept
-{
-	try
-	{
-		if (!IsFound(hr))
-			throw std::runtime_error(
-				(file_name.empty() ?
-					"指定されたファイル"
-					: "[ " + file_name + " ] ")
-				+ "が見つかりませんでした。"
-			);
-	}
-	catch (std::runtime_error& exception)
-	{
-		RuntimeErrorStop(exception);
-	}
-	assert(SUCCEEDED(hr) && "AssertLoadResult::原因不明のエラーが発生しました。");
-}
-
 HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	const std::filesystem::path& path, TextureManager* mgr) noexcept
 {

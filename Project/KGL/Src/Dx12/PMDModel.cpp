@@ -140,6 +140,7 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 	HRESULT hr = S_OK;
 	const size_t material_size = mtr.size();
 
+	// テクスチャを使用しない場合はこれらを渡しておく
 	auto tex_white = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, mgr);
 	auto tex_black = std::make_unique<Texture>(device, 0x00, 0x00, 0x00, 0xff, mgr);
 	auto tex_gradation = std::make_unique<Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff, 256, mgr);
@@ -166,7 +167,7 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 
 			tex.toon_buff = std::make_unique<Texture>();
 			hr = tex.toon_buff->Create(device, toon_folder.string() + toon_file_name, mgr);
-			if (!Texture::IsFound(hr))
+			if (!IsFound(hr))
 			{
 				*tex.toon_buff = *tex_gradation;
 			}

@@ -7,7 +7,8 @@
 #pragma comment(lib, "d3d12.lib")
 
 #include "../Helper/ComPtr.hpp"
-#include <Helper/ThrowAssert.hpp>
+#include "../Helper/ThrowAssert.hpp"
+#include "../Loader/Loader.hpp"
 
 namespace KGL
 {
@@ -30,9 +31,6 @@ namespace KGL
 		private:
 			std::filesystem::path m_path;
 			ComPtr<ID3D12Resource> m_buffer;
-		public:
-			static bool IsFound(HRESULT hr) noexcept { return hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND); };
-			static void AssertLoadResult(HRESULT hr, const std::string& file_name = {}) noexcept;
 		public:
 			Texture() = default;
 			// 画像テクスチャ

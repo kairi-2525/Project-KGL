@@ -33,4 +33,11 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="HLSL\PMDVertexShader.hlsl" />
+    <FxCompile Include="HLSL\PMDPixelShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="HLSL\PMDShaderHeader.hlsli" />
+  </ItemGroup>
 </Project>
