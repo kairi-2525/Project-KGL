@@ -24,7 +24,7 @@ namespace KGL
 		public:
 			TextureManager() = default;
 			bool GetResource(const std::filesystem::path& path, ComPtr<ID3D12Resource>* resource) const noexcept;
-			bool SetResource(const std::filesystem::path& path, ComPtr<ID3D12Resource> resource) noexcept;
+			bool SetResource(const std::filesystem::path& path, const ComPtr<ID3D12Resource>& resource) noexcept;
 		};
 		class Texture
 		{

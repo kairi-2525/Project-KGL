@@ -59,7 +59,7 @@ bool TextureManager::GetResource(const std::filesystem::path& path,
 }
 
 bool TextureManager::SetResource(const std::filesystem::path& path,
-	ComPtr<ID3D12Resource> resource) noexcept
+	const ComPtr<ID3D12Resource>& resource) noexcept
 {
 	assert(resource && "TextureManager::SetResourceで無効な値の入力");
 	if (m_resources.count(path) == 0)
@@ -204,6 +204,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
 	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
+	if (mgr) mgr->SetResource(m_path, m_buffer);
 
 	std::vector<UCHAR> data(4 * 4 * 4);	 // 色 * 幅 * 高さ
 	// 全部255で埋める
@@ -273,6 +274,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
 	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
+	if (mgr) mgr->SetResource(m_path, m_buffer);
 
 	std::vector<UINT32> data(4 * height);
 	auto itr = data.begin();
