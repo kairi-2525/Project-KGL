@@ -96,23 +96,21 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
 	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[4] = {};					// テクスチャと定数の２つ
-		// テクスチャ用レジスター0
-	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[3] = {};					// テクスチャと定数の２つ
 
 	// 定数用
-	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 
 	// マテリアル定数用
-	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
 	// テクスチャ4つ レジスター1から
-	desc_tbl_ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 1);
+	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
 	CD3DX12_ROOT_PARAMETER root_params[2] = {};
-	root_params[0].InitAsDescriptorTable(2, &desc_tbl_ranges[0]);
+	root_params[0].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
 
-	root_params[1].InitAsDescriptorTable(2, &desc_tbl_ranges[2]);
+	root_params[1].InitAsDescriptorTable(2, &desc_tbl_ranges[1]);
 
 	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[2] = {};
 	sampler_desc[0].Init(0);
@@ -237,19 +235,19 @@ HRESULT SceneGame::Init(const SceneDesc& desc)
 	return S_OK;
 }
 
-HRESULT SceneGame::Update(const SceneDesc& desc)
+HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 	static float s_angle = 0.f;
+	s_angle += XMConvertToRadians(90.f) * elapsed_time;
 	map_buffer->world = XMMatrixRotationY(s_angle);
 	map_buffer->wvp = map_buffer->world * map_buffer->view * map_buffer->proj;
 	return S_OK;
 }
 
-HRESULT SceneGame::Render(const SceneDesc& desc)
+HRESULT SceneGame::Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list)
 {
 	using KGL::SCAST;
-	auto cmd_list = desc.cmd_list;
 
 	auto window_size = desc.window->GetClientSize();
 

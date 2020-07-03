@@ -38,8 +38,8 @@ private:
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
-	HRESULT Update(const SceneDesc& desc) override;
-	HRESULT Render(const SceneDesc& desc) override;
+	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
+	HRESULT Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list) override;
 	HRESULT UnInit(const SceneDesc& desc) override;
 
 	SceneGame() = default;

@@ -9,13 +9,13 @@
 
 #include <Dx12/Application.hpp>
 #include <Base/Window.hpp>
+#include <Helper/ComPtr.hpp>
 
 class SceneManager;
 struct SceneDesc
 {
 	std::shared_ptr<KGL::App> app;
 	std::shared_ptr<KGL::Window> window;
-	KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list;
 };
 
 class SceneBase
@@ -33,8 +33,8 @@ public:
 	virtual ~SceneBase() = default;
 	HRESULT virtual Load(const SceneDesc& desc) = 0;
 	HRESULT virtual Init(const SceneDesc& desc) { return S_OK; }
-	HRESULT virtual Update(const SceneDesc& desc) = 0;
-	HRESULT virtual Render(const SceneDesc& desc) = 0;
+	HRESULT virtual Update(const SceneDesc& desc, float elapsed_time) = 0;
+	HRESULT virtual Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list) = 0;
 	HRESULT virtual UnInit(const SceneDesc& desc) { return S_OK; }
 
 	bool IsLoaded() noexcept { std::lock_guard<std::mutex> lock(m_loaded_mutex); return m_loaded; };
@@ -72,6 +72,7 @@ public:
 		if (m_scene) return m_scene->UnInit(desc);
 		return S_OK;
 	}
-	HRESULT Update(const SceneDesc& desc);
+	HRESULT Update(const SceneDesc& desc, float elapsed_time);
+	HRESULT Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list);
 	HRESULT SceneChangeUpdate(const SceneDesc& desc);
 };

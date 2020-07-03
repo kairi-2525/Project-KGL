@@ -9,11 +9,10 @@ struct Output
 	float3 ray : VECTOR;		// ƒxƒNƒgƒ‹
 };
 
-Texture2D<float4> tex : register(t0);
-Texture2D<float4> material_tex : register(t1);
-Texture2D<float4> material_sph : register(t2);
-Texture2D<float4> material_spa : register(t3);
-Texture2D<float4> material_toon : register(t4);
+Texture2D<float4> material_tex : register(t0);
+Texture2D<float4> material_sph : register(t1);
+Texture2D<float4> material_spa : register(t2);
+Texture2D<float4> material_toon : register(t3);
 
 SamplerState smp : register(s0);
 SamplerState toom_smp : register(s1);

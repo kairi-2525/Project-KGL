@@ -56,42 +56,47 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				);
 				RCHECK(FAILED(hr), "コマンドリストの作成に失敗", - 1);
 
-				SceneDesc scene_desc = { app, window, cmd_list };
+				SceneDesc scene_desc = { app, window };
 				hr = scene_mgr.Init<SceneGame>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;
-				while (window->Update() && SUCCEEDED(scene_hr))
+				while (window->Update())
 				{
 					fps_counter.Update();
-					float elapsed_time = fps_counter.GetElpasedTime();
 					window->SetTitle("FPS : [" + std::to_string(fps_counter.GetRefreshRate()) + "]");
-
-					app->SetRtvDsv(cmd_list);
-					cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(true));
-
-					app->ClearRtvDsv(cmd_list, clear_color);
-
-					scene_hr = scene_mgr.Update(scene_desc);
-
-					cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(false));
-
-					cmd_list->Close();
-					ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
-					app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
-					app->GetQueue()->Signal();
-					app->GetQueue()->Wait();
-
-					cmd_allocator->Reset();
-					cmd_list->Reset(cmd_allocator.Get(), nullptr);
-
-					if (app->IsTearingSupport())
-						app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-					else
-						app->GetSwapchain()->Present(1, 1);
+					scene_hr = scene_mgr.Update(scene_desc, fps_counter.GetElpasedTime());
 
 					if (SUCCEEDED(scene_hr))
-						scene_hr = scene_mgr.SceneChangeUpdate(scene_desc);
+					{
+						app->SetRtvDsv(cmd_list);
+						cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(true));
+
+						app->ClearRtvDsv(cmd_list, clear_color);
+
+						scene_hr = scene_mgr.Render(scene_desc, cmd_list);
+
+						cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(false));
+
+						cmd_list->Close();
+						ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
+						app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+						app->GetQueue()->Signal();
+						app->GetQueue()->Wait();
+
+						cmd_allocator->Reset();
+						cmd_list->Reset(cmd_allocator.Get(), nullptr);
+
+						if (app->IsTearingSupport())
+							app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+						else
+							app->GetSwapchain()->Present(1, 1);
+					}
+
+					if (FAILED(scene_hr))
+						break;
+					
+					scene_hr = scene_mgr.SceneChangeUpdate(scene_desc);
 				}
 				scene_mgr.UnInit(scene_desc);
 			}
