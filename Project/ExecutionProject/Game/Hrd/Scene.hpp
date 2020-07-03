@@ -15,6 +15,7 @@ struct SceneDesc
 {
 	std::shared_ptr<KGL::App> app;
 	std::shared_ptr<KGL::Window> window;
+	KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list;
 };
 
 class SceneBase

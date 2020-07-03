@@ -17,7 +17,11 @@
 #define DEBUG_LAYER (false)
 #endif
 
+#ifdef _CONSOLE
+int main()
+#else
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
+#endif
 {
 	KGL::UseComPtr com;
 	{
@@ -33,9 +37,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			std::shared_ptr<KGL::App> app = std::make_shared<KGL::App>(window->GetHWND(), DEBUG_LAYER);
 			{
 				SceneManager scene_mgr;
-				SceneDesc scene_desc = { app, window };
-				hr = scene_mgr.Init<SceneGame>(scene_desc);
-				assert(SUCCEEDED(hr));
+
+				RCHECK(FAILED(hr), "シーンの初期化に失敗", -1);
 
 				ComPtr<ID3D12CommandAllocator> cmd_allocator;
 				ComPtr<ID3D12GraphicsCommandList> cmd_list;
@@ -45,15 +48,18 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					D3D12_COMMAND_LIST_TYPE_DIRECT,
 					IID_PPV_ARGS(cmd_allocator.ReleaseAndGetAddressOf())
 				);
-				assert(SUCCEEDED(hr));
+				RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", -1);
 				hr = device->CreateCommandList(0,
 					D3D12_COMMAND_LIST_TYPE_DIRECT,
 					cmd_allocator.Get(), nullptr,
 					IID_PPV_ARGS(cmd_list.ReleaseAndGetAddressOf())
 				);
-				assert(SUCCEEDED(hr));
+				RCHECK(FAILED(hr), "コマンドリストの作成に失敗", - 1);
 
-				DirectX::XMFLOAT4 clear_color = { 1.f, 1.f, 1.f, 1.f };
+				SceneDesc scene_desc = { app, window, cmd_list };
+				hr = scene_mgr.Init<SceneGame>(scene_desc);
+
+				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;
 				while (window->Update() && SUCCEEDED(scene_hr))
 				{

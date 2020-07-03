@@ -338,6 +338,14 @@ void Application::ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 
+void Application::SetViewPort(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
+{
+	assert(cmd_list);
+	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+}
+
 D3D12_RESOURCE_BARRIER Application::GetRtvResourceBarrier(bool render_target) const noexcept
 {
 	return render_target ?

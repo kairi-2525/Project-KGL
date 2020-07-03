@@ -12,8 +12,10 @@
 #endif
 #include <winnt.h>
 
+#include "Debug.hpp"
+
 #pragma warning( disable : 4003 )
-#define RCHECK(fail, msg, result) if (fail) { assert(!msg); return result; }
+#define RCHECK(fail, msg, result) if (fail) { KGLDebugOutPutString(msg); assert(!msg); return result; }
 
 namespace KGL
 {

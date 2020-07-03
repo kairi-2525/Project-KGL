@@ -7,10 +7,12 @@
 
 using namespace KGL;
 
-PMD_Model::PMD_Model(ComPtr<ID3D12Device> device,
+PMD_Model::PMD_Model(
+	const ComPtr<ID3D12Device>& device,
 	const PMD::Desc& desc,
-	const std::filesystem::path& toon_folder, TextureManager* mgr) noexcept
-	: m_vb_view{}, m_ib_view{}
+	const std::filesystem::path& toon_folder, TextureManager* mgr
+) noexcept
+	: m_vb_view{}, m_ib_view{}, m_material_num(desc.materials.size())
 {
 	if (!device)
 	{
@@ -100,8 +102,12 @@ HRESULT PMD_Model::CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std:
 
 	const size_t material_buffer_size = (sizeof(MODEL::MaterialForHLSL) + 0xff) & ~0xff;
 
+	m_index_counts.resize(m_material_num);
+
 	for (size_t i = 0u; i < material_size; i++)
 	{
+		m_index_counts[i] = mtr.at(i).indices_num;
+
 		hlsl_materials[i].deffuse = mtr.at(i).diffuse;
 		hlsl_materials[i].alpha = mtr.at(i).alpha;
 		hlsl_materials[i].specular = mtr.at(i).specular;
@@ -180,49 +186,50 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 		}
 
 		const std::filesystem::path diffuse_tex_path = material.tex_file_Path;
-		if (diffuse_tex_path.empty()) continue;
-
-		std::pair<std::filesystem::path, std::filesystem::path> tex_files;
-		std::pair<std::string, std::string> extensions;
-		auto star_pos = diffuse_tex_path.string().rfind('*');
-		if (star_pos != std::string::npos)
+		if (!diffuse_tex_path.empty())
 		{
-			tex_files.first = diffuse_tex_path.string().substr(0, star_pos);
-			auto& etsf = extensions.first;
-			etsf = tex_files.first.extension().string();
-			std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
+			std::pair<std::filesystem::path, std::filesystem::path> tex_files;
+			std::pair<std::string, std::string> extensions;
+			auto star_pos = diffuse_tex_path.string().rfind('*');
+			if (star_pos != std::string::npos)
+			{
+				tex_files.first = diffuse_tex_path.string().substr(0, star_pos);
+				auto& etsf = extensions.first;
+				etsf = tex_files.first.extension().string();
+				std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
 
-			tex_files.second = diffuse_tex_path.string().substr(star_pos + 1);
-			auto& etss = extensions.second;
-			etss = tex_files.second.extension().string();
-			std::transform(etss.begin(), etss.end(), etss.begin(), static_cast<int (*)(int)>(&std::toupper));
+				tex_files.second = diffuse_tex_path.string().substr(star_pos + 1);
+				auto& etss = extensions.second;
+				etss = tex_files.second.extension().string();
+				std::transform(etss.begin(), etss.end(), etss.begin(), static_cast<int (*)(int)>(&std::toupper));
+			}
+			else
+			{
+				tex_files.first = diffuse_tex_path;
+				auto& etsf = extensions.first;
+				etsf = tex_files.first.extension().string();
+				std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
+			}
+
+			if (!tex_files.first.empty())
+				tex_files.first = model_folder.string() + tex_files.first.string();
+			if (!tex_files.second.empty())
+				tex_files.second = model_folder.string() + tex_files.second.string();
+
+			if (extensions.first == ".SPH")
+				tex.sph_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+			else if (extensions.first == ".SPA")
+				tex.spa_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+			else if (!extensions.first.empty())
+				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+
+			if (extensions.second == ".SPH")
+				tex.sph_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+			else if (extensions.second == ".SPA")
+				tex.spa_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+			else if (!extensions.second.empty())
+				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
 		}
-		else
-		{
-			tex_files.first = diffuse_tex_path;
-			auto& etsf = extensions.first;
-			etsf = tex_files.first.extension().string();
-			std::transform(etsf.begin(), etsf.end(), etsf.begin(), static_cast<int (*)(int)>(&std::toupper));
-		}
-
-		if (!tex_files.first.empty())
-			tex_files.first = model_folder.string() + tex_files.first.string();
-		if (!tex_files.second.empty())
-			tex_files.second = model_folder.string() + tex_files.second.string();
-
-		if (extensions.first == ".SPH")
-			tex.sph_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
-		else if (extensions.first == ".SPA")
-			tex.spa_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
-		else if (!extensions.first.empty())
-			tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
-
-		if (extensions.second == ".SPH")
-			tex.sph_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
-		else if (extensions.second == ".SPA")
-			tex.spa_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
-		else if (!extensions.second.empty())
-			tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
 		
 		if (!tex.sph_buff)
 		{
@@ -240,4 +247,96 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 			*tex.diffuse_buff = *tex_white;
 		}
 	}
+}
+
+HRESULT PMD_Model::HeapSet(
+	const ComPtr<ID3D12Device>& device,
+	D3D12_CPU_DESCRIPTOR_HANDLE heap_handle
+) const noexcept
+{
+	HRESULT hr = S_OK;
+	const auto cbv_increment_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+	srv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv_desc.Texture2D.MipLevels = 1;
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
+	mat_cbv_desc.BufferLocation = m_mtr_buff->GetGPUVirtualAddress();
+	mat_cbv_desc.SizeInBytes = BUFFER_SIZE;
+
+	for (INT i = 0; i < m_material_num; i++)
+	{
+		auto& tex = m_textures[i];
+
+		// Material
+		device->CreateConstantBufferView(
+			&mat_cbv_desc, heap_handle
+		);
+		heap_handle.ptr += cbv_increment_size;
+		mat_cbv_desc.BufferLocation += mat_cbv_desc.SizeInBytes;
+
+		// Diffuse
+		srv_desc.Format = tex.diffuse_buff->Data()->GetDesc().Format;
+		device->CreateShaderResourceView(
+			tex.diffuse_buff->Data().Get(),
+			&srv_desc,
+			heap_handle
+		);
+		heap_handle.ptr += cbv_increment_size;
+
+		// Sph
+		srv_desc.Format = tex.sph_buff->Data()->GetDesc().Format;
+		device->CreateShaderResourceView(
+			tex.sph_buff->Data().Get(),
+			&srv_desc,
+			heap_handle
+		);
+		heap_handle.ptr += cbv_increment_size;
+
+		// Spa
+		srv_desc.Format = tex.spa_buff->Data()->GetDesc().Format;
+		device->CreateShaderResourceView(
+			tex.spa_buff->Data().Get(),
+			&srv_desc,
+			heap_handle
+		);
+		heap_handle.ptr += cbv_increment_size;
+
+		// Toon
+		srv_desc.Format = tex.toon_buff->Data()->GetDesc().Format;
+		device->CreateShaderResourceView(
+			tex.toon_buff->Data().Get(),
+			&srv_desc,
+			heap_handle
+		);
+		heap_handle.ptr += cbv_increment_size;
+	}
+	return hr;
+}
+
+HRESULT PMD_Model::Render(
+	const ComPtr<ID3D12Device>& device,
+	const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+	D3D12_GPU_DESCRIPTOR_HANDLE heap_handle
+) const noexcept
+{
+	cmd_list->IASetVertexBuffers(0, 1, &m_vb_view);
+	cmd_list->IASetIndexBuffer(&m_ib_view);
+
+	UINT index_offset = 0u;
+	const auto cbv_increment_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
+	for (size_t i = 0u; i < m_material_num; i++)
+	{
+		const auto index_count = m_index_counts[i];
+		cmd_list->SetGraphicsRootDescriptorTable(1, heap_handle);
+		cmd_list->DrawIndexedInstanced(index_count, 1, index_offset, 0, 0);
+
+		heap_handle.ptr += cbv_increment_size;
+		index_offset += index_count;
+	}
+
+	return S_OK;
 }

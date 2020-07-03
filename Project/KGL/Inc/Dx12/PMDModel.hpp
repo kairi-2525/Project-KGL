@@ -10,6 +10,8 @@ namespace KGL
 	{
 		class PMD_Model
 		{
+		public:
+			static constexpr size_t BUFFER_SIZE = (sizeof(MODEL::MaterialForHLSL) + 0xff) & ~0xff;
 		private:
 			struct TexturesResource
 			{
@@ -29,6 +31,9 @@ namespace KGL
 
 			D3D12_VERTEX_BUFFER_VIEW				m_vb_view;
 			D3D12_INDEX_BUFFER_VIEW					m_ib_view;
+
+			size_t									m_material_num;
+			std::vector<UINT>						m_index_counts;
 		private:
 			HRESULT CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<UCHAR>& vert) noexcept;
 			HRESULT CreateIndexBuffers(ComPtr<ID3D12Device> device, const std::vector<USHORT>& idx) noexcept;
@@ -38,10 +43,20 @@ namespace KGL
 				TextureManager* mgr) noexcept;
 
 		public:
-			explicit PMD_Model(ComPtr<ID3D12Device> device,
+			explicit PMD_Model(
+				const ComPtr<ID3D12Device>& device,
 				const PMD::Desc& desc,
 				const std::filesystem::path& toon_folder = {},	// FOLDER/
 				TextureManager* mgr = nullptr) noexcept;
+			size_t GetMaterialCount() const noexcept { return m_material_num; }
+			HRESULT HeapSet(
+				const ComPtr<ID3D12Device>& device,
+				D3D12_CPU_DESCRIPTOR_HANDLE heap_handle
+			) const noexcept;
+			HRESULT Render(
+				const ComPtr<ID3D12Device>& device,
+				const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+				D3D12_GPU_DESCRIPTOR_HANDLE heap_handle) const noexcept;
 		};
 	}
 }

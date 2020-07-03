@@ -12,7 +12,7 @@ HRESULT SceneManager::Update(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
 	hr = m_scene->Update(desc);
-	if (FAILED(hr))
+	if (FAILED(hr)) return hr;
 	hr = m_scene->Render(desc);
 	if (FAILED(hr)) return hr;
 	return hr;
