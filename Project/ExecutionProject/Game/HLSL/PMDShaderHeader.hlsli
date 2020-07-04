@@ -23,6 +23,7 @@ cbuffer cbuff0 : register(b0)
 	row_major matrix world : rowmajor;	// ワールド変換行列
 	row_major matrix view;				// ビュー変換行列
 	row_major matrix proj;				// プロジェクション変換行列
+	row_major matrix bones[512];		// ボーン行列
 	float3 eye;							// 視点
 }
 

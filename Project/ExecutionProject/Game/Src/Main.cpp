@@ -13,6 +13,9 @@
 
 #ifdef _DEBUG
 #define DEBUG_LAYER (true)
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 #else
 #define DEBUG_LAYER (false)
 #endif
@@ -23,6 +26,11 @@ int main()
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 #endif
 {
+#ifdef _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+	_CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+#endif
+
 	KGL::UseComPtr com;
 	{
 		using KGL::ComPtr;

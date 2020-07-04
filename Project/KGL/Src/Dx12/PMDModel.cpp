@@ -37,6 +37,13 @@ PMD_Model::PMD_Model(
 	SetName(m_idx_buff, RCAST<INT_PTR>(this), desc.path.wstring(), L"Material");
 
 	hr = CreateTextureBuffers(device, desc.materials, desc.path, toon_folder, mgr);
+	RCHECK(FAILED(hr), "テクスチャバッファーの作成に失敗");
+
+	hr = CreateMaterialHeap(device);
+	RCHECK(FAILED(hr), "テクスチャバッファーの作成に失敗");
+
+	hr = CreateBoneMatrix(desc.bone_node_table);
+	RCHECK(FAILED(hr), "ボーン用のMatrixの作成に失敗");
 }
 
 HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<UCHAR>& vert) noexcept
@@ -155,8 +162,26 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 
 	auto model_folder = path;
 	const bool has_toon_file = !toon_folder.empty();
+
+	// toon_folderの末尾に "/"がついていない場合付け足す
+	auto use_toon_folder = toon_folder;
+	if (has_toon_file)
+	{
+		use_toon_folder.make_preferred();
+		auto str = use_toon_folder.string();
+		auto pos = str.rfind('\\');
+		if (pos != std::string::npos)
+		{
+			if (str.begin() + pos != str.end() - 1)
+			{
+				use_toon_folder += '\\';
+			}
+		}
+		else use_toon_folder += '\\';
+	}
 	model_folder.remove_filename();
 
+	// マテリアルごとにテクスチャバッファーを作成していく
 	for (size_t i = 0u; i < material_size; i++)
 	{
 		auto& tex = m_textures[i];
@@ -172,7 +197,7 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 			);
 
 			tex.toon_buff = std::make_unique<Texture>();
-			hr = tex.toon_buff->Create(device, toon_folder.string() + toon_file_name, mgr);
+			hr = tex.toon_buff->Create(device, use_toon_folder.string() + toon_file_name, mgr);
 			if (!IsFound(hr))
 			{
 				*tex.toon_buff = *tex_gradation;
@@ -247,14 +272,27 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 			*tex.diffuse_buff = *tex_white;
 		}
 	}
+	return hr;
 }
 
-HRESULT PMD_Model::HeapSet(
-	const ComPtr<ID3D12Device>& device,
-	D3D12_CPU_DESCRIPTOR_HANDLE heap_handle
-) const noexcept
+HRESULT PMD_Model::CreateMaterialHeap(ComPtr<ID3D12Device> device) noexcept
 {
 	HRESULT hr = S_OK;
+
+	// マテリアルヒープの作成
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC mat_heap_desc = {};
+		mat_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		mat_heap_desc.NodeMask = 0;
+		mat_heap_desc.NumDescriptors = SCAST<UINT>(m_material_num * 5); // マテリアル + SRV + スフィアマップ用SRV x2 + ToonSRV
+		mat_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+		hr = device->CreateDescriptorHeap(
+			&mat_heap_desc, IID_PPV_ARGS(m_mtr_heap.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "CreateDescriptorHeapに失敗", hr);
+	}
+
 	const auto cbv_increment_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -266,6 +304,8 @@ HRESULT PMD_Model::HeapSet(
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
 	mat_cbv_desc.BufferLocation = m_mtr_buff->GetGPUVirtualAddress();
 	mat_cbv_desc.SizeInBytes = BUFFER_SIZE;
+
+	auto heap_handle = m_mtr_heap->GetCPUDescriptorHandleForHeapStart();
 
 	for (INT i = 0; i < m_material_num; i++)
 	{
@@ -317,16 +357,30 @@ HRESULT PMD_Model::HeapSet(
 	return hr;
 }
 
+HRESULT PMD_Model::CreateBoneMatrix(const std::map<std::string, PMD::BoneNode>& bone_node_table) noexcept
+{
+	// 初期化
+	m_bone_matrices.resize(bone_node_table.size());
+	std::fill(
+		m_bone_matrices.begin(),
+		m_bone_matrices.end(),
+		DirectX::XMMatrixIdentity()
+	);
+
+	return S_OK;
+}
+
 HRESULT PMD_Model::Render(
 	const ComPtr<ID3D12Device>& device,
-	const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-	D3D12_GPU_DESCRIPTOR_HANDLE heap_handle
+	const ComPtr<ID3D12GraphicsCommandList>& cmd_list
 ) const noexcept
 {
 	cmd_list->IASetVertexBuffers(0, 1, &m_vb_view);
 	cmd_list->IASetIndexBuffer(&m_ib_view);
+	cmd_list->SetDescriptorHeaps(1, m_mtr_heap.GetAddressOf());
 
 	UINT index_offset = 0u;
+	auto heap_handle = m_mtr_heap->GetGPUDescriptorHandleForHeapStart();
 	const auto cbv_increment_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV) * 5;
 	for (size_t i = 0u; i < m_material_num; i++)
 	{

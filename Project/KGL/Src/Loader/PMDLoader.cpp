@@ -1,5 +1,6 @@
 #include <Loader/PMDLoader.hpp>
 #include <Helper/ThrowAssert.hpp>
+#include <Helper/Cast.hpp>
 #include <fstream>
 
 using namespace KGL;
@@ -45,9 +46,44 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 	ifs.read((char*)&idx_num, sizeof(idx_num));
 
 	m_desc.indices.resize(idx_num);
-	ifs.read((char*)m_desc.indices.data(), static_cast<ULONG>(m_desc.indices.size()) * sizeof(m_desc.indices[0]));
+	ifs.read((char*)m_desc.indices.data(), SCAST<ULONG>(m_desc.indices.size()) * sizeof(m_desc.indices[0]));
 
 	ifs.read((char*)&material_num, sizeof(material_num));
 	m_desc.materials.resize(material_num);
-	ifs.read((char*)m_desc.materials.data(), m_desc.materials.size() * sizeof(PMD::Material));
+
+	ifs.read((char*)m_desc.materials.data(), SCAST<ULONG>(material_num * sizeof(PMD::Material)));
+
+	USHORT bone_num = 0;
+	ifs.read((char*)&bone_num, sizeof(bone_num));
+
+	if (bone_num > 0)
+	{
+		m_desc.bones.resize(bone_num);
+		ifs.read((char*)m_desc.bones.data(), SCAST<ULONG>(bone_num * sizeof(PMD::Bone)));
+		
+		// ボーンノードマップを作成
+		std::vector<std::string> bone_names(bone_num);
+		for (size_t i = 0u; i < bone_num; i++)
+		{
+			const auto& it = m_desc.bones[i];
+			auto& name = bone_names[i];
+			name = it.bone_name;
+
+			auto& node = m_desc.bone_node_table[name];
+			node.bone_idx = i;
+			node.start_pos = it.pos;
+		}
+
+		// 親子関係を構築
+		for (auto& it : m_desc.bones)
+		{
+			if (it.parent_no >= bone_num)
+				continue;
+
+			auto parent_name = bone_names[it.parent_no];
+			m_desc.bone_node_table[parent_name].children.emplace_back(
+				&m_desc.bone_node_table[it.bone_name]
+			);
+		}
+	}
 }

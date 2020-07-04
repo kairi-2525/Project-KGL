@@ -10,6 +10,7 @@
 #pragma comment(lib, "DirectXTex.lib")
 
 #include <Helper/Cast.hpp>
+#include <intrin.h>
 
 using namespace KGL;
 using namespace DirectX;
@@ -170,7 +171,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	{
 #pragma warning( disable : 4293 )
 		std::stringstream ss;
-		UINT32 rgba = (r << 0xff) | (g << 16) | (b << 8) | a;
+		UINT32 rgba = (r << 24) | (g << 16) | (b << 8) | a;
 		ss << std::hex << rgba;
 		m_path = ss.str();
 #pragma warning( default : 4293 )
@@ -276,19 +277,27 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 	if (mgr) mgr->SetResource(m_path, m_buffer);
 
-	std::vector<UINT32> data(4 * height);
+	std::vector<UINT32> data(4u * height);
 	auto itr = data.begin();
 	UINT32 cr = tr, cg = tg, cb = tb, ca = ta;
 	UINT i = 0u;
 	for (; itr != data.end(); itr += 4)
 	{
-		auto col = (cr << 0xff) | (cg << 16) | (cb << 8) | ca;
+		cr = tr + SCAST<INT8>(((SCAST<FLOAT>(br) - tr) / (height - 1)) * i);
+		cg = tg + SCAST<INT8>(((SCAST<FLOAT>(bg) - tg) / (height - 1)) * i);
+		cb = tb + SCAST<INT8>(((SCAST<FLOAT>(bb) - tb) / (height - 1)) * i);
+		ca = ta + SCAST<INT8>(((SCAST<FLOAT>(ba) - ta) / (height - 1)) * i);
+
+		//UINT32 col = (cr << 24) | (cg << 16) | (cb << 8) | ca;
+		//col = _byteswap_ulong(col);
+
+		// UINT32 col = (ca << 24) | RGB(cr, cb, cg);
+
+		UINT32 col = (ca << 24) | (cb << 16) | (cg << 8) | cr;
+
 		std::fill(itr, itr + 4, col);
 
-		cr = tr + ((SCAST<INT16>(br) - tr) / height) * i;
-		cg = tg + ((SCAST<INT16>(bg) - tg) / height) * i;
-		cb = tb + ((SCAST<INT16>(bb) - tb) / height) * i;
-		ca = ta + ((SCAST<INT16>(ba) - ta) / height) * i;
+		i++;
 	}
 #pragma warning( default : 4293 )
 	// データ送信

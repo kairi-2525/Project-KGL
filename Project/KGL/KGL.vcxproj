@@ -22,11 +22,14 @@
     <ClInclude Include="Inc\Base\Camera.hpp" />
     <ClInclude Include="Inc\Base\Model.hpp" />
     <ClInclude Include="Inc\Base\PMD.hpp" />
+    <ClInclude Include="Inc\Base\VMD.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
     <ClInclude Include="Inc\Dx12\PipelineState.hpp" />
+    <ClInclude Include="Inc\Dx12\PMDActor.hpp" />
     <ClInclude Include="Inc\Dx12\PMDModel.hpp" />
+    <ClInclude Include="Inc\Dx12\PMDRenderer.hpp" />
     <ClInclude Include="Inc\Dx12\SetName.hpp" />
     <ClInclude Include="Inc\Dx12\Shader.hpp" />
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
@@ -38,6 +41,7 @@
     <ClInclude Include="Inc\Helper\Timer.hpp" />
     <ClInclude Include="Inc\Loader\Loader.hpp" />
     <ClInclude Include="Inc\Loader\PMDLoader.hpp" />
+    <ClInclude Include="Inc\Loader\VMDLoader.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Base\Model.cpp" />
@@ -46,7 +50,9 @@
     <ClCompile Include="Src\Dx12\BlendState.cpp" />
     <ClCompile Include="Src\Dx12\CommandQueue.cpp" />
     <ClCompile Include="Src\Dx12\PipelineState.cpp" />
+    <ClCompile Include="Src\Dx12\PMDActor.cpp" />
     <ClCompile Include="Src\Dx12\PMDModel.cpp" />
+    <ClCompile Include="Src\Dx12\PMDRenderer.cpp" />
     <ClCompile Include="Src\Dx12\Shader.cpp" />
     <ClCompile Include="Src\Dx12\Texture.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />

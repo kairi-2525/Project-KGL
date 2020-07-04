@@ -175,10 +175,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Src\Main.cpp" />
+    <ClCompile Include="Src\Obj3D.cpp" />
     <ClCompile Include="Src\SceneGame.cpp" />
     <ClCompile Include="Src\SceneManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Hrd\Obj3D.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />
   </ItemGroup>
