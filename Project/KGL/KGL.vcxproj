@@ -57,6 +57,7 @@
     <ClCompile Include="Src\Dx12\Texture.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />
     <ClCompile Include="Src\Loader\PMDLoader.cpp" />
+    <ClCompile Include="Src\Loader\VMDLoader.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

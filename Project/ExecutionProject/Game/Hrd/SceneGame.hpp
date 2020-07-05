@@ -3,6 +3,7 @@
 #include "Scene.hpp"
 #include <Dx12/Texture.hpp>
 #include <Loader/PMDLoader.hpp>
+#include <Loader/VMDLoader.hpp>
 #include <Dx12/PMDModel.hpp>
 #include <Dx12/PMDRenderer.hpp>
 #include <Dx12/PipelineState.hpp>
@@ -29,6 +30,7 @@ private:
 	KGL::TextureManager					tex_mgr;
 	std::shared_ptr<KGL::Texture>		texture;
 	std::shared_ptr<KGL::PMD_Loader>	pmd_data;
+	std::shared_ptr<KGL::VMD_Loader>	vmd_data;
 	std::shared_ptr<KGL::PMD_Model>		pmd_model;
 	std::shared_ptr<KGL::PMD_Model>		pmd_toon_model;
 	std::shared_ptr<KGL::PMD_Renderer>	pmd_renderer;

@@ -63,13 +63,15 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 		
 		// ボーンノードマップを作成
 		std::vector<std::string> bone_names(bone_num);
+		std::shared_ptr<PMD::BoneTable> bone_table = std::make_unique<PMD::BoneTable>();
+		m_desc.bone_node_table = bone_table;
 		for (size_t i = 0u; i < bone_num; i++)
 		{
 			const auto& it = m_desc.bones[i];
 			auto& name = bone_names[i];
 			name = it.bone_name;
 
-			auto& node = m_desc.bone_node_table[name];
+			auto& node = bone_table->operator[](name);
 			node.bone_idx = i;
 			node.start_pos = it.pos;
 		}
@@ -81,8 +83,8 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 				continue;
 
 			auto parent_name = bone_names[it.parent_no];
-			m_desc.bone_node_table[parent_name].children.emplace_back(
-				&m_desc.bone_node_table[it.bone_name]
+			bone_table->at(parent_name).children.emplace_back(
+				&bone_table->at(it.bone_name)
 			);
 		}
 	}

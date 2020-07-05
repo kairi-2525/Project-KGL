@@ -1,6 +1,6 @@
 #include "../Hrd/Obj3D.hpp"
 
-void Obj3D::Update()
+void Obj3D::Update(float elapsed_time)
 {
 	using namespace DirectX;
 
@@ -10,5 +10,7 @@ void Obj3D::Update()
 	T = XMMatrixTranslation(position.x, position.y, position.z);
 
 	m_map_buffers->world = S * R * T;
+
+	PMD_Actor::MotionUpdate(elapsed_time);
 	PMD_Actor::UpdateWVP();
 }

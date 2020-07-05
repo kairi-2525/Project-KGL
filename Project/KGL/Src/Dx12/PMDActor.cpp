@@ -19,9 +19,9 @@ void PMD_Actor::RecursiveMatrixMultiply(
 
 PMD_Actor::PMD_Actor(
 	const ComPtr<ID3D12Device>& device,
-	const std::vector<DirectX::XMMATRIX>& bones
+	const PMD_Model& model
 ) noexcept
-	: m_map_buffers(nullptr)
+	: m_map_buffers(nullptr), m_bone_table(model.GetBoneTable())
 {
 	// 定数バッファの作成
 	auto hr = device->CreateCommittedResource(
@@ -38,6 +38,7 @@ PMD_Actor::PMD_Actor(
 
 	{
 		m_map_buffers->world = DirectX::XMMatrixIdentity();
+		const auto& bones = model.GetBoneMatrices();
 		std::copy(bones.cbegin(), bones.cend(), m_map_buffers->bones);
 	}
 
@@ -58,6 +59,32 @@ PMD_Actor::PMD_Actor(
 	cbv_desc.BufferLocation = m_const_buff->GetGPUVirtualAddress();
 	cbv_desc.SizeInBytes = KGL::SCAST<UINT>(m_const_buff->GetDesc().Width);
 	device->CreateConstantBufferView(&cbv_desc, basic_heap_handle);
+}
+
+void PMD_Actor::SetAnimation(const VMD::Desc& desc) noexcept
+{
+	using namespace DirectX;
+
+	const auto& motion_data = desc.motion_data;
+	for (const auto& bone_motion : motion_data)
+	{
+		const auto& node = m_bone_table->at(bone_motion.first);
+		const auto& pos = node.start_pos;
+		m_map_buffers->bones[node.bone_idx] =
+			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+			* XMMatrixRotationQuaternion(bone_motion.second[0].quaternion)
+			* XMMatrixTranslation(pos.x, pos.y, pos.z);
+	}
+	const auto& node = m_bone_table->at("センター");
+	RecursiveMatrixMultiply(
+		&node,
+		XMMatrixIdentity()
+	);
+}
+
+void PMD_Actor::MotionUpdate(float elapsed_time) noexcept
+{
+	const UINT frame_no = SCAST<UINT>(30 * (elapsed_time / 1000.f));
 }
 
 void PMD_Actor::UpdateWVP()

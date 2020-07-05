@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <map>
 #include <DirectXMath.h>
+#include <memory>
 
 namespace KGL
 {
@@ -63,15 +64,17 @@ namespace KGL
 				std::vector<BoneNode*>	children;	// éqÉmÅ[Éh
 			};
 
+			using BoneTable = std::map<std::string, BoneNode>;
+
 			struct Desc
 			{
-				std::filesystem::path	path;
-				Header					header;
-				std::vector<UCHAR>		vertices;
-				std::vector<USHORT>		indices;
-				std::vector<Material>	materials;
-				std::vector<Bone>		bones;
-				std::map<std::string, BoneNode> bone_node_table;
+				std::filesystem::path				path;
+				Header								header;
+				std::vector<UCHAR>					vertices;
+				std::vector<USHORT>					indices;
+				std::vector<Material>				materials;
+				std::vector<Bone>					bones;
+				std::shared_ptr<const BoneTable>	bone_node_table;
 			};
 
 			static constexpr size_t MT_SIZE = sizeof(Material);

@@ -1,4 +1,6 @@
 #pragma once
+#include "../Base/VMD.hpp"
+#include <filesystem>
 
 namespace KGL
 {
@@ -7,10 +9,10 @@ namespace KGL
 		class VMD_Loader
 		{
 		private:
-
+			VMD::Desc m_desc;
 		public:
-			explicit PMD_Loader(std::filesystem::path path) noexcept;
-			const PMD::Desc& GetDesc() const noexcept { return m_desc; }
+			explicit VMD_Loader(std::filesystem::path path) noexcept;
+			const VMD::Desc& GetDesc() const noexcept { return m_desc; }
 		};
 	}
 }

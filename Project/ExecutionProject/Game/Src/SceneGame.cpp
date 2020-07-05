@@ -13,35 +13,15 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 	const auto& device = desc.app->GetDevice();
 	texture = std::make_shared<KGL::Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
+	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/pose.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
 
-	models.resize(1, { device, pmd_model->GetBoneMatrices() });
+	models.resize(1, { device, *pmd_model });
 	for (auto& model : models)
 	{
-		{
-			const auto& node = pmd_data->GetDesc().bone_node_table.at("左腕");
-			const auto& pos = node.start_pos;
-			model.GetMappedBuffers()->bones[node.bone_idx] =
-				XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
-				* XMMatrixRotationZ(XM_PIDIV2)
-				* XMMatrixTranslation(pos.x, pos.y, pos.z);
-		}
-		{
-			const auto& node = pmd_data->GetDesc().bone_node_table.at("左ひじ");
-			const auto& pos = node.start_pos;
-
-			model.GetMappedBuffers()->bones[node.bone_idx] =
-				XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
-				* XMMatrixRotationZ(-XM_PIDIV2)
-				* XMMatrixTranslation(pos.x, pos.y, pos.z);
-		}
-		const auto& node = pmd_data->GetDesc().bone_node_table.at("センター");
-		model.RecursiveMatrixMultiply(
-			&node,
-			XMMatrixIdentity()
-		);
+		model.SetAnimation(vmd_data->GetDesc());
 	}
 
 	return hr;
@@ -84,7 +64,7 @@ HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
-		model.Update();
+		model.Update(elapsed_time);
 	}
 
 	return S_OK;

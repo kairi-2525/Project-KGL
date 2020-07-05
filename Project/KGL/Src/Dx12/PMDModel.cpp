@@ -357,10 +357,11 @@ HRESULT PMD_Model::CreateMaterialHeap(ComPtr<ID3D12Device> device) noexcept
 	return hr;
 }
 
-HRESULT PMD_Model::CreateBoneMatrix(const std::map<std::string, PMD::BoneNode>& bone_node_table) noexcept
+HRESULT PMD_Model::CreateBoneMatrix(const std::shared_ptr<const PMD::BoneTable>& bone_table) noexcept
 {
 	// ‰Šú‰»
-	m_bone_matrices.resize(bone_node_table.size());
+	m_bone_table = bone_table;
+	m_bone_matrices.resize(bone_table->size());
 	std::fill(
 		m_bone_matrices.begin(),
 		m_bone_matrices.end(),
