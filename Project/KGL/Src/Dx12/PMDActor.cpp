@@ -1,9 +1,50 @@
 #include <Dx12/PMDActor.hpp>
 #include <Helper/Cast.hpp>
 #include <Helper/ThrowAssert.hpp>
+#include <Helper/Matrix.hpp>
 #include <DirectXTex/d3dx12.h>
 
 using namespace KGL;
+
+// ベジェ曲線を計算する
+float PMD_Actor::GetYFromXOnBezier(
+	float x,
+	const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b,
+	UINT8 n
+) noexcept
+{
+	if (a.x == a.y && b.x == b.y)
+		return x;	// 計算不要
+
+	float t = x;
+	const float k0 = 1 + 3 * a.x - 3 * b.x;		// t^3の係数
+	const float k1 = 3 * b.x - 6 * a.x;			// t^2の係数
+	const float k2 = 3 * a.x;					// tの係数
+
+	// 誤差の範囲内かどうかに使用する定数
+	constexpr float EPSILON = 0.0005f;
+	
+	// tを近似で求める
+	for (int i = 0; i < n; ++i)
+	{
+		// f(t)を求める
+		auto ft =
+			k0 * t * t * t
+			+ k1 * t * t
+			+ k2 * t - x;
+		// もし結果が誤差の範囲なら打ち切る
+		if (ft <= EPSILON && ft >= -EPSILON)
+			break;
+		t -= ft / 2; // 刻む
+	}
+
+	// yを計算する
+	auto r = 1 - t;
+	return 
+		t * t * t
+		+ 3 * t * t * r * b.y
+		+ 3 * t * r * r * a.y;
+}
 
 void PMD_Actor::RecursiveMatrixMultiply(
 	const PMD::BoneNode* node,
@@ -21,7 +62,7 @@ PMD_Actor::PMD_Actor(
 	const ComPtr<ID3D12Device>& device,
 	const PMD_Model& model
 ) noexcept
-	: m_map_buffers(nullptr), m_bone_table(model.GetBoneTable())
+	: m_map_buffers(nullptr), m_model_desc(model.GetDesc()), m_anim_counter(0.f)
 {
 	// 定数バッファの作成
 	auto hr = device->CreateCommittedResource(
@@ -61,30 +102,108 @@ PMD_Actor::PMD_Actor(
 	device->CreateConstantBufferView(&cbv_desc, basic_heap_handle);
 }
 
-void PMD_Actor::SetAnimation(const VMD::Desc& desc) noexcept
+void PMD_Actor::SetAnimation(const std::shared_ptr<const VMD::Desc>& desc) noexcept
 {
 	using namespace DirectX;
+	m_anim_desc = desc;
 
-	const auto& motion_data = desc.motion_data;
+	m_anim_counter = 0.f;
+	const auto& motion_data = desc->motion_data;
+	const auto& bone_table = m_model_desc->bone_node_table;
 	for (const auto& bone_motion : motion_data)
 	{
-		const auto& node = m_bone_table->at(bone_motion.first);
-		const auto& pos = node.start_pos;
-		m_map_buffers->bones[node.bone_idx] =
+		auto node = bone_table.find(bone_motion.first);
+		if (node == bone_table.cend()) continue;
+		const auto& pos = node->second.start_pos;
+		m_map_buffers->bones[node->second.bone_idx] =
 			XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
 			* XMMatrixRotationQuaternion(bone_motion.second[0].quaternion)
 			* XMMatrixTranslation(pos.x, pos.y, pos.z);
 	}
-	const auto& node = m_bone_table->at("センター");
+	const auto& node = bone_table.at("センター");
 	RecursiveMatrixMultiply(
 		&node,
 		XMMatrixIdentity()
 	);
 }
 
-void PMD_Actor::MotionUpdate(float elapsed_time) noexcept
+void PMD_Actor::ClearAnimation() noexcept
 {
-	const UINT frame_no = SCAST<UINT>(30 * (elapsed_time / 1000.f));
+	std::fill(
+		std::begin(m_map_buffers->bones),
+		std::end(m_map_buffers->bones),
+		DirectX::XMMatrixIdentity()
+	);
+}
+
+void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcept
+{
+	using namespace DirectX;
+	if (m_anim_desc)
+	{
+		m_anim_counter += elapsed_time;
+		UINT frame_no = SCAST<UINT>(30 * m_anim_counter);
+		if (frame_no > m_anim_desc->max_frame)
+		{
+			if (loop)
+			{
+				while (frame_no > m_anim_desc->max_frame)
+				{
+					m_anim_counter -= SCAST<float>(m_anim_desc->max_frame) / 30;
+					frame_no = SCAST<UINT>(30 * m_anim_counter);
+				}
+			}
+			else m_anim_counter = SCAST<float>(frame_no) / 30;
+		}
+		ClearAnimation();
+
+		// モーションデータ更新
+		const auto& motion_data = m_anim_desc->motion_data;
+		const auto& bone_table = m_model_desc->bone_node_table;
+		for (const auto& bone_motion : motion_data)
+		{
+			const auto& node = bone_table.at(bone_motion.first);
+			const auto& motions = bone_motion.second;
+			// フレームナンバーが小さい順に並んでいることが前提
+			auto ritr = std::find_if(
+				motions.crbegin(), motions.crend(),
+				[frame_no](const KGL::VMD::Key_Frame& motion)
+				{
+					return motion.frame_no <= frame_no;
+				}
+			);
+			if (ritr == motions.crend())
+			{
+				continue;
+			}
+			// reverseイテレータを普通のイテレーターに変換する際に一つずれるのでそれが次のイテレーターになる。
+			auto itr = ritr.base();
+			XMMATRIX rotation;
+			if (itr != motions.cend())
+			{
+				auto t = SCAST<float>(frame_no - ritr->frame_no) / SCAST<float>(itr->frame_no - ritr->frame_no);
+				if (bezier) t = GetYFromXOnBezier(t, itr->p1, itr->p2, 12);
+				rotation =
+					XMMatrixRotationQuaternion(
+						XMQuaternionSlerp(ritr->quaternion, itr->quaternion, t)
+					);
+			}
+			else
+				rotation = XMMatrixRotationQuaternion(ritr->quaternion);
+
+			const auto& pos = node.start_pos;
+
+			m_map_buffers->bones[node.bone_idx] =
+				XMMatrixTranslation(-pos.x, -pos.y, -pos.z)
+				* rotation
+				* XMMatrixTranslation(pos.x, pos.y, pos.z);
+		}
+		const auto& node = bone_table.at("センター");
+		RecursiveMatrixMultiply(
+			&node,
+			XMMatrixIdentity()
+		);
+	}
 }
 
 void PMD_Actor::UpdateWVP()
@@ -102,4 +221,60 @@ void PMD_Actor::Render(
 		0,	// ルートパラメーターインデックス
 		heap_handle
 	);
+}
+
+// 場合分け
+void PMD_Actor::IKSolve() noexcept
+{
+	for (auto& ik : m_model_desc->ik_data)
+	{
+		auto children_nodes_count = ik.node_idxes.size();
+		switch (children_nodes_count)
+		{
+			case 0: assert(0); continue;
+			case 1: SolveLookAt(ik); break;
+			case 2: SolveCosineIK(ik); break;
+			default: SolveCCDIK(ik); break;
+		}
+	}
+}
+
+// CCD-IKによりボーン方向を解決
+void PMD_Actor::SolveCCDIK(const PMD::IK& ik) noexcept
+{
+
+}
+
+// 余弦定理IKによりボーン方向を解決
+void PMD_Actor::SolveCosineIK(const PMD::IK& ik) noexcept
+{
+
+}
+
+// LookAt行列によりボーン方向を解決
+void PMD_Actor::SolveLookAt(const PMD::IK& ik) noexcept
+{
+	using namespace DirectX;
+	// この関数に来た時点でノードは１つしかない
+	// チェーンに入っているノード番号はIKのルートノードの物なので、
+	// このルートノードから末端に向かうベクトルを考える
+
+	auto root_node = m_model_desc->bone_node_address_array[ik.node_idxes[0]];
+	auto target_node = m_model_desc->bone_node_address_array[ik.bone_idx];
+
+	auto rpos1 = XMLoadFloat3(&root_node->start_pos);
+	auto tpos1 = XMLoadFloat3(&target_node->start_pos);
+
+	auto rpos2 = XMVector3TransformCoord(rpos1, m_map_buffers->bones[ik.node_idxes[0]]);
+	auto tpos2 = XMVector3TransformCoord(tpos1, m_map_buffers->bones[ik.bone_idx]);
+
+	auto origin_vec = XMVector3Normalize(XMVectorSubtract(tpos1, rpos1));
+	auto target_vec = XMVector3Normalize(XMVectorSubtract(tpos2, rpos2));
+
+	m_map_buffers->bones[ik.node_idxes[0]] = 
+		XMLookAtMatrix(
+			origin_vec, target_vec,
+			XMVectorSet(0.f, 1.f, 0.f, 0.f),
+			XMVectorSet(1.f, 0.f, 0.f, 0.f)
+		);
 }

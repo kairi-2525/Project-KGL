@@ -11,6 +11,5 @@ void Obj3D::Update(float elapsed_time)
 
 	m_map_buffers->world = S * R * T;
 
-	PMD_Actor::MotionUpdate(elapsed_time);
 	PMD_Actor::UpdateWVP();
-}
+}                                                            

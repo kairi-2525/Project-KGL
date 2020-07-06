@@ -34,15 +34,20 @@ namespace KGL
 			{
 				UINT				frame_no;	// アニメーション開始からのフレーム数
 				DirectX::XMVECTOR	quaternion;
+				DirectX::XMFLOAT3	offset;		// IKの初期座標
+				DirectX::XMFLOAT2	p1, p2;		// ベジェ曲線の中間コントロールポイント
 
-				explicit Key_Frame(UINT fno, DirectX::CXMVECTOR q) noexcept
-					: frame_no(fno), quaternion(q) {}
+				explicit Key_Frame(UINT fno, DirectX::CXMVECTOR q,
+					const DirectX::XMFLOAT3& offset,
+					const DirectX::XMFLOAT2& p1, const DirectX::XMFLOAT2& p2) noexcept
+					: frame_no(fno), quaternion(q), offset(offset), p1(p1), p2(p2) {}
 			};
 
 			struct Desc
 			{
-				std::vector<Motion> motions;
-				std::map<std::string, std::vector<Key_Frame>> motion_data;
+				std::vector<Motion>								motions;
+				std::map<std::string, std::vector<Key_Frame>>	motion_data;
+				UINT											max_frame;
 			};
 		}
 	}

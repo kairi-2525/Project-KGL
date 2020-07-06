@@ -58,13 +58,24 @@ namespace KGL
 #pragma pack()
 			struct BoneNode
 			{
-				INT						bone_idx;	// ボーンインデックス
-				DirectX::XMFLOAT3		start_pos;	// ボーン基準点（回転の中心）
-				DirectX::XMFLOAT3		end_pos;	// ボーン先端点（実際のスキニングには利用しない）
-				std::vector<BoneNode*>	children;	// 子ノード
+				UINT32					bone_idx;		// ボーンインデックス
+				UINT32					bone_type;		// ボーン種別
+				UINT32					ik_parent_bone;	// IK親ボーン
+				DirectX::XMFLOAT3		start_pos;		// ボーン基準点（回転の中心）
+				DirectX::XMFLOAT3		end_pos;		// ボーン先端点（実際のスキニングには利用しない）
+				std::vector<BoneNode*>	children;		// 子ノード
 			};
 
 			using BoneTable = std::map<std::string, BoneNode>;
+
+			struct IK
+			{
+				UINT16				bone_idx;		// IK対象のボーンを示す
+				UINT16				target_idx;		// ターゲットに近づけるためのボーンインデックス
+				UINT16				iterations;		// 試行回数
+				FLOAT				limit;			// 1回あたりの回転制限
+				std::vector<UINT16> node_idxes;		// 間のノード番号
+			};
 
 			struct Desc
 			{
@@ -74,7 +85,10 @@ namespace KGL
 				std::vector<USHORT>					indices;
 				std::vector<Material>				materials;
 				std::vector<Bone>					bones;
-				std::shared_ptr<const BoneTable>	bone_node_table;
+				std::vector<IK>						ik_data;
+				BoneTable							bone_node_table;
+				std::vector<std::string>			bone_name_array;
+				std::vector<BoneNode*>				bone_node_address_array;
 			};
 
 			static constexpr size_t MT_SIZE = sizeof(Material);

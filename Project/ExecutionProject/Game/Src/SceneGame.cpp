@@ -13,7 +13,7 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 	const auto& device = desc.app->GetDevice();
 	texture = std::make_shared<KGL::Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/èââπÉ~ÉN.pmd");
-	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/pose.vmd");
+	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
@@ -64,6 +64,7 @@ HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
+		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
 	}
 

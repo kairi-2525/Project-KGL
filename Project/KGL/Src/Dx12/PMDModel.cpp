@@ -9,10 +9,10 @@ using namespace KGL;
 
 PMD_Model::PMD_Model(
 	const ComPtr<ID3D12Device>& device,
-	const PMD::Desc& desc,
+	const std::shared_ptr<const PMD::Desc>& desc,
 	const std::filesystem::path& toon_folder, TextureManager* mgr
 ) noexcept
-	: m_vb_view{}, m_ib_view{}, m_material_num(desc.materials.size())
+	: m_vb_view{}, m_ib_view{}, m_material_num(desc->materials.size()), m_desc(desc)
 {
 	if (!device)
 	{
@@ -24,25 +24,25 @@ PMD_Model::PMD_Model(
 
 	HRESULT hr = S_OK;
 
-	hr = CreateVertexBuffers(device, desc.vertices);
+	hr = CreateVertexBuffers(device, m_desc->vertices);
 	RCHECK(FAILED(hr), "バーテックスバッファの作成に失敗");
-	SetName(m_vert_buff, RCAST<INT_PTR>(this), desc.path.wstring(), L"Vertex");
+	SetName(m_vert_buff, RCAST<INT_PTR>(this), m_desc->path.wstring(), L"Vertex");
 
-	hr = CreateIndexBuffers(device, desc.indices);
+	hr = CreateIndexBuffers(device, m_desc->indices);
 	RCHECK(FAILED(hr), "インデックスバッファの作成に失敗");
-	SetName(m_idx_buff, RCAST<INT_PTR>(this), desc.path.wstring(), L"Index");
+	SetName(m_idx_buff, RCAST<INT_PTR>(this), m_desc->path.wstring(), L"Index");
 
-	hr = CreateMaterialBuffers(device, desc.materials);
+	hr = CreateMaterialBuffers(device, m_desc->materials);
 	RCHECK(FAILED(hr), "マテリアルバッファの作成に失敗");
-	SetName(m_idx_buff, RCAST<INT_PTR>(this), desc.path.wstring(), L"Material");
+	SetName(m_idx_buff, RCAST<INT_PTR>(this), m_desc->path.wstring(), L"Material");
 
-	hr = CreateTextureBuffers(device, desc.materials, desc.path, toon_folder, mgr);
+	hr = CreateTextureBuffers(device, m_desc->materials, m_desc->path, toon_folder, mgr);
 	RCHECK(FAILED(hr), "テクスチャバッファーの作成に失敗");
 
 	hr = CreateMaterialHeap(device);
 	RCHECK(FAILED(hr), "テクスチャバッファーの作成に失敗");
 
-	hr = CreateBoneMatrix(desc.bone_node_table);
+	hr = CreateBoneMatrix(desc->bone_node_table);
 	RCHECK(FAILED(hr), "ボーン用のMatrixの作成に失敗");
 }
 
@@ -357,11 +357,10 @@ HRESULT PMD_Model::CreateMaterialHeap(ComPtr<ID3D12Device> device) noexcept
 	return hr;
 }
 
-HRESULT PMD_Model::CreateBoneMatrix(const std::shared_ptr<const PMD::BoneTable>& bone_table) noexcept
+HRESULT PMD_Model::CreateBoneMatrix(const PMD::BoneTable& bone_table) noexcept
 {
 	// 初期化
-	m_bone_table = bone_table;
-	m_bone_matrices.resize(bone_table->size());
+	m_bone_matrices.resize(bone_table.size());
 	std::fill(
 		m_bone_matrices.begin(),
 		m_bone_matrices.end(),

@@ -9,10 +9,10 @@ namespace KGL
 		class VMD_Loader
 		{
 		private:
-			VMD::Desc m_desc;
+			std::shared_ptr<const VMD::Desc> m_desc;
 		public:
 			explicit VMD_Loader(std::filesystem::path path) noexcept;
-			const VMD::Desc& GetDesc() const noexcept { return m_desc; }
+			const std::shared_ptr<const VMD::Desc>& GetDesc() const noexcept { return m_desc; }
 		};
 	}
 }
