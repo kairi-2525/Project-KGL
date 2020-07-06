@@ -82,6 +82,11 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 
 			desc->bone_name_array[i] = name;
 			desc->bone_node_address_array[i] = &node;
+
+			if (std::string(it.bone_name).find("‚Ğ‚´") != std::string::npos)
+			{
+				desc->knee_idxes.emplace_back(i);
+			}
 		}
 
 		// eqŠÖŒW‚ğ\’z

@@ -89,6 +89,7 @@ namespace KGL
 				BoneTable							bone_node_table;
 				std::vector<std::string>			bone_name_array;
 				std::vector<BoneNode*>				bone_node_address_array;
+				std::vector<UINT32>					knee_idxes;
 			};
 
 			static constexpr size_t MT_SIZE = sizeof(Material);

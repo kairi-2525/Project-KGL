@@ -3,6 +3,7 @@
 #include <Helper/ThrowAssert.hpp>
 #include <Helper/Matrix.hpp>
 #include <DirectXTex/d3dx12.h>
+#include <array>
 
 using namespace KGL;
 
@@ -248,7 +249,99 @@ void PMD_Actor::SolveCCDIK(const PMD::IK& ik) noexcept
 // 余弦定理IKによりボーン方向を解決
 void PMD_Actor::SolveCosineIK(const PMD::IK& ik) noexcept
 {
+	using namespace DirectX;
 
+	// IK構成点を保存
+	std::vector<XMVECTOR> positions;
+	// IKのそれぞれのボーンの座標を取得しておきます。
+	std::array<float, 2> edge_lens;
+
+	auto target_node = m_model_desc->bone_node_address_array[ik.bone_idx];
+	auto target_pos = XMVector3Transform(
+		XMLoadFloat3(&target_node->start_pos),
+		m_map_buffers->bones[ik.bone_idx]
+	);
+
+	// IKチェーンが逆順なので、逆に並ぶようにしているa
+	// 末端ボーン
+	auto end_node = m_model_desc->bone_node_address_array[ik.target_idx];
+	positions.emplace_back(XMLoadFloat3(&end_node->start_pos));
+
+	// 中間及びルートボーン
+	for (auto& chain_bone_idx : ik.node_idxes)
+	{
+		auto bone_node = m_model_desc->bone_node_address_array[chain_bone_idx];
+		positions.emplace_back(XMLoadFloat3(&bone_node->start_pos));
+	}
+
+	//分かりづらいので逆にする
+	std::reverse(positions.begin(), positions.end());
+
+	// 元の長さを図っておく
+	edge_lens[0] = XMVector3Length(XMVectorSubtract(positions[1], positions[0])).m128_f32[0];
+	edge_lens[1] = XMVector3Length(XMVectorSubtract(positions[2], positions[1])).m128_f32[0];
+
+	// ルートボーン座標変換(逆順になっているため使用するインデックスに注意)
+	positions[0] = XMVector3Transform(
+		positions[0],
+		m_map_buffers->bones[ik.node_idxes[1]]
+	);
+
+	// 真ん中は自動計算されるので計算しない
+	// 先端ボーン
+	positions[2] = XMVector3Transform(
+		positions[2], 
+		m_map_buffers->bones[ik.bone_idx]
+	);
+
+	// ルートから先端へのベクトルを作っておく
+	auto linear_vec = XMVectorSubtract(positions[2], positions[0]);
+	float a = XMVector3Length(linear_vec).m128_f32[0];
+	float b = edge_lens[0];
+	float c = edge_lens[1];
+
+	linear_vec = XMVector3Normalize(linear_vec);
+
+	// ルートから真ん中への角度計算
+	float theta1 = acosf((a * a + b * b - c * c) / (2 * a * b));
+	// 真ん中からターゲットへの角度計算
+	float theta2 = acosf((b * b + c * c - a * a) / (2 * b * c));
+
+	// 「軸」を求める
+	// もし真ん中が「ひざ」であった場合には強制的にX軸とする
+	XMVECTOR axis;
+	if (std::find(
+			m_model_desc->knee_idxes.cbegin(),
+			m_model_desc->knee_idxes.cend(),
+			ik.node_idxes[0])
+		== m_model_desc->knee_idxes.cend()) 
+	{
+		auto vm = XMVector3Normalize(
+			XMVectorSubtract(positions[2], positions[0])
+		);
+		auto vt = XMVector3Normalize(
+			XMVectorSubtract(target_pos, positions[0])
+		);
+		axis = XMVector3Cross(vt, vm);
+	}
+	else // ひざの場合
+	{
+		// 右
+		axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
+	}
+
+	// IKチェーンはルートに向かってから数えられるため１がルートに近い
+	auto mat1 = XMMatrixTranslationFromVector(-positions[0]);
+	mat1 *= XMMatrixRotationAxis(axis, theta1);
+	mat1 *= XMMatrixTranslationFromVector(positions[0]);
+
+	auto mat2 = XMMatrixTranslationFromVector(-positions[1]);
+	mat2 *= XMMatrixRotationAxis(axis, theta2 - XM_PI);
+	mat2 *= XMMatrixTranslationFromVector(positions[1]);
+
+	m_map_buffers->bones[ik.node_idxes[1]] *= mat1;
+	m_map_buffers->bones[ik.node_idxes[0]] = mat2 * m_map_buffers->bones[ik.node_idxes[1]];
+	m_map_buffers->bones[ik.target_idx] = m_map_buffers->bones[ik.node_idxes[0]];
 }
 
 // LookAt行列によりボーン方向を解決
