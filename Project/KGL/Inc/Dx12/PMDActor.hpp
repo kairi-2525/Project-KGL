@@ -38,7 +38,7 @@ namespace KGL
 			) noexcept;
 		private:
 			// 場合分け
-			void IKSolve() noexcept;
+			void IKSolve(UINT frame_no) noexcept;
 			// CCD-IKによりボーン方向を解決
 			void SolveCCDIK(const PMD::IK& ik) noexcept;
 			// 余弦定理IKによりボーン方向を解決

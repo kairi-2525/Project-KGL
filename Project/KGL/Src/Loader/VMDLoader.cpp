@@ -35,13 +35,61 @@ VMD_Loader::VMD_Loader(std::filesystem::path path) noexcept
 		// ヘッダーをスキップ
 		ifs.seekg(50);
 
-		UINT motion_data_num = 0;
+		UINT motion_data_num = 0u;
 		ifs.read((char*)&motion_data_num, sizeof(motion_data_num));
 
 		desc->motions.resize(motion_data_num);
 		ifs.read((char*)desc->motions.data(),
 			sizeof(VMD::Motion) * motion_data_num
 		);
+
+		UINT32 morph_count = 0u;
+		ifs.read((char*)&morph_count, sizeof(morph_count));
+		desc->morphs.resize(morph_count);
+		ifs.read((char*)desc->morphs.data(), morph_count * sizeof(VMD::Morph));
+
+		UINT32 camera_count = 0u;
+		ifs.read((char*)&camera_count, sizeof(camera_count));
+		desc->cameras.resize(camera_count);
+		ifs.read((char*)desc->cameras.data(), camera_count * sizeof(VMD::Camera));
+
+		UINT32 light_count = 0u;
+		ifs.read((char*)&light_count, sizeof(light_count));
+		desc->lights.resize(light_count);
+		ifs.read((char*)desc->lights.data(), light_count * sizeof(VMD::Light));
+
+		UINT32 self_shadow_count = 0u;
+		ifs.read((char*)&self_shadow_count, sizeof(self_shadow_count));
+		desc->self_shadows.resize(self_shadow_count);
+		ifs.read((char*)desc->self_shadows.data(), self_shadow_count * sizeof(VMD::SelfShadow));
+
+		UINT32 is_switch_count = 0u;
+		ifs.read((char*)&is_switch_count, sizeof(is_switch_count));
+		desc->ik_enable_data.resize(is_switch_count);
+		for (auto& ik_enable : desc->ik_enable_data)
+		{
+			// フレーム番号読み込み
+			ifs.read((char*)&ik_enable.frame_no, sizeof(ik_enable.frame_no));
+			// 次に仮想フラグがあるが、これは使用しないため１バイトシークでも構わない
+			UINT8 visivle_flg = 0u;
+			ifs.read((char*)&visivle_flg, sizeof(visivle_flg));
+
+			// 対象ボーン数読み込み
+			UINT32 ik_bone_count = 0u;
+			ifs.read((char*)&ik_bone_count, sizeof(ik_bone_count));
+			// ループしつつ名前とON / OFF情報を取得
+			for (UINT32 i = 0u; i < ik_bone_count; i++)
+			{
+				char ik_bone_name[20];
+				ifs.read(ik_bone_name, std::size(ik_bone_name));
+
+				UINT8 flg = 0u;
+				ifs.read((char*)&flg, sizeof(flg));
+				ik_enable.ik_enable_table[ik_bone_name] = flg != 0u;
+			}
+		}
+
+
 
 		// VMDのモーションデータから、実際に使用するモーションテーブルへ変換
 		desc->max_frame = 0u;

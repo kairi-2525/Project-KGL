@@ -156,6 +156,7 @@ void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcep
 			}
 			else m_anim_counter = SCAST<float>(frame_no) / 30;
 		}
+
 		ClearAnimation();
 
 		// モーションデータ更新
@@ -204,6 +205,8 @@ void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcep
 			&node,
 			XMMatrixIdentity()
 		);
+
+		IKSolve(frame_no);
 	}
 }
 
@@ -225,10 +228,37 @@ void PMD_Actor::Render(
 }
 
 // 場合分け
-void PMD_Actor::IKSolve() noexcept
+void PMD_Actor::IKSolve(UINT frame_no) noexcept
 {
+	// IKをスキップするか確認
+	auto ik_itr =
+		std::find_if(
+			m_anim_desc->ik_enable_data.crbegin(),
+			m_anim_desc->ik_enable_data.crend(),
+			[frame_no](const VMD::IKEnable& ik_enable)
+			{
+				return ik_enable.frame_no <= frame_no;
+			}
+	);
+
 	for (auto& ik : m_model_desc->ik_data)
 	{
+		// IKのON / OFF 確認
+		if (ik_itr != m_anim_desc->ik_enable_data.crend())
+		{
+			auto ik_enable_it = 
+				ik_itr->ik_enable_table.find(
+					m_model_desc->bone_name_array[ik.bone_idx]
+				);
+			if (ik_enable_it != ik_itr->ik_enable_table.end())
+			{
+				if (ik_enable_it->second)
+				{	// もしオフなら打ち切る
+					continue;
+				}
+			}
+		}
+		// 実行
 		auto children_nodes_count = ik.node_idxes.size();
 		switch (children_nodes_count)
 		{
@@ -243,7 +273,106 @@ void PMD_Actor::IKSolve() noexcept
 // CCD-IKによりボーン方向を解決
 void PMD_Actor::SolveCCDIK(const PMD::IK& ik) noexcept
 {
+	using namespace DirectX;
 
+	// IK構成点を保存
+	std::vector<XMVECTOR> bone_positions;
+	const auto ik_limit = ik.limit * XM_PI;
+
+	const auto& address_array = m_model_desc->bone_node_address_array;
+	auto target_bone_node = address_array[ik.bone_idx];
+	auto target_origin_pos = XMLoadFloat3(&target_bone_node->start_pos);
+
+	auto parent_mat = m_map_buffers->bones[target_bone_node->ik_parent_bone];
+	XMVECTOR det;
+	auto inv_parent_mat = XMMatrixInverse(&det, parent_mat);
+	auto target_next_pos = 
+		XMVector3Transform(
+			target_origin_pos,
+			m_map_buffers->bones[ik.bone_idx] * inv_parent_mat
+		);
+
+	// 末端ノード
+	auto end_pos = XMLoadFloat3(&address_array[ik.target_idx]->start_pos);
+
+	// 中間ノード(ルートを含む)
+	for (auto& cidx : ik.node_idxes)
+	{
+		bone_positions.push_back(XMLoadFloat3(&address_array[cidx]->start_pos));
+	}
+	const auto positions_size = bone_positions.size();
+	std::vector<XMMATRIX> mats(positions_size);
+	std::fill(mats.begin(), mats.end(), XMMatrixIdentity());
+
+	// ikに設定されている試行回数だけ繰り返す
+	for (int c = 0; c < ik.iterations; c++)
+	{
+		// ターゲットと末端がほぼ一致していたら抜ける
+		if (XMVector3Length(XMVectorSubtract(end_pos, target_next_pos)).m128_f32[0] <= FLT_EPSILON)
+		{
+			break;
+		}
+		// それぞれのボーンをさかのぼりながら
+		// 角度制限に引っかからないように曲げていく
+		// bone_positionsは CCD-IKにおける各ノードの座標をVECTOR配列にしたもの
+		for (int bidx = 0; bidx < positions_size; bidx++)
+		{
+			const auto& pos = bone_positions[bidx];
+			// 対象ノードから末端ノードまでと
+			// 対象ノードからターゲットまでのベクトルを作成
+			auto vec_to_end = XMVectorSubtract(end_pos, pos);				// 末端へ
+			auto vec_to_target = XMVectorSubtract(target_next_pos, pos);	// ターゲットへ
+			// 両方正規化
+			vec_to_end = XMVector3Normalize(vec_to_end);
+			vec_to_target = XMVector3Normalize(vec_to_target);
+
+			// ほぼ同じベクトルになってしまった場合は
+			// 外積できないため次のボーンに引き渡す
+			if (XMVector3Length(XMVectorSubtract(vec_to_end, vec_to_target)).m128_f32[0] < FLT_EPSILON)
+			{
+				continue;
+			}
+
+			// 外積計算及び角度計算
+			auto cross = XMVector3Normalize(XMVector3Cross(vec_to_end, vec_to_target)); // 軸になる
+			// 便利な関数だが中身はcos(内積値)なので 0~90°と0~-90°の区別がつかない
+			float angle = XMVector3AngleBetweenVectors(vec_to_end, vec_to_target).m128_f32[0];
+			// 回転限界を超えてしまったときは限界値に補正
+			angle = (std::min)(angle, ik_limit);
+			XMMATRIX rot = XMMatrixRotationAxis(cross, angle);
+			// 原点中心ではなくpos中心に回転
+			auto mat =
+				XMMatrixTranslationFromVector(-pos)
+				* rot
+				* XMMatrixTranslationFromVector(pos);
+
+			// 回転行列を保持しておく(乗算で回転重ね掛けを作っておく)
+			mats[bidx] *= mat;
+
+			// 対象となる点をすべて回転させる(現在の点からみて末端側を回転)
+			// なお、自分を回転させる必要はない
+			for (auto idx = bidx - 1; idx >= 0; idx--)
+			{
+				bone_positions[idx] = XMVector3Transform(bone_positions[idx], mat);
+			}
+			
+			end_pos = XMVector3Transform(end_pos, mat);
+			// もし正解に近くなっていたらループを抜ける
+			if (XMVector3Length(XMVectorSubtract(end_pos, target_next_pos)).m128_f32[0] <= FLT_EPSILON)
+			{
+				break;
+			}
+		}
+	}
+
+	int idx = 0;
+	for (auto& cidx : ik.node_idxes)
+	{
+		m_map_buffers->bones[cidx] = mats[idx];
+		idx++;
+	}
+	auto root_node = address_array[ik.node_idxes.back()];
+	RecursiveMatrixMultiply(root_node, parent_mat);
 }
 
 // 余弦定理IKによりボーン方向を解決
