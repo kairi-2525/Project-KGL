@@ -9,7 +9,7 @@
 #include <DirectXTex/d3dx12.h>
 
 #include "../Hrd/Scene.hpp"
-#include "../Hrd/SceneGame.hpp"
+#include "../Hrd/Scenes/TestScene00.hpp"
 
 #ifdef _DEBUG
 #define DEBUG_LAYER (true)
@@ -65,7 +65,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				RCHECK(FAILED(hr), "コマンドリストの作成に失敗", - 1);
 
 				SceneDesc scene_desc = { app, window };
-				hr = scene_mgr.Init<SceneGame>(scene_desc);
+				hr = scene_mgr.Init<TestScene00>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;

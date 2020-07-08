@@ -30,6 +30,7 @@
     <ClInclude Include="Inc\Dx12\PMDActor.hpp" />
     <ClInclude Include="Inc\Dx12\PMDModel.hpp" />
     <ClInclude Include="Inc\Dx12\PMDRenderer.hpp" />
+    <ClInclude Include="Inc\Dx12\RenderTargetView.hpp" />
     <ClInclude Include="Inc\Dx12\SetName.hpp" />
     <ClInclude Include="Inc\Dx12\Shader.hpp" />
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
@@ -54,6 +55,7 @@
     <ClCompile Include="Src\Dx12\PMDActor.cpp" />
     <ClCompile Include="Src\Dx12\PMDModel.cpp" />
     <ClCompile Include="Src\Dx12\PMDRenderer.cpp" />
+    <ClCompile Include="Src\Dx12\RenderTargetView.cpp" />
     <ClCompile Include="Src\Dx12\Shader.cpp" />
     <ClCompile Include="Src\Dx12\Texture.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />

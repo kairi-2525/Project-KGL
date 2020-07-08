@@ -71,7 +71,7 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 	return false;
 }
 
-HRESULT Texture::Create(ComPtr<ID3D12Device> device,
+HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	const std::filesystem::path& path, TextureManager* mgr) noexcept
 {
 	m_path = path;
@@ -145,7 +145,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 		nullptr,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
+	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
 
 	if (mgr)
 	{
@@ -165,7 +165,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	return hr;
 }
 
-HRESULT Texture::Create(ComPtr<ID3D12Device> device,
+HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR r, UCHAR g, UCHAR b, UCHAR a, TextureManager* mgr) noexcept
 {
 	{
@@ -204,7 +204,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 		nullptr,
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
+	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
 	if (mgr) mgr->SetResource(m_path, m_buffer);
 
 	std::vector<UCHAR> data(4 * 4 * 4);	 // 色 * 幅 * 高さ
@@ -234,7 +234,7 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	return hr;
 }
 
-HRESULT Texture::Create(ComPtr<ID3D12Device> device,
+HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
 	UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height, TextureManager* mgr) noexcept
 {
@@ -310,4 +310,87 @@ HRESULT Texture::Create(ComPtr<ID3D12Device> device,
 	);
 	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
 	return hr;
+}
+
+// フォーマット指定空テクスチャ
+//HRESULT Texture::Create(ComPtr<ID3D12Device> device, DXGI_FORMAT format,
+//	UINT16 w, UINT16 h, UCHAR clear_value) noexcept
+//{
+//	// WriteToSubresourceで転送する用のヒープ設定
+//	D3D12_HEAP_PROPERTIES tex_heap_prop = {};
+//	tex_heap_prop.Type = D3D12_HEAP_TYPE_CUSTOM;
+//	tex_heap_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+//	tex_heap_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+//	tex_heap_prop.CreationNodeMask = 0;		// 単一アダプタのため
+//	tex_heap_prop.VisibleNodeMask = 0;		// 単一アダプタのため
+//
+//	auto res_desc =
+//		CD3DX12_RESOURCE_DESC::Tex2D(
+//			format,
+//			w,
+//			h
+//		);
+//	// バッファ作成
+//	auto hr = device->CreateCommittedResource(
+//		&tex_heap_prop,
+//		D3D12_HEAP_FLAG_NONE,
+//		&res_desc,
+//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+//		nullptr,
+//		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+//	);
+//	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
+//	
+//	std::vector<UCHAR> data(4 * w * h);	 // 色 * 幅 * 高さ
+//	// 全部255で埋める
+//	const size_t data_size = data.size();
+//	std::fill(data.begin(), data.end(), clear_value);
+//	// データ送信
+//	hr = m_buffer->WriteToSubresource(
+//		0,
+//		nullptr,
+//		data.data(),
+//		w * h,
+//		SCAST<UINT>(data.size())
+//	);
+//	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
+//	return hr;
+//}
+
+// 作成済みのテクスチャをもとに作成
+HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
+	const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept
+{
+	HRESULT hr = S_OK;
+	RCHECK(!resource, "不正なResourceが渡されました", E_FAIL);
+	auto res_desc = resource->GetDesc();
+	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	auto clear_value_dx = CD3DX12_CLEAR_VALUE(res_desc.Format, (FLOAT*)&clear_value);
+
+	hr = device->CreateCommittedResource(
+		&heap_prop,
+		D3D12_HEAP_FLAG_NONE,
+		&res_desc,
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		&clear_value_dx,
+		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
+	return hr;
+}
+
+D3D12_RESOURCE_BARRIER Texture::GetRtvResourceBarrier(bool render_target) noexcept
+{
+	auto rb_desc = render_target ?
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_buffer.Get(),
+			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		) :
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_buffer.Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
 }

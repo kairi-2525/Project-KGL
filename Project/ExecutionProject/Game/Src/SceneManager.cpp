@@ -32,6 +32,9 @@ HRESULT SceneManager::SceneChangeUpdate(const SceneDesc& desc)
 		else if (!next_scene->IsLoaded() || !m_scene->IsAllowMoveScene())
 			return hr;
 
+		desc.app->GetQueue()->Signal();
+		desc.app->GetQueue()->Wait();
+
 		m_scene->UnInit(desc);
 		m_scene.reset();
 		m_scene = next_scene;
