@@ -1,4 +1,4 @@
-#include <Dx12/PMDActor.hpp>
+#include <Dx12/3D/PMDActor.hpp>
 #include <Helper/Cast.hpp>
 #include <Helper/ThrowAssert.hpp>
 #include <Helper/Matrix.hpp>
@@ -10,7 +10,8 @@ using namespace KGL;
 // ベジェ曲線を計算する
 float PMD_Actor::GetYFromXOnBezier(
 	float x,
-	const DirectX::XMFLOAT2& a, const DirectX::XMFLOAT2& b,
+	const DirectX::XMFLOAT2& a,
+	const DirectX::XMFLOAT2& b,
 	UINT8 n
 ) noexcept
 {

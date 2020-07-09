@@ -9,6 +9,7 @@
 #include "../Helper/ComPtr.hpp"
 #include "../Helper/ThrowAssert.hpp"
 #include "../Loader/Loader.hpp"
+#include "SetName.hpp"
 #include <DirectXMath.h>
 
 namespace KGL
@@ -39,12 +40,14 @@ namespace KGL
 				const std::filesystem::path& path, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, path, mgr); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			// 単色テクスチャ
 			explicit Texture(const ComPtr<ID3D12Device>& device,
 				UCHAR r = 0xff, UCHAR g = 0xff, UCHAR b = 0xff, UCHAR a = 0xff, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, r, g, b, a, mgr); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			// グラデーションテクスチャ
 			explicit Texture(const ComPtr<ID3D12Device>& device,
@@ -52,17 +55,20 @@ namespace KGL
 				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 256, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, tr, tg, tb, ta, br, bg, bb, ba, height, mgr); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			// 作成済みのテクスチャをもとに作成
 			explicit Texture(const ComPtr<ID3D12Device>& device,
 				const Texture& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 			{
 				auto hr = Create(device, resource, clear_value); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			explicit Texture(const ComPtr<ID3D12Device>& device,
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 			{
 				auto hr = Create(device, resource, clear_value); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			
 			// 画像テクスチャ
@@ -80,12 +86,13 @@ namespace KGL
 			// 作成済みのテクスチャをもとに作成
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
 				const Texture& resource, const DirectX::XMFLOAT4& clear_value) noexcept
-			{ return Create(device, resource.Data(), clear_value); }
+			{
+				m_path = resource.m_path.string() + "_copy"; return Create(device, resource.Data(), clear_value);
+			}
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept;
 			
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
-			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target) noexcept;
 		};
 	}
 }

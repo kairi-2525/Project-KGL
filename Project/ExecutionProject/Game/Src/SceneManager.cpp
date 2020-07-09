@@ -13,11 +13,6 @@ HRESULT SceneManager::Update(const SceneDesc& desc, float elapsed_time)
 	return m_scene->Update(desc, elapsed_time);
 }
 
-HRESULT SceneManager::Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list)
-{
-	return m_scene->Render(desc, cmd_list);
-}
-
 HRESULT SceneManager::SceneChangeUpdate(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;

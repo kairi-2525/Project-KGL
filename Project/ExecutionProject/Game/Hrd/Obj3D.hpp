@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Dx12/PMDActor.hpp>
+#include <Dx12/3D/PMDActor.hpp>
 
 class Obj3D : public KGL::PMD_Actor
 {

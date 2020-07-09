@@ -48,21 +48,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				RCHECK(FAILED(hr), "シーンの初期化に失敗", -1);
 
-				ComPtr<ID3D12CommandAllocator> cmd_allocator;
-				ComPtr<ID3D12GraphicsCommandList> cmd_list;
-
 				device = app->GetDevice();
-				hr = device->CreateCommandAllocator(
-					D3D12_COMMAND_LIST_TYPE_DIRECT,
-					IID_PPV_ARGS(cmd_allocator.ReleaseAndGetAddressOf())
-				);
-				RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", -1);
-				hr = device->CreateCommandList(0,
-					D3D12_COMMAND_LIST_TYPE_DIRECT,
-					cmd_allocator.Get(), nullptr,
-					IID_PPV_ARGS(cmd_list.ReleaseAndGetAddressOf())
-				);
-				RCHECK(FAILED(hr), "コマンドリストの作成に失敗", - 1);
 
 				SceneDesc scene_desc = { app, window };
 				hr = scene_mgr.Init<TestScene00>(scene_desc);
@@ -74,32 +60,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					fps_counter.Update();
 					window->SetTitle("FPS : [" + std::to_string(fps_counter.GetRefreshRate()) + "]");
 					scene_hr = scene_mgr.Update(scene_desc, fps_counter.GetElpasedTime());
-
-					if (SUCCEEDED(scene_hr))
-					{
-						app->SetRtvDsv(cmd_list);
-						cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(true));
-
-						app->ClearRtvDsv(cmd_list, clear_color);
-
-						scene_hr = scene_mgr.Render(scene_desc, cmd_list);
-
-						cmd_list->ResourceBarrier(1, &app->GetRtvResourceBarrier(false));
-
-						cmd_list->Close();
-						ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
-						app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
-						app->GetQueue()->Signal();
-						app->GetQueue()->Wait();
-
-						cmd_allocator->Reset();
-						cmd_list->Reset(cmd_allocator.Get(), nullptr);
-
-						if (app->IsTearingSupport())
-							app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-						else
-							app->GetSwapchain()->Present(1, 1);
-					}
 
 					if (FAILED(scene_hr))
 						break;

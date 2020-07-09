@@ -34,7 +34,6 @@ public:
 	HRESULT virtual Load(const SceneDesc& desc) = 0;
 	HRESULT virtual Init(const SceneDesc& desc) { return S_OK; }
 	HRESULT virtual Update(const SceneDesc& desc, float elapsed_time) = 0;
-	HRESULT virtual Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list) = 0;
 	HRESULT virtual UnInit(const SceneDesc& desc) { return S_OK; }
 
 	bool IsLoaded() noexcept { std::lock_guard<std::mutex> lock(m_loaded_mutex); return m_loaded; };
@@ -73,6 +72,5 @@ public:
 		return S_OK;
 	}
 	HRESULT Update(const SceneDesc& desc, float elapsed_time);
-	HRESULT Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list);
 	HRESULT SceneChangeUpdate(const SceneDesc& desc);
 };

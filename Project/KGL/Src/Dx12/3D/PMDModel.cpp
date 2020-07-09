@@ -1,4 +1,4 @@
-#include <Dx12/PMDModel.hpp>
+#include <Dx12/3D/PMDModel.hpp>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/ThrowAssert.hpp>
 #include <Helper/Cast.hpp>

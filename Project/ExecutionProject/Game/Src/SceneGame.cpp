@@ -9,8 +9,20 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 	using namespace DirectX;
 
 	HRESULT hr = S_OK;
-
 	const auto& device = desc.app->GetDevice();
+
+	hr = device->CreateCommandAllocator(
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(cmd_allocator.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", hr);
+	hr = device->CreateCommandList(0,
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		cmd_allocator.Get(), nullptr,
+		IID_PPV_ARGS(cmd_list.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
+
 	texture = std::make_shared<KGL::Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
@@ -68,46 +80,69 @@ HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
 		model.Update(elapsed_time);
 	}
 
-	return S_OK;
+	return Render(desc);
 }
 
-HRESULT SceneGame::Render(const SceneDesc& desc, const KGL::ComPtr<ID3D12GraphicsCommandList>& cmd_list)
+HRESULT SceneGame::Render(const SceneDesc& desc)
 {
+	HRESULT hr = S_OK;
 	using KGL::SCAST;
 
-	auto window_size = desc.window->GetClientSize();
+	desc.app->SetRtvDsv(cmd_list);
+	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 
-	D3D12_VIEWPORT viewport = {};
-	viewport.Width = SCAST<FLOAT>(window_size.x);
-	viewport.Height = SCAST<FLOAT>(window_size.y);
-	viewport.TopLeftX = 0;//出力先の左上座標X
-	viewport.TopLeftY = 0;//出力先の左上座標Y
-	viewport.MaxDepth = 1.0f;//深度最大値
-	viewport.MinDepth = 0.0f;//深度最小値
+	desc.app->ClearRtvDsv(cmd_list, clear_color);
 
-	auto scissorrect = CD3DX12_RECT(
-		0, 0,
-		window_size.x, window_size.y
-	);
-
-	cmd_list->RSSetViewports(1, &viewport);
-	cmd_list->RSSetScissorRects(1, &scissorrect);
-
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	pmd_renderer->SetState(cmd_list);
-
-	HRESULT hr = S_OK;
-	for (auto& model : models)
 	{
-		model.Render(cmd_list);
+		auto window_size = desc.window->GetClientSize();
 
-		hr = pmd_toon_model->Render(
-			desc.app->GetDevice(),
-			cmd_list
+		D3D12_VIEWPORT viewport = {};
+		viewport.Width = SCAST<FLOAT>(window_size.x);
+		viewport.Height = SCAST<FLOAT>(window_size.y);
+		viewport.TopLeftX = 0;//出力先の左上座標X
+		viewport.TopLeftY = 0;//出力先の左上座標Y
+		viewport.MaxDepth = 1.0f;//深度最大値
+		viewport.MinDepth = 0.0f;//深度最小値
+
+		auto scissorrect = CD3DX12_RECT(
+			0, 0,
+			window_size.x, window_size.y
 		);
-		RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+
+		cmd_list->RSSetViewports(1, &viewport);
+		cmd_list->RSSetScissorRects(1, &scissorrect);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		pmd_renderer->SetState(cmd_list);
+
+		for (auto& model : models)
+		{
+			model.Render(cmd_list);
+
+			hr = pmd_toon_model->Render(
+				desc.app->GetDevice(),
+				cmd_list
+			);
+			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+		}
 	}
+
+	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+
+	cmd_list->Close();
+	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+	desc.app->GetQueue()->Signal();
+	desc.app->GetQueue()->Wait();
+
+	cmd_allocator->Reset();
+	cmd_list->Reset(cmd_allocator.Get(), nullptr);
+
+	if (desc.app->IsTearingSupport())
+		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+	else
+		desc.app->GetSwapchain()->Present(1, 1);
 
 	return hr;
 }

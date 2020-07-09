@@ -361,6 +361,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 {
+	if (m_path.empty()) m_path = "noname";
 	HRESULT hr = S_OK;
 	RCHECK(!resource, "•s³‚ÈResource‚ª“n‚³‚ê‚Ü‚µ‚½", E_FAIL);
 	auto res_desc = resource->GetDesc();
@@ -378,19 +379,4 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	);
 	RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s", hr);
 	return hr;
-}
-
-D3D12_RESOURCE_BARRIER Texture::GetRtvResourceBarrier(bool render_target) noexcept
-{
-	auto rb_desc = render_target ?
-		CD3DX12_RESOURCE_BARRIER::Transition(
-			m_buffer.Get(),
-			D3D12_RESOURCE_STATE_PRESENT,
-			D3D12_RESOURCE_STATE_RENDER_TARGET
-		) :
-		CD3DX12_RESOURCE_BARRIER::Transition(
-			m_buffer.Get(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT
-		);
 }

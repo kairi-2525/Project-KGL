@@ -46,10 +46,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="HLSL\PMDVertexShader.hlsl" />
-    <FxCompile Include="HLSL\PMDPixelShader.hlsl" />
+    <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
+    <FxCompile Include="HLSL\3D\PMDPixelShader.hlsl" />
+    <FxCompile Include="HLSL\2D\Sprite_vs.hlsl" />
+    <FxCompile Include="HLSL\2D\Sprite_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="HLSL\PMDShaderHeader.hlsli" />
+    <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
+    <None Include="HLSL\2D\Sprite.hlsli" />
   </ItemGroup>
 </Project>

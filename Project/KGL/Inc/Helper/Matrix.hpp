@@ -42,11 +42,10 @@ namespace DirectX
 	}
 
 	// 特定のベクトルを特定の方向に向けるための行列を返す
-	// @param lookat	特定のベクトル
 	// @param lookat	特定の方向
 	// @param up		上ベクトル
 	// @param right		右べクトル
-	// @retval			特定ベクトルを特定の方向に向けるための行列
+	// @return			特定ベクトルを特定の方向に向けるための行列
 	XMMATRIX XMLookAtMatrix(
 		CXMVECTOR origin,
 		CXMVECTOR lookat,

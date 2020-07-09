@@ -1,34 +1,21 @@
-#include <Dx12/PMDRenderer.hpp>
-#include <Dx12/Shader.hpp>
-#include <Dx12/BlendState.hpp>
+#include <Dx12/2D/Renderer.hpp>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/ThrowAssert.hpp>
 
-#include <vector>
-
 using namespace KGL;
 
-PMD_Renderer::PMD_Renderer(
+Renderer::Renderer(
 	const ComPtr<ID3D12Device>& device,
+	BDTYPE type,
 	const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts
 ) noexcept
 {
-	std::unique_ptr<KGL::Shader> shader;
-
-	shader = std::make_unique<KGL::Shader>(
-		vs_desc, ps_desc, input_layouts,
-		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-#ifdef _DEBUG
-		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
-#else
-		0
-#endif
-		);
-
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
-	shader->GetDesc(&gpipe_desc);
-	BLEND::SetBlend(KGL::BDTYPE::DEFAULT, &gpipe_desc.BlendState);
+
+	const auto& shader = GetShaderDesc(vs_desc, ps_desc, input_layouts, &gpipe_desc);
+
+	BLEND::SetBlend(type, &gpipe_desc.BlendState);
 
 	gpipe_desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
@@ -53,23 +40,15 @@ PMD_Renderer::PMD_Renderer(
 	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
 	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[3] = {};					// テクスチャと定数の２つ
+	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[1] = {};					// テクスチャと定数の２つ
 
-	// 定数用
-	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	// テクスチャ用
+	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-	// マテリアル定数用
-	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
-
-	// テクスチャ4つ レジスター1から
-	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
-
-	CD3DX12_ROOT_PARAMETER root_params[2] = {};
+	CD3DX12_ROOT_PARAMETER root_params[1] = {};
 	root_params[0].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
 
-	root_params[1].InitAsDescriptorTable(2, &desc_tbl_ranges[1]);
-
-	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[2] = {};
+	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[1] = {};
 	sampler_desc[0].Init(0);
 	sampler_desc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler_desc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -82,12 +61,6 @@ PMD_Renderer::PMD_Renderer(
 	sampler_desc[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	sampler_desc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // リサンプリングしない
 	sampler_desc[0].ShaderRegister = 0;
-
-	sampler_desc[1].Init(1,
-		D3D12_FILTER_ANISOTROPIC,
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
-	);
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootsig_desc = {};
 	rootsig_desc.Init(
@@ -117,10 +90,4 @@ PMD_Renderer::PMD_Renderer(
 
 	hr = device->CreateGraphicsPipelineState(&gpipe_desc, IID_PPV_ARGS(m_pl_state.ReleaseAndGetAddressOf()));
 	RCHECK(FAILED(hr), "CreateGraphicsPipelineStateに失敗");
-}
-
-void PMD_Renderer::SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept
-{
-	cmd_list->SetPipelineState(m_pl_state.Get());
-	cmd_list->SetGraphicsRootSignature(m_rootsig.Get());
 }

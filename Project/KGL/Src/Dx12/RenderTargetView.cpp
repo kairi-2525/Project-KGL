@@ -1,8 +1,10 @@
 #include <Dx12/RenderTargetView.hpp>
+#include <DirectXTex/d3dx12.h>
 
 using namespace KGL;
 
-RenderTargetView::RenderTargetView(ComPtr<ID3D12Device> device, const Texture& texture) noexcept
+RenderTargetView::RenderTargetView(ComPtr<ID3D12Device> device, const ComPtr<ID3D12Resource>& resource) noexcept
+	: m_buffer(resource)
 {
 	HRESULT hr = S_OK;
 
@@ -23,7 +25,7 @@ RenderTargetView::RenderTargetView(ComPtr<ID3D12Device> device, const Texture& t
 		rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		
 		device->CreateRenderTargetView(
-			texture.Data().Get(),
+			m_buffer.Get(),
 			&rtv_desc,
 			m_rtv_heap->GetCPUDescriptorHandleForHeapStart()
 		);
@@ -46,21 +48,36 @@ RenderTargetView::RenderTargetView(ComPtr<ID3D12Device> device, const Texture& t
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srv_desc.Format = texture.Data()->GetDesc().Format;
+		srv_desc.Format = m_buffer->GetDesc().Format;
 
 		device->CreateShaderResourceView(
-			texture.Data().Get(),
+			m_buffer.Get(),
 			&srv_desc,
-			m_rtv_heap->GetCPUDescriptorHandleForHeapStart()
+			m_srv_heap->GetCPUDescriptorHandleForHeapStart()
 		);
 	}
 }
 
 void RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle)
+	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle) const noexcept
 {
 	cmd_list->OMSetRenderTargets(
 		1, &m_rtv_heap->GetCPUDescriptorHandleForHeapStart(), false,
 		p_dsv_handle
 	);
+}
+
+D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_target) noexcept
+{
+	return render_target ?
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_buffer.Get(),
+			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		) :
+		CD3DX12_RESOURCE_BARRIER::Transition(
+			m_buffer.Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
 }
