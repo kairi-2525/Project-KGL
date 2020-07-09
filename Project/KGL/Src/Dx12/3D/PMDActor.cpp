@@ -253,7 +253,7 @@ void PMD_Actor::IKSolve(UINT frame_no) noexcept
 				);
 			if (ik_enable_it != ik_itr->ik_enable_table.end())
 			{
-				if (ik_enable_it->second)
+				if (!ik_enable_it->second)
 				{	// ‚à‚µƒIƒt‚È‚ç‘Å‚¿Ø‚é
 					continue;
 				}

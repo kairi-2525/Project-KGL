@@ -2,5 +2,5 @@
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return float4(input.uv.x, 1, input.uv.y, 1);
+	return tex.Sample(smp, input.uv);
 }

@@ -320,21 +320,25 @@ HRESULT Application::CreateHeaps()
 
 void Application::SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
-	assert(cmd_list);
+	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
 	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
 	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, &dsv_handle);
 }
 
-void Application::ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
+void Application::ClearRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 	const DirectX::XMFLOAT4& clear_color) const noexcept
 {
-	assert(cmd_list);
+	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
 	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
 	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	cmd_list->ClearRenderTargetView(rtv_handle, (float*)&clear_color, 0, nullptr);
+}
+
+void Application::ClearDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
+{
+	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 }
 

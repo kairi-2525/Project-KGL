@@ -48,7 +48,13 @@ namespace KGL
 
 			void SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			void ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
+				const DirectX::XMFLOAT4& clear_color) const noexcept
+			{
+				ClearRtv(cmd_list, clear_color); ClearDsv(cmd_list);
+			}
+			void ClearRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 				const DirectX::XMFLOAT4& clear_color) const noexcept;
+			void ClearDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			void SetViewPort(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target) const noexcept;
 

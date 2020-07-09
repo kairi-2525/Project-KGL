@@ -10,6 +10,7 @@
 
 #include "../Hrd/Scene.hpp"
 #include "../Hrd/Scenes/TestScene00.hpp"
+#include "../Hrd/SceneGame.hpp"
 
 #ifdef _DEBUG
 #define DEBUG_LAYER (true)

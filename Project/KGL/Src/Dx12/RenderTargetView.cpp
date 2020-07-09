@@ -61,10 +61,19 @@ RenderTargetView::RenderTargetView(ComPtr<ID3D12Device> device, const ComPtr<ID3
 void RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle) const noexcept
 {
+	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
 	cmd_list->OMSetRenderTargets(
 		1, &m_rtv_heap->GetCPUDescriptorHandleForHeapStart(), false,
 		p_dsv_handle
 	);
+}
+
+void RenderTargetView::Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+	const DirectX::XMFLOAT4& clear_color) const noexcept
+{
+	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
+	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	cmd_list->ClearRenderTargetView(rtv_handle, (float*)&clear_color, 0, nullptr);
 }
 
 D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_target) noexcept
@@ -72,12 +81,12 @@ D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_targe
 	return render_target ?
 		CD3DX12_RESOURCE_BARRIER::Transition(
 			m_buffer.Get(),
-			D3D12_RESOURCE_STATE_PRESENT,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		) :
 		CD3DX12_RESOURCE_BARRIER::Transition(
 			m_buffer.Get(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
-			D3D12_RESOURCE_STATE_PRESENT
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		);
 }

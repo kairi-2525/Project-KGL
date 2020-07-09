@@ -31,7 +31,12 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
-	renderer_2d = std::make_shared<KGL::_2D::Renderer>(device);
+	renderer_2d = std::make_shared<KGL::_2D::Renderer>(
+		device,
+		KGL::BDTYPE::DEFAULT,
+		KGL::_2D::Renderer::VS_DESC,
+		KGL::Shader::Desc{ "./HLSL/2D/DownGradation4_ps.hlsl", "PSMain", "ps_5_0" }
+		);
 	sprite = std::make_shared<KGL::Sprite>(device);
 
 	models.resize(1, { device, *pmd_model });
@@ -94,38 +99,31 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
-	desc.app->SetRtvDsv(cmd_list);
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+	auto window_size = desc.window->GetClientSize();
 
-	desc.app->ClearRtvDsv(cmd_list, clear_color);
+	D3D12_VIEWPORT viewport = {};
+	viewport.Width = SCAST<FLOAT>(window_size.x);
+	viewport.Height = SCAST<FLOAT>(window_size.y);
+	viewport.TopLeftX = 0;//出力先の左上座標X
+	viewport.TopLeftY = 0;//出力先の左上座標Y
+	viewport.MaxDepth = 1.0f;//深度最大値
+	viewport.MinDepth = 0.0f;//深度最小値
 
-	{
-		//texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
-	//cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true));
+	auto scissorrect = CD3DX12_RECT(
+		0, 0,
+		window_size.x, window_size.y
+	);
 
-		auto window_size = desc.window->GetClientSize();
-
-		D3D12_VIEWPORT viewport = {};
-		viewport.Width = SCAST<FLOAT>(window_size.x);
-		viewport.Height = SCAST<FLOAT>(window_size.y);
-		viewport.TopLeftX = 0;//出力先の左上座標X
-		viewport.TopLeftY = 0;//出力先の左上座標Y
-		viewport.MaxDepth = 1.0f;//深度最大値
-		viewport.MinDepth = 0.0f;//深度最小値
-
-		auto scissorrect = CD3DX12_RECT(
-			0, 0,
-			window_size.x, window_size.y
-		);
+	{	// テクスチャにモデルを描画
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true));
+		texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
+		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+		desc.app->ClearDsv(cmd_list);
 
 		cmd_list->RSSetViewports(1, &viewport);
 		cmd_list->RSSetScissorRects(1, &scissorrect);
 
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		renderer_2d->SetState(cmd_list);
-		sprite->Render(cmd_list);
-
-		/*cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		pmd_renderer->SetState(cmd_list);
 		for (auto& model : models)
@@ -137,12 +135,27 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 				cmd_list
 			);
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
-		}*/
+		}
 
-		//cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false));
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false));
 	}
+	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画
+		desc.app->SetRtvDsv(cmd_list);
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->ClearRtv(cmd_list, clear_color);
 
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		cmd_list->RSSetViewports(1, &viewport);
+		cmd_list->RSSetScissorRects(1, &scissorrect);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		renderer_2d->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart());
+		sprite->Render(cmd_list);
+
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+	}
 
 	cmd_list->Close();
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };

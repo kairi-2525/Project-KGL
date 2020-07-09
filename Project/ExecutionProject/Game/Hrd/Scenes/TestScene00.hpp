@@ -37,7 +37,7 @@ private:
 	std::shared_ptr<KGL::PMD_Model>			pmd_model;
 	std::shared_ptr<KGL::PMD_Model>			pmd_toon_model;
 	std::shared_ptr<KGL::PMD_Renderer>		pmd_renderer;
-	std::shared_ptr<KGL::_2D::Renderer>		renderer_2d;
+	std::shared_ptr<KGL::BaseRenderer>		renderer_2d;
 	std::shared_ptr<KGL::Sprite>			sprite;
 
 	std::vector<Obj3D>						models;
