@@ -1,7 +1,7 @@
 #include <Dx12/3D/PMDActor.hpp>
 #include <Helper/Cast.hpp>
 #include <Helper/ThrowAssert.hpp>
-#include <Helper/Matrix.hpp>
+#include <Math/Matrix.hpp>
 #include <DirectXTex/d3dx12.h>
 #include <array>
 

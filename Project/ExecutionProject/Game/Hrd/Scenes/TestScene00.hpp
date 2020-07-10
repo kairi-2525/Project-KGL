@@ -12,6 +12,7 @@
 #include <Dx12/Shader.hpp>
 #include <Base/Camera.hpp>
 #include <Dx12/RenderTargetView.hpp>
+#include <Dx12/DescriptorHeap.hpp>
 
 #include "../Obj3D.hpp"
 
@@ -46,6 +47,7 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 
 	DirectX::XMFLOAT4						clear_color;
+	std::shared_ptr<KGL::DescriptorManager>	descriptor_mgr;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

@@ -3,8 +3,8 @@
 
 using namespace KGL;
 
-CommandQueue::CommandQueue(ComPtr<ID3D12CommandQueue> queue,
-	ComPtr<ID3D12Fence> fence) noexcept
+CommandQueue::CommandQueue(ComPtrC<ID3D12CommandQueue> queue,
+	ComPtrC<ID3D12Fence> fence) noexcept
 {
 	assert(queue);
 	m_queue = queue;
@@ -12,7 +12,7 @@ CommandQueue::CommandQueue(ComPtr<ID3D12CommandQueue> queue,
 	m_value = m_fence->GetCompletedValue();
 }
 
-CommandQueue::CommandQueue(ComPtr<ID3D12Device> device,
+CommandQueue::CommandQueue(ComPtrC<ID3D12Device> device,
 	const D3D12_COMMAND_QUEUE_DESC& desc) noexcept
 	: m_value(0ULL)
 {

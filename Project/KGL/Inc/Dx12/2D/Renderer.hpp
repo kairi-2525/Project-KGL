@@ -47,7 +47,10 @@ namespace KGL
 					const ComPtr<ID3D12Device>& device,
 					BDTYPE type = BDTYPE::DEFAULT,
 					const Shader::Desc& vs_desc = VS_DESC, const Shader::Desc& ps_desc = PS_DESC,
-					const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts = INPUT_LAYOUTS
+					const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts = INPUT_LAYOUTS,
+					const std::vector<D3D12_DESCRIPTOR_RANGE>& add_range = {},
+					const std::vector<D3D12_ROOT_PARAMETER>& add_root_param = {},
+					const std::vector<D3D12_STATIC_SAMPLER_DESC>& add_smp_desc = {}
 				) noexcept;
 			};
 		}

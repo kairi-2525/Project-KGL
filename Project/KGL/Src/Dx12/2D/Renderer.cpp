@@ -8,7 +8,10 @@ Renderer::Renderer(
 	const ComPtr<ID3D12Device>& device,
 	BDTYPE type,
 	const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
-	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts
+	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
+	const std::vector<D3D12_DESCRIPTOR_RANGE>& add_range,
+	const std::vector<D3D12_ROOT_PARAMETER>& add_root_param,
+	const std::vector<D3D12_STATIC_SAMPLER_DESC>& add_smp_desc
 ) noexcept
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
@@ -40,16 +43,25 @@ Renderer::Renderer(
 	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
 	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[1] = {};					// テクスチャと定数の２つ
-
+	//CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[1] = {};					// テクスチャと定数の２つ
+	std::vector<D3D12_DESCRIPTOR_RANGE> desc_tbl_ranges(1);
 	// テクスチャ用
-	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	desc_tbl_ranges[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	desc_tbl_ranges.reserve(desc_tbl_ranges.size() + add_range.size());
 
-	CD3DX12_ROOT_PARAMETER root_params[1] = {};
-	root_params[0].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
+	std::copy(add_range.cbegin(), add_range.cend(), std::back_inserter(desc_tbl_ranges));
 
-	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[1] = {};
-	sampler_desc[0].Init(0);
+	std::vector<D3D12_ROOT_PARAMETER> root_params(1);
+	{
+		CD3DX12_ROOT_PARAMETER def_param = {};
+		def_param.InitAsDescriptorTable(desc_tbl_ranges.size(), desc_tbl_ranges.data());
+		root_params[0] = def_param;
+	}
+	root_params.reserve(root_params.size() + add_root_param.size());
+	std::copy(add_root_param.cbegin(), add_root_param.cend(), std::back_inserter(root_params));
+
+	std::vector<D3D12_STATIC_SAMPLER_DESC> sampler_desc(1);
+	sampler_desc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
 	sampler_desc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler_desc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler_desc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -62,10 +74,13 @@ Renderer::Renderer(
 	sampler_desc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // リサンプリングしない
 	sampler_desc[0].ShaderRegister = 0;
 
+	sampler_desc.reserve(sampler_desc.size() + add_smp_desc.size());
+	std::copy(add_smp_desc.cbegin(), add_smp_desc.cend(), std::back_inserter(sampler_desc));
+
 	CD3DX12_ROOT_SIGNATURE_DESC rootsig_desc = {};
 	rootsig_desc.Init(
-		_countof(root_params), root_params,
-		_countof(sampler_desc), sampler_desc,
+		root_params.size(), root_params.data(),
+		sampler_desc.size(), sampler_desc.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 

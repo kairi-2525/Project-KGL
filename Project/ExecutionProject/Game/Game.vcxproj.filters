@@ -53,6 +53,11 @@
     <FxCompile Include="HLSL\2D\GrayScale_ps.hlsl" />
     <FxCompile Include="HLSL\2D\Invert_ps.hlsl" />
     <FxCompile Include="HLSL\2D\DownGradation4_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Blur_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Emboss_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Sharpness_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Edge_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\SimpleGaussianBlur_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

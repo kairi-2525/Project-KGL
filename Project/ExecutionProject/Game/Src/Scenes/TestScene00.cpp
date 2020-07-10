@@ -31,11 +31,15 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
+	std::vector<D3D12_DESCRIPTOR_RANGE> add_ranges(1);
+	add_ranges[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	renderer_2d = std::make_shared<KGL::_2D::Renderer>(
 		device,
 		KGL::BDTYPE::DEFAULT,
 		KGL::_2D::Renderer::VS_DESC,
-		KGL::Shader::Desc{ "./HLSL/2D/DownGradation4_ps.hlsl", "PSMain", "ps_5_0" }
+		KGL::Shader::Desc{ "./HLSL/2D/SimpleGaussianBlur_ps.hlsl", "PSMain", "ps_5_0" },
+		KGL::_2D::Renderer::INPUT_LAYOUTS,
+		add_ranges
 		);
 	sprite = std::make_shared<KGL::Sprite>(device);
 
@@ -44,6 +48,10 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	{
 		model.SetAnimation(vmd_data->GetDesc());
 	}
+
+	descriptor_mgr = std::make_shared<KGL::DescriptorManager>(device, 100u);
+	for (int i = 0; i < 1000; i++)
+		descriptor_mgr->Alloc(device);
 
 	return hr;
 }
