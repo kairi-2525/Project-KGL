@@ -42,21 +42,23 @@ PMD_Renderer::PMD_Renderer(
 	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
 	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[3] = {};					// テクスチャと定数の２つ
+	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[4] = {};					// テクスチャと定数の２つ
 
 	// 定数用
 	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-
-	// マテリアル定数用
 	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 
+	// マテリアル定数用
+	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+
 	// テクスチャ4つ レジスター1から
-	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
+	desc_tbl_ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
-	CD3DX12_ROOT_PARAMETER root_params[2] = {};
+	CD3DX12_ROOT_PARAMETER root_params[3] = {};
 	root_params[0].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
+	root_params[1].InitAsDescriptorTable(1, &desc_tbl_ranges[1]);
 
-	root_params[1].InitAsDescriptorTable(2, &desc_tbl_ranges[1]);
+	root_params[2].InitAsDescriptorTable(2, &desc_tbl_ranges[2]);
 
 	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[2] = {};
 	sampler_desc[0].Init(0);

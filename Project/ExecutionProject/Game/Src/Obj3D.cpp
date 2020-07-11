@@ -10,6 +10,4 @@ void Obj3D::Update(float elapsed_time)
 	T = XMMatrixTranslation(position.x, position.y, position.z);
 
 	m_map_buffers->world = S * R * T;
-
-	PMD_Actor::UpdateWVP();
 }                                                            

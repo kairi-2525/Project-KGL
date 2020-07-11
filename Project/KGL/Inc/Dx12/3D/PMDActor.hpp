@@ -19,10 +19,7 @@ namespace KGL
 				{
 					DirectX::XMMATRIX wvp;
 					DirectX::XMMATRIX world;
-					DirectX::XMMATRIX view;
-					DirectX::XMMATRIX proj;
 					DirectX::XMMATRIX bones[512];
-					DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
 				};
 			private:
 				std::shared_ptr<const PMD::Desc>		m_model_desc;
@@ -54,15 +51,10 @@ namespace KGL
 				) noexcept;
 				virtual ~PMD_Actor() = default;
 
-				void SetViewProjection(DirectX::XMMATRIX view, DirectX::XMMATRIX proj)
-				{
-					m_map_buffers->view = view; m_map_buffers->proj = proj;
-				}
-				void SetEye(const DirectX::XMFLOAT3& eye) { m_map_buffers->eye = eye; }
 				void SetAnimation(const std::shared_ptr<const VMD::Desc>& desc) noexcept;
 				void ClearAnimation() noexcept;
 				void MotionUpdate(float elapsed_time, bool loop = true, bool bezier = true) noexcept;
-				void UpdateWVP();
+				void UpdateWVP(DirectX::CXMMATRIX view_proj);
 				void Render(
 					const ComPtr<ID3D12GraphicsCommandList>& cmd_list
 				) const noexcept;

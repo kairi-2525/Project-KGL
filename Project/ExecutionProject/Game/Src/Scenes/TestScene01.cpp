@@ -1,29 +1,22 @@
-#include "../Hrd/SceneGame.hpp"
+#include "../../Hrd/Scenes/TestScene01.hpp"
+
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
 #include <Dx12/BlendState.hpp>
+#include <Dx12/Helper.hpp>
+#include <Math/Gaussian.hpp>
 
-HRESULT SceneGame::Load(const SceneDesc& desc)
+HRESULT TestScene01::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	hr = device->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(cmd_allocator.ReleaseAndGetAddressOf())
-	);
-	RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", hr);
-	hr = device->CreateCommandList(0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		cmd_allocator.Get(), nullptr,
-		IID_PPV_ARGS(cmd_list.ReleaseAndGetAddressOf())
-	);
-	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
+	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
-	texture = std::make_shared<KGL::Texture>(device, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0xff);
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
@@ -36,10 +29,13 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 		model.SetAnimation(vmd_data->GetDesc());
 	}
 
+	hr = SceneBaseDx12::Load(desc);
+	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
+
 	return hr;
 }
 
-HRESULT SceneGame::Init(const SceneDesc& desc)
+HRESULT TestScene01::Init(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
@@ -55,12 +51,19 @@ HRESULT SceneGame::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
+	mapped_scene_buff->proj = proj_mat;
+
+	clear_color = { 1.f, 1.f, 1.f, 1.f };
+
 	return S_OK;
 }
 
-HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
+HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
+
+	mapped_scene_buff->eye = camera.eye;
+	mapped_scene_buff->view = KGL::CAMERA::GetView(camera);
 
 	for (auto& model : models)
 	{
@@ -68,36 +71,36 @@ HRESULT SceneGame::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
+		model.UpdateWVP(mapped_scene_buff->view * mapped_scene_buff->proj);
 	}
 
 	return Render(desc);
 }
 
-HRESULT SceneGame::Render(const SceneDesc& desc)
+HRESULT TestScene01::Render(const SceneDesc& desc)
 {
-	HRESULT hr = S_OK;
 	using KGL::SCAST;
+	HRESULT hr = S_OK;
 
-	desc.app->SetRtvDsv(cmd_list);
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+	auto window_size = desc.window->GetClientSize();
 
-	desc.app->ClearRtvDsv(cmd_list, clear_color);
+	D3D12_VIEWPORT viewport = {};
+	viewport.Width = SCAST<FLOAT>(window_size.x);
+	viewport.Height = SCAST<FLOAT>(window_size.y);
+	viewport.TopLeftX = 0;//出力先の左上座標X
+	viewport.TopLeftY = 0;//出力先の左上座標Y
+	viewport.MaxDepth = 1.0f;//深度最大値
+	viewport.MinDepth = 0.0f;//深度最小値
 
-	{
-		auto window_size = desc.window->GetClientSize();
+	auto scissorrect = CD3DX12_RECT(
+		0, 0,
+		window_size.x, window_size.y
+	);
 
-		D3D12_VIEWPORT viewport = {};
-		viewport.Width = SCAST<FLOAT>(window_size.x);
-		viewport.Height = SCAST<FLOAT>(window_size.y);
-		viewport.TopLeftX = 0;//出力先の左上座標X
-		viewport.TopLeftY = 0;//出力先の左上座標Y
-		viewport.MaxDepth = 1.0f;//深度最大値
-		viewport.MinDepth = 0.0f;//深度最小値
-
-		auto scissorrect = CD3DX12_RECT(
-			0, 0,
-			window_size.x, window_size.y
-		);
+	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
+		desc.app->SetRtvDsv(cmd_list);
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->ClearRtvDsv(cmd_list, clear_color);
 
 		cmd_list->RSSetViewports(1, &viewport);
 		cmd_list->RSSetScissorRects(1, &scissorrect);
@@ -105,6 +108,9 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		pmd_renderer->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
 
 		for (auto& model : models)
 		{
@@ -116,9 +122,9 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 			);
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
-	}
 
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+	}
 
 	cmd_list->Close();
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
@@ -137,7 +143,7 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT SceneGame::UnInit(const SceneDesc& desc)
+HRESULT TestScene01::UnInit(const SceneDesc& desc)
 {
 	return S_OK;
 }

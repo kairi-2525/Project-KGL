@@ -211,9 +211,9 @@ void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcep
 	}
 }
 
-void PMD_Actor::UpdateWVP()
+void PMD_Actor::UpdateWVP(DirectX::CXMMATRIX view_proj)
 {
-	m_map_buffers->wvp = m_map_buffers->world * m_map_buffers->view * m_map_buffers->proj;
+	m_map_buffers->wvp = m_map_buffers->world * view_proj;
 }
 
 void PMD_Actor::Render(
@@ -223,7 +223,7 @@ void PMD_Actor::Render(
 	cmd_list->SetDescriptorHeaps(1, m_desc_heap.GetAddressOf());
 	auto heap_handle = m_desc_heap->GetGPUDescriptorHandleForHeapStart();
 	cmd_list->SetGraphicsRootDescriptorTable(
-		0,	// ルートパラメーターインデックス
+		1,	// ルートパラメーターインデックス
 		heap_handle
 	);
 }

@@ -17,17 +17,20 @@ Texture2D<float4> material_toon : register(t3);
 SamplerState smp : register(s0);
 SamplerState toom_smp : register(s1);
 
-cbuffer cbuff0 : register(b0)
+cbuffer scene_buff : register(b0)
+{
+	row_major matrix view;				// ビュー変換行列
+	row_major matrix proj;				// プロジェクション変換行列
+	float3 eye;							// 視点
+}
+cbuffer model_buff : register(b1)
 {
 	row_major matrix wvp;				// ワールドビュープロジェクション(あらかじめCPUで計算しておく)
 	row_major matrix world : rowmajor;	// ワールド変換行列
-	row_major matrix view;				// ビュー変換行列
-	row_major matrix proj;				// プロジェクション変換行列
 	row_major matrix bones[512];		// ボーン行列
-	float3 eye;							// 視点
 }
 
-cbuffer Material : register(b1)
+cbuffer Material : register(b2)
 {
 	float4 diffuse;
 	float4 specular;

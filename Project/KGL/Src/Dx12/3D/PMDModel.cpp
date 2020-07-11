@@ -385,7 +385,7 @@ HRESULT PMD_Model::Render(
 	for (size_t i = 0u; i < m_material_num; i++)
 	{
 		const auto index_count = m_index_counts[i];
-		cmd_list->SetGraphicsRootDescriptorTable(1, heap_handle);
+		cmd_list->SetGraphicsRootDescriptorTable(2, heap_handle);
 		cmd_list->DrawIndexedInstanced(index_count, 1, index_offset, 0, 0);
 
 		heap_handle.ptr += cbv_increment_size;

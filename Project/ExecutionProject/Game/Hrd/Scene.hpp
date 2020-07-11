@@ -10,6 +10,7 @@
 #include <Dx12/Application.hpp>
 #include <Base/Window.hpp>
 #include <Helper/ComPtr.hpp>
+#include <Dx12/DescriptorHeap.hpp>
 
 class SceneManager;
 struct SceneDesc
@@ -20,6 +21,13 @@ struct SceneDesc
 
 class SceneBase
 {
+public:
+	struct SceneBuffers
+	{
+		DirectX::XMMATRIX view;
+		DirectX::XMMATRIX proj;
+		DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
+	};
 private:
 	bool m_move_allow;
 	bool m_loaded;
@@ -51,6 +59,19 @@ public:
 	void SetMoveSceneFlg(bool allow) noexcept { m_move_allow = allow; };
 	bool IsAllowMoveScene() const noexcept { return m_move_allow; }
 	const std::shared_ptr<SceneBase>& GetNextScene() noexcept { return m_next_scene; }
+};
+
+class SceneBaseDx12 : public SceneBase
+{
+protected:
+	std::shared_ptr<KGL::DescriptorManager>	scene_desc_mgr;
+	KGL::DescriptorHandle					scene_buff_handle;
+	KGL::ComPtr<ID3D12Resource>				scene_buff;
+	SceneBuffers*							mapped_scene_buff;
+public:
+	SceneBaseDx12() : mapped_scene_buff(nullptr) {}
+	virtual ~SceneBaseDx12() = default;
+	HRESULT virtual Load(const SceneDesc& desc) override;
 };
 
 class SceneManager

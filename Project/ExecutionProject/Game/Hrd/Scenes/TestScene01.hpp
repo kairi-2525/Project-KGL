@@ -16,9 +16,10 @@
 
 #include "../Obj3D.hpp"
 
-class TestSceneBase : public SceneBase
+class TestScene01 : public SceneBaseDx12
 {
 private:
+
 	KGL::VecCamera camera;
 
 	KGL::TextureManager						tex_mgr;
@@ -42,6 +43,6 @@ public:
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc) override;
 
-	TestSceneBase() = default;
-	~TestSceneBase() = default;
+	TestScene01() = default;
+	~TestScene01() = default;
 };

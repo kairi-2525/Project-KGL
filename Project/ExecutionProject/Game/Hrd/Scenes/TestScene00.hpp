@@ -16,18 +16,8 @@
 
 #include "../Obj3D.hpp"
 
-class TestScene00 : public SceneBase
+class TestScene00 : public SceneBaseDx12
 {
-private:
-	struct SceneMatrix
-	{
-		DirectX::XMMATRIX wvp;
-		DirectX::XMMATRIX world;
-		DirectX::XMMATRIX view;
-		DirectX::XMMATRIX proj;
-		DirectX::XMMATRIX bones[512];
-		DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
-	};
 private:
 	KGL::VecCamera camera;
 
@@ -62,6 +52,8 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>	blur_desc_mgr;
 	KGL::ComPtr<ID3D12Resource>				blur_const_buff;
 	KGL::DescriptorHandle					blur_buff_handle;
+
+	float									total_elapsed_time;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

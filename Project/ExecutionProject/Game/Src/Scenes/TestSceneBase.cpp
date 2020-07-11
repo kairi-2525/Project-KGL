@@ -48,16 +48,6 @@ HRESULT TestSceneBase::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
-	const auto& device = desc.app->GetDevice();
-
-	for (auto& model : models)
-	{
-		model.SetViewProjection(
-			KGL::CAMERA::GetView(camera), proj_mat
-		);
-		model.SetEye(camera.eye);
-	}
-
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
 	return S_OK;
@@ -73,6 +63,7 @@ HRESULT TestSceneBase::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
+		//model.UpdateWVP();
 	}
 
 	return Render(desc);

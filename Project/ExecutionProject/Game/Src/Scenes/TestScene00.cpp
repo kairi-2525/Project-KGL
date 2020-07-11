@@ -31,9 +31,9 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		device->CreateShaderResourceView(tex_effect->Data().Get(), &srv_desc, effect_desc_handle.Cpu());
 	}
 
-	tex_blur_w = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
-	tex_blur_h = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
-	tex_rendet_target = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+	tex_blur_w = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	tex_blur_h = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	tex_rendet_target = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
 	{
 		std::vector<KGL::ComPtr<ID3D12Resource>> resources(3);
 		resources[0] = tex_blur_w->Data();
@@ -108,6 +108,8 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		device->CreateConstantBufferView(&mat_cbv_desc, blur_buff_handle.Cpu());
 	}
 
+	hr = SceneBaseDx12::Load(desc);
+	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
 	return hr;
 }
@@ -128,17 +130,11 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
-	const auto& device = desc.app->GetDevice();
-
-	for (auto& model : models)
-	{
-		model.SetViewProjection(
-			KGL::CAMERA::GetView(camera), proj_mat
-		);
-		model.SetEye(camera.eye);
-	}
+	mapped_scene_buff->proj = proj_mat;
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
+
+	total_elapsed_time = 0.f;
 
 	return S_OK;
 }
@@ -147,13 +143,20 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
+	mapped_scene_buff->eye = camera.eye;
+	mapped_scene_buff->view = KGL::CAMERA::GetView(camera);
+
 	for (auto& model : models)
 	{
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
+		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
+		model.UpdateWVP(mapped_scene_buff->view * mapped_scene_buff->proj);
 	}
+
+	total_elapsed_time += elapsed_time;
 
 	return Render(desc);
 }
@@ -178,83 +181,192 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 		window_size.x, window_size.y
 	);
 
-	{	// テクスチャ(W)にモデルを描画
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 0u));
-		texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart(), 0u);
-		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 0u);
-		desc.app->ClearDsv(cmd_list);
+	const UINT total_count = 9u;
+	auto counter = SCAST<INT8>(fmodf(total_elapsed_time, SCAST<float>(total_count)));
 
-		cmd_list->RSSetViewports(1, &viewport);
-		cmd_list->RSSetScissorRects(1, &scissorrect);
+	bool gauss_flg = counter >= (total_count / 3) * 1;
+	bool effect_flg = counter >= (total_count / 3) * 2;
 
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	if (gauss_flg && effect_flg)
+	{
+		{	// テクスチャ(W)にモデルを描画
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 0u));
+			texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart(), 0u);
+			texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f), 0u);
+			desc.app->ClearDsv(cmd_list);
 
-		pmd_renderer->SetState(cmd_list);
-		for (auto& model : models)
-		{
-			model.Render(cmd_list);
+			cmd_list->RSSetViewports(1, &viewport);
+			cmd_list->RSSetScissorRects(1, &scissorrect);
 
-			hr = pmd_toon_model->Render(
-				desc.app->GetDevice(),
-				cmd_list
-			);
-			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			pmd_renderer->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+
+			for (auto& model : models)
+			{
+				model.Render(cmd_list);
+
+				hr = pmd_toon_model->Render(
+					desc.app->GetDevice(),
+					cmd_list
+				);
+				RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			}
+
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 0u));
 		}
+		{	// テクスチャ(H)にテクスチャ(W)を描画(ぼかし横)
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 1u));
+			texture_rtv->Set(cmd_list, nullptr, 1u);
+			texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f), 1u);
 
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 0u));
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+			renderer_blur_w->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(0u));
+			cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+			sprite->Render(cmd_list);
+
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 1u));
+		}
+		{	// テクスチャ(RT)にテクスチャ(W)を描画(ぼかし縦)
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 2u));
+			texture_rtv->Set(cmd_list, nullptr, 2u);
+			texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f), 2u);
+
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+			renderer_blur_w->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
+			cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+
+			sprite->Render(cmd_list);
+
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 2u));
+		}
+		{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
+			desc.app->SetRtv(cmd_list);
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+			desc.app->ClearRtv(cmd_list, clear_color);
+
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+			renderer_effect->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(2u));
+			cmd_list->SetDescriptorHeaps(1, effect_desc_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(2, effect_desc_handle.Gpu());
+
+			sprite->Render(cmd_list);
+
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		}
 	}
-	{	// テクスチャ(H)にテクスチャ(W)を描画(ぼかし横)
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 1u));
-		texture_rtv->Set(cmd_list, nullptr, 1u);
-		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 1u);
+	else if (gauss_flg)
+	{
+		{	// テクスチャ(W)にモデルを描画
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 0u));
+			texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart(), 0u);
+			texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f), 0u);
+			desc.app->ClearDsv(cmd_list);
 
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			cmd_list->RSSetViewports(1, &viewport);
+			cmd_list->RSSetScissorRects(1, &scissorrect);
 
-		renderer_blur_w->SetState(cmd_list);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(0u));
-		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
-		sprite->Render(cmd_list);
+			pmd_renderer->SetState(cmd_list);
 
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 1u));
+			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+
+			for (auto& model : models)
+			{
+				model.Render(cmd_list);
+
+				hr = pmd_toon_model->Render(
+					desc.app->GetDevice(),
+					cmd_list
+				);
+				RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			}
+
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 0u));
+		}
+		{	// テクスチャ(H)にテクスチャ(W)を描画(ぼかし横)
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 1u));
+			texture_rtv->Set(cmd_list, nullptr, 1u);
+			texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f), 1u);
+
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+			renderer_blur_w->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(0u));
+			cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+			sprite->Render(cmd_list);
+
+			cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 1u));
+		}
+		{	// テクスチャ(RT)にテクスチャ(W)を描画(ぼかし縦)
+			desc.app->SetRtv(cmd_list);
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+			desc.app->ClearRtv(cmd_list, clear_color);
+
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+			renderer_blur_h->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
+
+			sprite->Render(cmd_list);
+
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		}
 	}
-	{	// テクスチャ(RT)にテクスチャ(W)を描画(ぼかし縦)
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 2u));
-		texture_rtv->Set(cmd_list, nullptr, 2u);
-		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 2u);
+	else
+	{
+		{	// モデルを描画
+			desc.app->SetRtvDsv(cmd_list);
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+			desc.app->ClearRtvDsv(cmd_list, clear_color);
 
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			cmd_list->RSSetViewports(1, &viewport);
+			cmd_list->RSSetScissorRects(1, &scissorrect);
 
-		renderer_blur_w->SetState(cmd_list);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
-		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+			pmd_renderer->SetState(cmd_list);
 
-		sprite->Render(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
 
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 2u));
-	}
-	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
-		desc.app->SetRtv(cmd_list);
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->ClearRtv(cmd_list, clear_color);
+			for (auto& model : models)
+			{
+				model.Render(cmd_list);
 
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+				hr = pmd_toon_model->Render(
+					desc.app->GetDevice(),
+					cmd_list
+				);
+				RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			}
 
-		renderer_effect->SetState(cmd_list);
-
-		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(2u));
-		cmd_list->SetDescriptorHeaps(1, effect_desc_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(2, effect_desc_handle.Gpu());
-
-		sprite->Render(cmd_list);
-
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+			cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		}
 	}
 
 	cmd_list->Close();
