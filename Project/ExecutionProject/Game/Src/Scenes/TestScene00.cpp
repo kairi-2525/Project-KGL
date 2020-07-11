@@ -17,49 +17,61 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
+	tex_effect = std::make_shared<KGL::Texture>(device, "./Assets/Normals/normalmap.jpg");
+	{
+		effect_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+		effect_desc_handle = effect_desc_mgr->Alloc();
+		auto desc = tex_effect->Data()->GetDesc();
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Format = desc.Format;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		
+		device->CreateShaderResourceView(tex_effect->Data().Get(), &srv_desc, effect_desc_handle.Cpu());
+	}
+
 	tex_blur_w = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
 	tex_blur_h = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+	tex_rendet_target = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
 	{
-		std::vector<KGL::ComPtr<ID3D12Resource>> resources(2);
+		std::vector<KGL::ComPtr<ID3D12Resource>> resources(3);
 		resources[0] = tex_blur_w->Data();
 		resources[1] = tex_blur_h->Data();
+		resources[2] = tex_rendet_target->Data();
 		texture_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
 	}
+
+	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device);
+	{
+		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges);
+			renderer_desc.add_root_param.push_back(root_param);
+		}
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_0" };
+		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_0" };
+		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+
+		auto add_ranges_effect = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges_effect);
+			renderer_desc.add_root_param.push_back(root_param);
+		}
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_0" };
+		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+	}
+	sprite = std::make_shared<KGL::Sprite>(device);
+
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
-
-	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device);
-	{
-		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-		std::vector<D3D12_ROOT_PARAMETER> add_rootparam(1);
-		{
-			CD3DX12_ROOT_PARAMETER root_param;
-			root_param.InitAsDescriptorTable(1, &add_ranges);
-			add_rootparam[0] = root_param;
-		}
-		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(
-			device,
-			KGL::BDTYPE::DEFAULT,
-			KGL::_2D::Renderer::VS_DESC,
-			KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_0" },
-			KGL::_2D::Renderer::INPUT_LAYOUTS,
-			std::vector<D3D12_DESCRIPTOR_RANGE>(),
-			add_rootparam
-			);
-		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(
-			device,
-			KGL::BDTYPE::DEFAULT,
-			KGL::_2D::Renderer::VS_DESC,
-			KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_0" },
-			KGL::_2D::Renderer::INPUT_LAYOUTS,
-			std::vector<D3D12_DESCRIPTOR_RANGE>(),
-			add_rootparam
-			);
-	}
-	sprite = std::make_shared<KGL::Sprite>(device);
 
 	models.resize(1, { device, *pmd_model });
 	for (auto& model : models)
@@ -69,7 +81,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 
 	{
 		blur_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-		blur_buff_handle = blur_desc_mgr->Alloc(device);
+		blur_buff_handle = blur_desc_mgr->Alloc();
 
 		// ガウス処理をあらかじめ計算しておく
 		const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
@@ -191,7 +203,7 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 
 		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 0u));
 	}
-	{	// テクスチャ(H)にテクスチャ(W)を描画
+	{	// テクスチャ(H)にテクスチャ(W)を描画(ぼかし横)
 		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 1u));
 		texture_rtv->Set(cmd_list, nullptr, 1u);
 		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 1u);
@@ -208,19 +220,37 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 
 		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 1u));
 	}
-	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画
+	{	// テクスチャ(RT)にテクスチャ(W)を描画(ぼかし縦)
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 2u));
+		texture_rtv->Set(cmd_list, nullptr, 2u);
+		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 2u);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		renderer_blur_w->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
+		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+
+		sprite->Render(cmd_list);
+
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 2u));
+	}
+	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
 		desc.app->SetRtv(cmd_list);
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->ClearRtv(cmd_list, clear_color);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-		renderer_blur_h->SetState(cmd_list);
+		renderer_effect->SetState(cmd_list);
 
 		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
-		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(2u));
+		cmd_list->SetDescriptorHeaps(1, effect_desc_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(2, effect_desc_handle.Gpu());
 
 		sprite->Render(cmd_list);
 

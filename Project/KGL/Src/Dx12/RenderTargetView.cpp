@@ -85,7 +85,7 @@ HRESULT RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 
 	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
 	cmd_list->OMSetRenderTargets(
 		1, &handle, false,
 		p_dsv_handle
@@ -131,7 +131,7 @@ HRESULT RenderTargetView::Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_lis
 
 	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
 
 	cmd_list->ClearRenderTargetView(handle, (float*)&clear_color, 0, nullptr);
 
@@ -164,7 +164,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView::GetRTVCPUHandle(UINT num) const no
 
 	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
 	return handle;
 }
 
@@ -177,7 +177,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTargetView::GetRTVGPUHandle(UINT num) const no
 
 	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto handle = m_rtv_heap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
 	return handle;
 }
 
@@ -188,9 +188,9 @@ D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView::GetSRVCPUHandle(UINT num) const no
 	auto hr = m_srv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
 	RCHECK(FAILED(hr), "GetDevice‚ÉŽ¸”s", {});
 
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto handle = m_srv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_srv);
 	return handle;
 }
 
@@ -201,8 +201,8 @@ D3D12_GPU_DESCRIPTOR_HANDLE RenderTargetView::GetSRVGPUHandle(UINT num) const no
 	auto hr = m_srv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
 	RCHECK(FAILED(hr), "GetDevice‚ÉŽ¸”s", {});
 
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto handle = m_srv_heap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += num * icmt_rtv;
+	handle.ptr += SCAST<UINT64>(num * icmt_srv);
 	return handle;
 }

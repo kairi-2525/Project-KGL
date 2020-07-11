@@ -2,6 +2,7 @@
 
 #include "../Shader.hpp"
 #include "../../Helper/ComPtr.hpp"
+#include "../BlendState.hpp"
 
 namespace KGL
 {
@@ -9,6 +10,17 @@ namespace KGL
 	{
 		class BaseRenderer
 		{
+		public:
+			struct Desc
+			{
+				BDTYPE									blend_type;
+				Shader::Desc							vs_desc;
+				Shader::Desc							ps_desc;
+				std::vector<D3D12_INPUT_ELEMENT_DESC>	input_layouts;
+				std::vector<D3D12_DESCRIPTOR_RANGE>		add_range;
+				std::vector<D3D12_ROOT_PARAMETER>		add_root_param;
+				std::vector<D3D12_STATIC_SAMPLER_DESC>	add_smp_desc;
+			};
 		protected:
 			ComPtr<ID3D12PipelineState>	m_pl_state;
 			ComPtr<ID3D12RootSignature>	m_rootsig;

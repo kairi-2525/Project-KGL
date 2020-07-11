@@ -21,11 +21,15 @@ DescriptorHandle::DescriptorHandle(
 
 }
 
-DescriptorManager::DescriptorManager(ComPtrC<ID3D12Device> device, size_t amount) noexcept
+DescriptorManager::DescriptorManager(
+	ComPtrC<ID3D12Device> device,
+	size_t amount,
+	D3D12_DESCRIPTOR_HEAP_TYPE type
+) noexcept
 {
 	RCHECK(amount == 0u, "amount が 0");
 	m_create_amount = amount;
-	m_icmt_size = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	m_icmt_size = device->GetDescriptorHandleIncrementSize(type);
 
 	Create(device, m_create_amount);
 }
@@ -57,7 +61,7 @@ HRESULT DescriptorManager::Create(ComPtrC<ID3D12Device> device, size_t amount)
 }
 
 // 新しいハンドルを確保する。
-DescriptorHandle DescriptorManager::Alloc(ComPtrC<ID3D12Device> device) noexcept
+DescriptorHandle DescriptorManager::Alloc() noexcept
 {
 	for (auto& desc : m_descs)
 	{
@@ -68,10 +72,13 @@ DescriptorHandle DescriptorManager::Alloc(ComPtrC<ID3D12Device> device) noexcept
 			return ret;
 		}
 	}
-	if (device)
+	if (m_descs.size() != 0)
 	{
+		ComPtr<ID3D12Device> device;
+		auto hr = m_descs.begin()->heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+		RCHECK(FAILED(hr), "GetDeviceに失敗", {});
 		Create(device);
-		return Alloc({});
+		return Alloc();
 	}
 	return {};
 }

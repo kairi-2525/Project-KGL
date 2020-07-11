@@ -6,19 +6,15 @@ using namespace KGL;
 
 Renderer::Renderer(
 	const ComPtr<ID3D12Device>& device,
-	BDTYPE type,
-	const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
-	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
-	const std::vector<D3D12_DESCRIPTOR_RANGE>& add_range,
-	const std::vector<D3D12_ROOT_PARAMETER>& add_root_param,
-	const std::vector<D3D12_STATIC_SAMPLER_DESC>& add_smp_desc
+	const Desc& desc
 ) noexcept
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
 
-	const auto& shader = GetShaderDesc(vs_desc, ps_desc, input_layouts, &gpipe_desc);
+	const auto& shader = GetShaderDesc(
+		desc.vs_desc, desc.ps_desc, desc.input_layouts, &gpipe_desc);
 
-	BLEND::SetBlend(type, &gpipe_desc.BlendState);
+	BLEND::SetBlend(desc.blend_type, &gpipe_desc.BlendState);
 
 	gpipe_desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
@@ -47,9 +43,9 @@ Renderer::Renderer(
 	std::vector<D3D12_DESCRIPTOR_RANGE> desc_tbl_ranges(1);
 	// テクスチャ用
 	desc_tbl_ranges[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
-	desc_tbl_ranges.reserve(desc_tbl_ranges.size() + add_range.size());
+	desc_tbl_ranges.reserve(desc_tbl_ranges.size() + desc.add_range.size());
 
-	std::copy(add_range.cbegin(), add_range.cend(), std::back_inserter(desc_tbl_ranges));
+	std::copy(desc.add_range.cbegin(), desc.add_range.cend(), std::back_inserter(desc_tbl_ranges));
 
 	std::vector<D3D12_ROOT_PARAMETER> root_params(1);
 	{
@@ -57,8 +53,8 @@ Renderer::Renderer(
 		def_param.InitAsDescriptorTable(desc_tbl_ranges.size(), desc_tbl_ranges.data());
 		root_params[0] = def_param;
 	}
-	root_params.reserve(root_params.size() + add_root_param.size());
-	std::copy(add_root_param.cbegin(), add_root_param.cend(), std::back_inserter(root_params));
+	root_params.reserve(root_params.size() + desc.add_root_param.size());
+	std::copy(desc.add_root_param.cbegin(), desc.add_root_param.cend(), std::back_inserter(root_params));
 
 	std::vector<D3D12_STATIC_SAMPLER_DESC> sampler_desc(1);
 	sampler_desc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
@@ -74,8 +70,8 @@ Renderer::Renderer(
 	sampler_desc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // リサンプリングしない
 	sampler_desc[0].ShaderRegister = 0;
 
-	sampler_desc.reserve(sampler_desc.size() + add_smp_desc.size());
-	std::copy(add_smp_desc.cbegin(), add_smp_desc.cend(), std::back_inserter(sampler_desc));
+	sampler_desc.reserve(sampler_desc.size() + desc.add_smp_desc.size());
+	std::copy(desc.add_smp_desc.cbegin(), desc.add_smp_desc.cend(), std::back_inserter(sampler_desc));
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootsig_desc = {};
 	rootsig_desc.Init(

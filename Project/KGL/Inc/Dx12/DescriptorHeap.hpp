@@ -44,11 +44,15 @@ namespace KGL
 			size_t					m_icmt_size;
 			size_t					m_create_amount;
 		public:
-			explicit DescriptorManager(ComPtrC<ID3D12Device> device, size_t amount) noexcept;
+			explicit DescriptorManager(
+				ComPtrC<ID3D12Device> device,
+				size_t amount,
+				D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+			) noexcept;
 
 			HRESULT Create(ComPtrC<ID3D12Device> device, size_t amount = 0u);
 			// 新しいハンドルを確保する。
-			[[nodiscard]] DescriptorHandle Alloc(ComPtrC<ID3D12Device> device) noexcept;
+			[[nodiscard]] DescriptorHandle Alloc() noexcept;
 			// ハンドルを再利用可能に
 			void Free(const DescriptorHandle& handle) noexcept;
 		};

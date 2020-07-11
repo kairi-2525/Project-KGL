@@ -31,21 +31,29 @@ private:
 private:
 	KGL::VecCamera camera;
 
-	KGL::TextureManager						tex_mgr;
-	std::shared_ptr<KGL::Texture>			tex_blur_w;
-	std::shared_ptr<KGL::Texture>			tex_blur_h;
 	std::shared_ptr<KGL::PMD_Loader>		pmd_data;
 	std::shared_ptr<KGL::VMD_Loader>		vmd_data;
 	std::shared_ptr<KGL::PMD_Model>			pmd_model;
 	std::shared_ptr<KGL::PMD_Model>			pmd_toon_model;
 	std::shared_ptr<KGL::PMD_Renderer>		pmd_renderer;
+
+	std::shared_ptr<KGL::RenderTargetView>	texture_rtv;
+	KGL::TextureManager						tex_mgr;
+	std::shared_ptr<KGL::Texture>			tex_blur_w;
+	std::shared_ptr<KGL::Texture>			tex_blur_h;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_sprite;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_w;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_h;
 	std::shared_ptr<KGL::Sprite>			sprite;
 
+	std::shared_ptr<KGL::Texture>			tex_rendet_target;
+	std::shared_ptr<KGL::DescriptorManager>	effect_desc_mgr;
+	KGL::DescriptorHandle					effect_desc_handle;
+	std::shared_ptr<KGL::Texture>			tex_effect;
+	std::shared_ptr<KGL::BaseRenderer>		renderer_effect;
+
 	std::vector<Obj3D>						models;
-	std::shared_ptr<KGL::RenderTargetView>	texture_rtv;
+
 	KGL::ComPtr<ID3D12CommandAllocator>		cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 

@@ -16,6 +16,9 @@
 
 #pragma warning( disable : 4003 )
 #define RCHECK(fail, msg, result) if (fail) { KGLDebugOutPutString(msg); assert(!msg); return result; }
+#define RCHECK_HR(hr, msg) RCHECK(FAILED(hr), msg, hr)
+#define RCHECK_STR(fail, str, msg, result) if (fail) { KGLDebugOutPutString(str); assert(!msg); return result; }
+#define RCHECK_HRSTR(hr, str, msg) RCHECK_STR(FAILED(hr), str, msg, hr)
 
 namespace KGL
 {

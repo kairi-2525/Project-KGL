@@ -101,7 +101,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 		);
 	try
 	{
-		if (FAILED(hr) && hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+		if (FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) && hr != HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)))
 			throw std::runtime_error(
 				"[" 
 				+ m_path.string() 
