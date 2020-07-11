@@ -58,6 +58,8 @@
     <FxCompile Include="HLSL\2D\Sharpness_ps.hlsl" />
     <FxCompile Include="HLSL\2D\Edge_ps.hlsl" />
     <FxCompile Include="HLSL\2D\SimpleGaussianBlur_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\GaussianBlurW_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\GaussianBlurH_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\Base\Camera.hpp" />
+    <ClInclude Include="Inc\Base\FBX.hpp" />
     <ClInclude Include="Inc\Base\Model.hpp" />
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Base\VMD.hpp" />
@@ -28,6 +29,7 @@
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
     <ClInclude Include="Inc\Dx12\DescriptorHeap.hpp" />
+    <ClInclude Include="Inc\Dx12\Helper.hpp" />
     <ClInclude Include="Inc\Dx12\PipelineState.hpp" />
     <ClInclude Include="Inc\Dx12\3D\PMDActor.hpp" />
     <ClInclude Include="Inc\Dx12\3D\PMDModel.hpp" />
@@ -40,7 +42,9 @@
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
     <ClInclude Include="Inc\Helper\Cast.hpp" />
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
+    <ClInclude Include="Inc\Helper\Convert.hpp" />
     <ClInclude Include="Inc\Helper\Debug.hpp" />
+    <ClInclude Include="Inc\Loader\FBXLoader.hpp" />
     <ClInclude Include="Inc\Math\Gaussian.hpp" />
     <ClInclude Include="Inc\Math\Matrix.hpp" />
     <ClInclude Include="Inc\Helper\ThrowAssert.hpp" />
@@ -67,7 +71,9 @@
     <ClCompile Include="Src\Dx12\RenderTargetView.cpp" />
     <ClCompile Include="Src\Dx12\Shader.cpp" />
     <ClCompile Include="Src\Dx12\Texture.cpp" />
+    <ClCompile Include="Src\Helper\Convert.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />
+    <ClCompile Include="Src\Loader\FBXLoader.cpp" />
     <ClCompile Include="Src\Loader\PMDLoader.cpp" />
     <ClCompile Include="Src\Loader\VMDLoader.cpp" />
     <ClCompile Include="Src\Math\Gaussian.cpp" />

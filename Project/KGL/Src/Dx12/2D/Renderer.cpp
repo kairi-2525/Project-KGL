@@ -38,10 +38,10 @@ Renderer::Renderer(
 	gpipe_desc.SampleDesc.Count = 1;								// サンプリングは１ピクセルにつき１
 	gpipe_desc.SampleDesc.Quality = 0;								// クオリティは最低
 
-	gpipe_desc.DepthStencilState.DepthEnable = true;							// 深度バッファを使う
-	gpipe_desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
-	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	//gpipe_desc.DepthStencilState.DepthEnable = true;							// 深度バッファを使う
+	//gpipe_desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	//gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
+	//gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	//CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[1] = {};					// テクスチャと定数の２つ
 	std::vector<D3D12_DESCRIPTOR_RANGE> desc_tbl_ranges(1);

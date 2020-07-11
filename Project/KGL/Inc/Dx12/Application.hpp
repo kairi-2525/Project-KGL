@@ -47,6 +47,7 @@ namespace KGL
 			~Application();
 
 			void SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
+			void SetRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			void ClearRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 				const DirectX::XMFLOAT4& clear_color) const noexcept
 			{

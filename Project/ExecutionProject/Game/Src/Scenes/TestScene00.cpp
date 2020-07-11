@@ -4,6 +4,8 @@
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
 #include <Dx12/BlendState.hpp>
+#include <Dx12/Helper.hpp>
+#include <Math/Gaussian.hpp>
 
 HRESULT TestScene00::Load(const SceneDesc& desc)
 {
@@ -12,35 +14,51 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	hr = device->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(cmd_allocator.ReleaseAndGetAddressOf())
-	);
-	RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", hr);
-	hr = device->CreateCommandList(0,
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		cmd_allocator.Get(), nullptr,
-		IID_PPV_ARGS(cmd_list.ReleaseAndGetAddressOf())
-	);
-	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
+	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
-	texture = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
-	texture_rtv = std::make_shared<KGL::RenderTargetView>(device, *texture);
+	tex_blur_w = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+	tex_blur_h = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+	{
+		std::vector<KGL::ComPtr<ID3D12Resource>> resources(2);
+		resources[0] = tex_blur_w->Data();
+		resources[1] = tex_blur_h->Data();
+		texture_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
+	}
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
-	std::vector<D3D12_DESCRIPTOR_RANGE> add_ranges(1);
-	add_ranges[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	renderer_2d = std::make_shared<KGL::_2D::Renderer>(
-		device,
-		KGL::BDTYPE::DEFAULT,
-		KGL::_2D::Renderer::VS_DESC,
-		KGL::Shader::Desc{ "./HLSL/2D/SimpleGaussianBlur_ps.hlsl", "PSMain", "ps_5_0" },
-		KGL::_2D::Renderer::INPUT_LAYOUTS,
-		add_ranges
-		);
+
+	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device);
+	{
+		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+		std::vector<D3D12_ROOT_PARAMETER> add_rootparam(1);
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges);
+			add_rootparam[0] = root_param;
+		}
+		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(
+			device,
+			KGL::BDTYPE::DEFAULT,
+			KGL::_2D::Renderer::VS_DESC,
+			KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_0" },
+			KGL::_2D::Renderer::INPUT_LAYOUTS,
+			std::vector<D3D12_DESCRIPTOR_RANGE>(),
+			add_rootparam
+			);
+		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(
+			device,
+			KGL::BDTYPE::DEFAULT,
+			KGL::_2D::Renderer::VS_DESC,
+			KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_0" },
+			KGL::_2D::Renderer::INPUT_LAYOUTS,
+			std::vector<D3D12_DESCRIPTOR_RANGE>(),
+			add_rootparam
+			);
+	}
 	sprite = std::make_shared<KGL::Sprite>(device);
 
 	models.resize(1, { device, *pmd_model });
@@ -49,9 +67,35 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		model.SetAnimation(vmd_data->GetDesc());
 	}
 
-	descriptor_mgr = std::make_shared<KGL::DescriptorManager>(device, 100u);
-	for (int i = 0; i < 1000; i++)
-		descriptor_mgr->Alloc(device);
+	{
+		blur_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+		blur_buff_handle = blur_desc_mgr->Alloc(device);
+
+		// ガウス処理をあらかじめ計算しておく
+		const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
+
+		const auto buff_size = ((weights.size() * sizeof(weights[0])) + 0xff) & ~0xff;
+		hr = device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+			D3D12_HEAP_FLAG_NONE,
+			&CD3DX12_RESOURCE_DESC::Buffer(buff_size),
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(blur_const_buff.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
+		float* mapped_weight = nullptr;
+		hr = blur_const_buff->Map(0, nullptr, (void**)&mapped_weight);
+		RCHECK(FAILED(hr), "blur_const_buff->Mapに失敗", hr);
+		std::copy(weights.cbegin(), weights.cend(), mapped_weight);
+		blur_const_buff->Unmap(0, nullptr);
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
+		mat_cbv_desc.BufferLocation = blur_const_buff->GetGPUVirtualAddress();
+		mat_cbv_desc.SizeInBytes = buff_size;
+		device->CreateConstantBufferView(&mat_cbv_desc, blur_buff_handle.Cpu());
+	}
+
 
 	return hr;
 }
@@ -122,10 +166,10 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 		window_size.x, window_size.y
 	);
 
-	{	// テクスチャにモデルを描画
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true));
-		texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
-		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+	{	// テクスチャ(W)にモデルを描画
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 0u));
+		texture_rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart(), 0u);
+		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 0u);
 		desc.app->ClearDsv(cmd_list);
 
 		cmd_list->RSSetViewports(1, &viewport);
@@ -145,21 +189,39 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 
-		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false));
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 0u));
+	}
+	{	// テクスチャ(H)にテクスチャ(W)を描画
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(true, 1u));
+		texture_rtv->Set(cmd_list, nullptr, 1u);
+		texture_rtv->Clear(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f), 1u);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		renderer_blur_w->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(0u));
+		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+		sprite->Render(cmd_list);
+
+		cmd_list->ResourceBarrier(1, &texture_rtv->GetRtvResourceBarrier(false, 1u));
 	}
 	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画
-		desc.app->SetRtvDsv(cmd_list);
+		desc.app->SetRtv(cmd_list);
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->ClearRtv(cmd_list, clear_color);
 
-		cmd_list->RSSetViewports(1, &viewport);
-		cmd_list->RSSetScissorRects(1, &scissorrect);
-
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		renderer_2d->SetState(cmd_list);
+
+		renderer_blur_h->SetState(cmd_list);
 
 		cmd_list->SetDescriptorHeaps(1, texture_rtv->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVHeap()->GetGPUDescriptorHandleForHeapStart());
+		cmd_list->SetGraphicsRootDescriptorTable(0, texture_rtv->GetSRVGPUHandle(1u));
+		cmd_list->SetDescriptorHeaps(1, blur_buff_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(1, blur_buff_handle.Gpu());
+
 		sprite->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));

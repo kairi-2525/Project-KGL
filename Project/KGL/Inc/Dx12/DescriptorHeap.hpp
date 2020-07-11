@@ -48,7 +48,7 @@ namespace KGL
 
 			HRESULT Create(ComPtrC<ID3D12Device> device, size_t amount = 0u);
 			// 新しいハンドルを確保する。
-			DescriptorHandle Alloc(ComPtrC<ID3D12Device> device) noexcept;
+			[[nodiscard]] DescriptorHandle Alloc(ComPtrC<ID3D12Device> device) noexcept;
 			// ハンドルを再利用可能に
 			void Free(const DescriptorHandle& handle) noexcept;
 		};

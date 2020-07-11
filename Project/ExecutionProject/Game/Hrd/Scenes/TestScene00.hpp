@@ -32,13 +32,16 @@ private:
 	KGL::VecCamera camera;
 
 	KGL::TextureManager						tex_mgr;
-	std::shared_ptr<KGL::Texture>			texture;
+	std::shared_ptr<KGL::Texture>			tex_blur_w;
+	std::shared_ptr<KGL::Texture>			tex_blur_h;
 	std::shared_ptr<KGL::PMD_Loader>		pmd_data;
 	std::shared_ptr<KGL::VMD_Loader>		vmd_data;
 	std::shared_ptr<KGL::PMD_Model>			pmd_model;
 	std::shared_ptr<KGL::PMD_Model>			pmd_toon_model;
 	std::shared_ptr<KGL::PMD_Renderer>		pmd_renderer;
-	std::shared_ptr<KGL::BaseRenderer>		renderer_2d;
+	std::shared_ptr<KGL::BaseRenderer>		renderer_sprite;
+	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_w;
+	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_h;
 	std::shared_ptr<KGL::Sprite>			sprite;
 
 	std::vector<Obj3D>						models;
@@ -47,7 +50,10 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 
 	DirectX::XMFLOAT4						clear_color;
-	std::shared_ptr<KGL::DescriptorManager>	descriptor_mgr;
+
+	std::shared_ptr<KGL::DescriptorManager>	blur_desc_mgr;
+	KGL::ComPtr<ID3D12Resource>				blur_const_buff;
+	KGL::DescriptorHandle					blur_buff_handle;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
