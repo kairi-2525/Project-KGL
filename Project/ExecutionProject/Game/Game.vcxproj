@@ -179,12 +179,14 @@
     <ClCompile Include="Src\SceneGame.cpp" />
     <ClCompile Include="Src\SceneManager.cpp" />
     <ClCompile Include="Src\Scenes\TestScene00.cpp" />
+    <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Obj3D.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene00.hpp" />
+    <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\2D\Blur_ps.hlsl">
