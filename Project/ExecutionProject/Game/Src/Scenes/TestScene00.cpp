@@ -130,7 +130,7 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
-	mapped_scene_buff->proj = proj_mat;
+	scene_mapped_buff->proj = proj_mat;
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -143,8 +143,8 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
-	mapped_scene_buff->eye = camera.eye;
-	mapped_scene_buff->view = KGL::CAMERA::GetView(camera);
+	scene_mapped_buff->eye = camera.eye;
+	scene_mapped_buff->view = KGL::CAMERA::GetView(camera);
 
 	for (auto& model : models)
 	{
@@ -153,7 +153,7 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
-		model.UpdateWVP(mapped_scene_buff->view * mapped_scene_buff->proj);
+		model.UpdateWVP(scene_mapped_buff->view * scene_mapped_buff->proj);
 	}
 
 	total_elapsed_time += elapsed_time;

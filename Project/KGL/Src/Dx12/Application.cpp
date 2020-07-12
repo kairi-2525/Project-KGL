@@ -267,7 +267,7 @@ HRESULT Application::CreateHeaps()
 		depth_res_desc.Width = swc_desc.Width;								// 幅と高さはレンダーターゲットと同じ
 		depth_res_desc.Height = swc_desc.Height;
 		depth_res_desc.DepthOrArraySize = 1;								// テクスチャ配列でも３D配列でもない
-		depth_res_desc.Format = DXGI_FORMAT_D32_FLOAT;						// 深度値書き込み用フォーマット
+		depth_res_desc.Format = DXGI_FORMAT_R32_TYPELESS;					// 深度値書き込み用フォーマット
 		depth_res_desc.SampleDesc.Count = 1;								// サンプルは１ピクセル当たり１つ
 		depth_res_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;		// デプスステンシルとして使用
 

@@ -54,18 +54,22 @@ namespace KGL
 				};
 				static inline const Shader::Desc VS_DESC =
 				{
-					"./HLSL/3D/PMDVertexShader.hlsl", "BasicVS", "vs_5_0"
+					"./HLSL/3D/PMDVertexShader.hlsl", "VSMain", "vs_5_0"
 				};
 				static inline const Shader::Desc PS_DESC =
 				{
-					"./HLSL/3D/PMDPixelShader.hlsl", "BasicPS", "ps_5_0"
+					"./HLSL/3D/PMDPixelShader.hlsl", "PSMain", "ps_5_0"
+				};
+				static inline const Desc DEFAULT_DESC =
+				{
+					BDTYPE::DEFAULT,
+					VS_DESC, PS_DESC,
+					INPUT_LAYOUTS
 				};
 			public:
 				explicit PMD_Renderer(
 					const ComPtr<ID3D12Device>& device,
-					BDTYPE type = BDTYPE::DEFAULT,
-					const Shader::Desc& vs_desc = VS_DESC, const Shader::Desc& ps_desc = PS_DESC,
-					const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts = INPUT_LAYOUTS
+					const Desc& desc = DEFAULT_DESC
 				) noexcept;
 			};
 		}

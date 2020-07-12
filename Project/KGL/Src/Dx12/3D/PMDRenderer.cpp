@@ -8,16 +8,14 @@ using namespace KGL;
 
 PMD_Renderer::PMD_Renderer(
 	const ComPtr<ID3D12Device>& device,
-	BDTYPE type,
-	const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
-	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts
+	const Desc& desc
 ) noexcept
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
 
-	const auto& shader = GetShaderDesc(vs_desc, ps_desc, input_layouts, &gpipe_desc);
+	const auto& shader = GetShaderDesc(desc.vs_desc, desc.ps_desc, desc.input_layouts, &gpipe_desc);
 
-	BLEND::SetBlend(type, &gpipe_desc.BlendState);
+	BLEND::SetBlend(desc.blend_type, &gpipe_desc.BlendState);
 
 	gpipe_desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 
@@ -42,26 +40,38 @@ PMD_Renderer::PMD_Renderer(
 	gpipe_desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;		// 小さいほうを書き込む
 	gpipe_desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[4] = {};					// テクスチャと定数の２つ
+	CD3DX12_DESCRIPTOR_RANGE desc_tbl_ranges[3] = {};					// テクスチャと定数の２つ
 
 	// 定数用
-	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
+	std::vector<D3D12_DESCRIPTOR_RANGE> scene_tbl_range(1);
+	scene_tbl_range[0] = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	scene_tbl_range.reserve(scene_tbl_range.size() + desc.add_range.size());
+	std::copy(desc.add_range.cbegin(), desc.add_range.cend(), std::back_inserter(scene_tbl_range));
 
+	desc_tbl_ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1);
 	// マテリアル定数用
-	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
+	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
 
 	// テクスチャ4つ レジスター1から
-	desc_tbl_ranges[3].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
+	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
-	CD3DX12_ROOT_PARAMETER root_params[3] = {};
-	root_params[0].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
-	root_params[1].InitAsDescriptorTable(1, &desc_tbl_ranges[1]);
+	std::vector<D3D12_ROOT_PARAMETER> root_params(3);
+	{
+		CD3DX12_ROOT_PARAMETER def_param[3];
+		def_param[0].InitAsDescriptorTable(SCAST<UINT>(scene_tbl_range.size()), scene_tbl_range.data());
+		def_param[1].InitAsDescriptorTable(1, &desc_tbl_ranges[0]);
+		def_param[2].InitAsDescriptorTable(2, &desc_tbl_ranges[1]);
 
-	root_params[2].InitAsDescriptorTable(2, &desc_tbl_ranges[2]);
+		root_params[0] = def_param[0];
+		root_params[1] = def_param[1];
+		root_params[2] = def_param[2];
+	}
+	root_params.reserve(root_params.size() + desc.add_root_param.size());
+	std::copy(desc.add_root_param.cbegin(), desc.add_root_param.cend(), std::back_inserter(root_params));
 
-	CD3DX12_STATIC_SAMPLER_DESC sampler_desc[2] = {};
-	sampler_desc[0].Init(0);
+	std::vector<D3D12_STATIC_SAMPLER_DESC> sampler_desc(2);
+	//CD3DX12_STATIC_SAMPLER_DESC sampler_desc[2] = {};
+	sampler_desc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
 	sampler_desc[0].AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler_desc[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 	sampler_desc[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -74,16 +84,18 @@ PMD_Renderer::PMD_Renderer(
 	sampler_desc[0].ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER; // リサンプリングしない
 	sampler_desc[0].ShaderRegister = 0;
 
-	sampler_desc[1].Init(1,
+	sampler_desc[1] = CD3DX12_STATIC_SAMPLER_DESC(1,
 		D3D12_FILTER_ANISOTROPIC,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
 	);
+	sampler_desc.reserve(sampler_desc.size() + desc.add_smp_desc.size());
+	std::copy(desc.add_smp_desc.cbegin(), desc.add_smp_desc.cend(), std::back_inserter(sampler_desc));
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootsig_desc = {};
 	rootsig_desc.Init(
-		_countof(root_params), root_params,
-		_countof(sampler_desc), sampler_desc,
+		SCAST<UINT>(root_params.size()), root_params.data(),
+		SCAST<UINT>(sampler_desc.size()), sampler_desc.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 

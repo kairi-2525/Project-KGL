@@ -1,4 +1,4 @@
-#include "PMDShaderHeader.hlsli"
+#include "PMDGroundShadow.hlsli"
 
 Output VSMain(
 	float4 pos : POSITION,
@@ -13,7 +13,16 @@ Output VSMain(
 	float w = weight / 100.0f;
 	row_major matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1 - w);
 
-	output.svpos = mul(mul(pos, bm), wvp);
+	output.pos = mul(pos, bm);
+	output.pos = mul(output.pos, world);
+
+	output.inst_no = inst_no;
+	if (inst_no == 1)
+	{
+		output.pos = mul(output.pos, shadow);
+	}
+
+	output.svpos = mul(mul(output.pos, view), proj);
 
 	normal.w = 0;	// •½sˆÚ“®¬•ª‚ğ–³Œø‰»
 

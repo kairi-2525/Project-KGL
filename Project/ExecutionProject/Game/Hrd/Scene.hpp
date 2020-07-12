@@ -11,6 +11,8 @@
 #include <Base/Window.hpp>
 #include <Helper/ComPtr.hpp>
 #include <Dx12/DescriptorHeap.hpp>
+#include <DirectXTex/d3dx12.h>
+#include <Helper/ThrowAssert.hpp>
 
 class SceneManager;
 struct SceneDesc
@@ -61,15 +63,16 @@ public:
 	const std::shared_ptr<SceneBase>& GetNextScene() noexcept { return m_next_scene; }
 };
 
+template <class _Ty>
 class SceneBaseDx12 : public SceneBase
 {
 protected:
 	std::shared_ptr<KGL::DescriptorManager>	scene_desc_mgr;
 	KGL::DescriptorHandle					scene_buff_handle;
 	KGL::ComPtr<ID3D12Resource>				scene_buff;
-	SceneBuffers*							mapped_scene_buff;
+	_Ty*									scene_mapped_buff;
 public:
-	SceneBaseDx12() : mapped_scene_buff(nullptr) {}
+	SceneBaseDx12() : scene_mapped_buff(nullptr) {}
 	virtual ~SceneBaseDx12() = default;
 	HRESULT virtual Load(const SceneDesc& desc) override;
 };
@@ -95,3 +98,34 @@ public:
 	HRESULT Update(const SceneDesc& desc, float elapsed_time);
 	HRESULT SceneChangeUpdate(const SceneDesc& desc);
 };
+
+template <class _Ty>
+HRESULT SceneBaseDx12<_Ty>::Load(const SceneDesc& desc)
+{
+	HRESULT hr = S_OK;
+	const auto& device = desc.app->GetDevice();
+
+	scene_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	scene_buff_handle = scene_desc_mgr->Alloc();
+
+	const auto buff_size = (sizeof(_Ty) + 0xff) & ~0xff;
+	hr = device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(buff_size),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(scene_buff.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s", hr);
+	scene_mapped_buff = nullptr;
+	hr = scene_buff->Map(0, nullptr, (void**)&scene_mapped_buff);
+	RCHECK(FAILED(hr), "blur_const_buff->Map‚ÉŽ¸”s", hr);
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
+	mat_cbv_desc.BufferLocation = scene_buff->GetGPUVirtualAddress();
+	mat_cbv_desc.SizeInBytes = buff_size;
+	device->CreateConstantBufferView(&mat_cbv_desc, scene_buff_handle.Cpu());
+
+	return hr;
+}

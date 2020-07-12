@@ -60,7 +60,8 @@ namespace KGL
 					TextureManager* mgr = nullptr) noexcept;
 				HRESULT Render(
 					const ComPtr<ID3D12Device>& device,
-					const ComPtr<ID3D12GraphicsCommandList>& cmd_list
+					const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+					UINT instance_count = 1u
 				) const noexcept;
 
 				size_t GetMaterialCount() const noexcept { return m_material_num; }

@@ -372,7 +372,8 @@ HRESULT PMD_Model::CreateBoneMatrix(const PMD::BoneTable& bone_table) noexcept
 
 HRESULT PMD_Model::Render(
 	const ComPtr<ID3D12Device>& device,
-	const ComPtr<ID3D12GraphicsCommandList>& cmd_list
+	const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+	UINT instance_count
 ) const noexcept
 {
 	cmd_list->IASetVertexBuffers(0, 1, &m_vb_view);
@@ -386,7 +387,7 @@ HRESULT PMD_Model::Render(
 	{
 		const auto index_count = m_index_counts[i];
 		cmd_list->SetGraphicsRootDescriptorTable(2, heap_handle);
-		cmd_list->DrawIndexedInstanced(index_count, 1, index_offset, 0, 0);
+		cmd_list->DrawIndexedInstanced(index_count, instance_count, index_offset, 0, 0);
 
 		heap_handle.ptr += cbv_increment_size;
 		index_offset += index_count;

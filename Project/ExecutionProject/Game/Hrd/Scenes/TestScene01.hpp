@@ -16,7 +16,15 @@
 
 #include "../Obj3D.hpp"
 
-class TestScene01 : public SceneBaseDx12
+struct SceneBuffers
+{
+	DirectX::XMMATRIX view;
+	DirectX::XMMATRIX proj;
+	DirectX::XMMATRIX shadow;
+	DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
+};
+
+class TestScene01 : public SceneBaseDx12<SceneBuffers>
 {
 private:
 
@@ -35,6 +43,10 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 
 	DirectX::XMFLOAT4						clear_color;
+	DirectX::XMVECTOR						light_pos;
+
+	std::shared_ptr<KGL::DescriptorManager>	dsv_srv_desc_mgr;
+	KGL::DescriptorHandle					dsv_srv_handle;
 
 public:
 	HRESULT Load(const SceneDesc& desc) override;

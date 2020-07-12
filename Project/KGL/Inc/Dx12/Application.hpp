@@ -63,6 +63,7 @@ namespace KGL
 			const ComPtr<IDXGISwapChain4>& GetSwapchain() const noexcept { return  m_swapchain; }
 			const std::shared_ptr<CommandQueue>& GetQueue() const noexcept { return  m_cmd_queue; }
 			const std::vector<ComPtr<ID3D12Resource>>& GetRtvBuffers() const noexcept { return  m_rtv_buffers; }
+			const ComPtr<ID3D12Resource>& GetDsvBuffer() const noexcept { return  m_depth_buff; }
 			const ComPtr<ID3D12DescriptorHeap>& GetRtvHeap() const noexcept { return  m_rtv_heap; }
 			const ComPtr<ID3D12DescriptorHeap>& GetDsvHeap() const noexcept { return  m_dsv_heap; }
 			bool IsTearingSupport() const noexcept { return m_tearing_support; }

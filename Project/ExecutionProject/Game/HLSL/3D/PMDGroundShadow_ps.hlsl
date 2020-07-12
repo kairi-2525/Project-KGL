@@ -1,7 +1,12 @@
-#include "PMDShaderHeader.hlsli"
+#include "PMDGroundShadow.hlsli"
 
 float4 PSMain(Output input) : SV_TARGET
 {
+	if (input.inst_no == 1)
+	{
+		return float4(0.f, 0.f, 0.f, 1.f);
+	}
+
 	float3 light = normalize(float3(1, -1, 1));
 	float3 light_color = float3(1, 1, 1);
 

@@ -1,4 +1,4 @@
-#include "../../Hrd/Scenes/TestScene01.hpp"
+#include "../../Hrd/Scenes/TestScene02.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -7,7 +7,7 @@
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
 
-HRESULT TestScene01::Load(const SceneDesc& desc)
+HRESULT TestScene02::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
@@ -29,6 +29,41 @@ HRESULT TestScene01::Load(const SceneDesc& desc)
 		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
 	}
 
+	dsv_srv_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	dsv_srv_handle = dsv_srv_desc_mgr->Alloc();
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC res_desc = {};
+		res_desc.Format = DXGI_FORMAT_R32_FLOAT;
+		res_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		res_desc.Texture2D.MipLevels = 1;
+		res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		device->CreateShaderResourceView(
+			desc.app->GetDsvBuffer().Get(),
+			&res_desc,
+			dsv_srv_handle.Cpu()
+		);
+	}
+
+	sprite = std::make_shared<KGL::Sprite>(device);
+	{
+		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
+		auto add_ranges_dsv = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges_dsv);
+			renderer_desc.add_root_param.push_back(root_param);
+		}
+		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Depth_ps.hlsl";
+		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+	}
+
+	tex_rt = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	{
+		std::vector<KGL::ComPtr<ID3D12Resource>> resources(1);
+		resources[0] = tex_rt->Data();
+		rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
+	}
+
 	models.resize(1, { device, *pmd_model });
 	for (auto& model : models)
 	{
@@ -41,7 +76,7 @@ HRESULT TestScene01::Load(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene01::Init(const SceneDesc& desc)
+HRESULT TestScene02::Init(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
@@ -61,17 +96,10 @@ HRESULT TestScene01::Init(const SceneDesc& desc)
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
-	light_pos = XMVectorSet(-0.5f, 1.f, -1.f, 0.f);
-	light_pos *= 100.f;
-
-	auto plane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
-
-	scene_mapped_buff->shadow = XMMatrixShadow(plane, light_pos);
-
 	return S_OK;
 }
 
-HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
+HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
@@ -91,7 +119,7 @@ HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 	return Render(desc);
 }
 
-HRESULT TestScene01::Render(const SceneDesc& desc)
+HRESULT TestScene02::Render(const SceneDesc& desc)
 {
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
@@ -110,11 +138,11 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 		0, 0,
 		window_size.x, window_size.y
 	);
-
-	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
-		desc.app->SetRtvDsv(cmd_list);
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->ClearRtvDsv(cmd_list, clear_color);
+	{
+		cmd_list->ResourceBarrier(1, &rtv->GetRtvResourceBarrier(true));
+		rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
+		rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+		desc.app->ClearDsv(cmd_list);
 
 		cmd_list->RSSetViewports(1, &viewport);
 		cmd_list->RSSetScissorRects(1, &scissorrect);
@@ -132,11 +160,29 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 
 			hr = pmd_toon_model->Render(
 				desc.app->GetDevice(),
-				cmd_list,
-				2u
+				cmd_list
 			);
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
+
+		cmd_list->ResourceBarrier(1, &rtv->GetRtvResourceBarrier(false));
+	}
+	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
+		desc.app->SetRtv(cmd_list);
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->ClearRtv(cmd_list, clear_color);
+
+		cmd_list->RSSetViewports(1, &viewport);
+		cmd_list->RSSetScissorRects(1, &scissorrect);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+		sprite_renderer->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());
+
+		sprite->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
@@ -158,7 +204,7 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene01::UnInit(const SceneDesc& desc)
+HRESULT TestScene02::UnInit(const SceneDesc& desc)
 {
 	return S_OK;
 }
