@@ -29,7 +29,11 @@ Renderer::Renderer(
 #ifdef USE_SRGB
 	gpipe_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;		// 0~1に正規化されたSRGBA
 #else
-	gpipe_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;			// 0~1に正規化されたRGBA
+	gpipe_desc.NumRenderTargets = (std::min)(SCAST<UINT>(desc.render_targets.size()), 8u);
+	for (UINT i = 0u; i < gpipe_desc.NumRenderTargets; i++)
+	{
+		gpipe_desc.RTVFormats[i] = desc.render_targets[i];
+	}
 #endif
 	gpipe_desc.SampleDesc.Count = 1;								// サンプリングは１ピクセルにつき１
 	gpipe_desc.SampleDesc.Quality = 0;								// クオリティは最低

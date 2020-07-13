@@ -14,6 +14,8 @@ Output VSMain(
 	row_major matrix bm = bones[boneno[0]] * w + bones[boneno[1]] * (1 - w);
 
 	output.svpos = mul(mul(pos, bm), wvp);
+	output.tpos = mul(mul(pos, bm), world);
+	output.tpos = mul(output.tpos, light_camera);
 
 	normal.w = 0;	// •½sˆÚ“®¬•ª‚ğ–³Œø‰»
 

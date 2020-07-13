@@ -30,7 +30,11 @@ PMD_Renderer::PMD_Renderer(
 #ifdef USE_SRGB
 	gpipe_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;		// 0~1に正規化されたSRGBA
 #else
-	gpipe_desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;			// 0~1に正規化されたRGBA
+	gpipe_desc.NumRenderTargets = (std::min)(SCAST<UINT>(desc.render_targets.size()), 8u);
+	for (UINT i = 0u; i < gpipe_desc.NumRenderTargets; i++)
+	{
+		gpipe_desc.RTVFormats[i] = desc.render_targets[i];
+	}
 #endif
 	gpipe_desc.SampleDesc.Count = 1;								// サンプリングは１ピクセルにつき１
 	gpipe_desc.SampleDesc.Quality = 0;								// クオリティは最低
@@ -52,7 +56,7 @@ PMD_Renderer::PMD_Renderer(
 	// マテリアル定数用
 	desc_tbl_ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 2);
 
-	// テクスチャ4つ レジスター1から
+	// テクスチャ4つ レジスター0から
 	desc_tbl_ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 4, 0);
 
 	std::vector<D3D12_ROOT_PARAMETER> root_params(3);

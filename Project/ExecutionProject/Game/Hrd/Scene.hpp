@@ -28,6 +28,7 @@ public:
 	{
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX proj;
+		DirectX::XMMATRIX light_cam;
 		DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
 	};
 private:
@@ -64,17 +65,15 @@ public:
 };
 
 template <class _Ty>
-class SceneBaseDx12 : public SceneBase
+struct SceneBufferDx12
 {
-protected:
-	std::shared_ptr<KGL::DescriptorManager>	scene_desc_mgr;
-	KGL::DescriptorHandle					scene_buff_handle;
-	KGL::ComPtr<ID3D12Resource>				scene_buff;
-	_Ty*									scene_mapped_buff;
+	std::shared_ptr<KGL::DescriptorManager>	desc_mgr;
+	KGL::DescriptorHandle					handle;
+	KGL::ComPtr<ID3D12Resource>				buff;
+	_Ty*									mapped_data;
 public:
-	SceneBaseDx12() : scene_mapped_buff(nullptr) {}
-	virtual ~SceneBaseDx12() = default;
-	HRESULT virtual Load(const SceneDesc& desc) override;
+	SceneBufferDx12() : mapped_data(nullptr) {}
+	HRESULT Load(const SceneDesc& desc);
 };
 
 class SceneManager
@@ -100,13 +99,13 @@ public:
 };
 
 template <class _Ty>
-HRESULT SceneBaseDx12<_Ty>::Load(const SceneDesc& desc)
+HRESULT SceneBufferDx12<_Ty>::Load(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	scene_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-	scene_buff_handle = scene_desc_mgr->Alloc();
+	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	handle = desc_mgr->Alloc();
 
 	const auto buff_size = (sizeof(_Ty) + 0xff) & ~0xff;
 	hr = device->CreateCommittedResource(
@@ -115,17 +114,17 @@ HRESULT SceneBaseDx12<_Ty>::Load(const SceneDesc& desc)
 		&CD3DX12_RESOURCE_DESC::Buffer(buff_size),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
-		IID_PPV_ARGS(scene_buff.ReleaseAndGetAddressOf())
+		IID_PPV_ARGS(buff.ReleaseAndGetAddressOf())
 	);
 	RCHECK(FAILED(hr), "CreateCommittedResourceÇ…é∏îs", hr);
-	scene_mapped_buff = nullptr;
-	hr = scene_buff->Map(0, nullptr, (void**)&scene_mapped_buff);
+	mapped_data = nullptr;
+	hr = buff->Map(0, nullptr, (void**)&mapped_data);
 	RCHECK(FAILED(hr), "blur_const_buff->MapÇ…é∏îs", hr);
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
-	mat_cbv_desc.BufferLocation = scene_buff->GetGPUVirtualAddress();
+	mat_cbv_desc.BufferLocation = buff->GetGPUVirtualAddress();
 	mat_cbv_desc.SizeInBytes = buff_size;
-	device->CreateConstantBufferView(&mat_cbv_desc, scene_buff_handle.Cpu());
+	device->CreateConstantBufferView(&mat_cbv_desc, handle.Cpu());
 
 	return hr;
 }

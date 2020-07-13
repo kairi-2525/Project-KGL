@@ -40,14 +40,17 @@ namespace KGL
 				std::list<DescriptorHandle>		free_handles;
 			};
 		private:
-			std::vector<HeapDesc>	m_descs;
-			size_t					m_icmt_size;
-			size_t					m_create_amount;
+			std::vector<HeapDesc>		m_descs;
+			size_t						m_icmt_size;
+			size_t						m_create_amount;
+			D3D12_DESCRIPTOR_HEAP_TYPE	m_type;
+			D3D12_DESCRIPTOR_HEAP_FLAGS m_flags;
 		public:
 			explicit DescriptorManager(
 				ComPtrC<ID3D12Device> device,
 				size_t amount,
-				D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+				D3D12_DESCRIPTOR_HEAP_TYPE type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+				D3D12_DESCRIPTOR_HEAP_FLAGS flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
 			) noexcept;
 
 			HRESULT Create(ComPtrC<ID3D12Device> device, size_t amount = 0u);

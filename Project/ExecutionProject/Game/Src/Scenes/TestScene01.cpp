@@ -35,7 +35,7 @@ HRESULT TestScene01::Load(const SceneDesc& desc)
 		model.SetAnimation(vmd_data->GetDesc());
 	}
 
-	hr = SceneBaseDx12::Load(desc);
+	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Load‚ÉŽ¸”s", hr);
 
 	return hr;
@@ -57,7 +57,7 @@ HRESULT TestScene01::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
-	scene_mapped_buff->proj = proj_mat;
+	scene_buffer.mapped_data->proj = proj_mat;
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -66,7 +66,7 @@ HRESULT TestScene01::Init(const SceneDesc& desc)
 
 	auto plane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
-	scene_mapped_buff->shadow = XMMatrixShadow(plane, light_pos);
+	scene_buffer.mapped_data->shadow = XMMatrixShadow(plane, light_pos);
 
 	return S_OK;
 }
@@ -75,8 +75,8 @@ HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
-	scene_mapped_buff->eye = camera.eye;
-	scene_mapped_buff->view = KGL::CAMERA::GetView(camera);
+	scene_buffer.mapped_data->eye = camera.eye;
+	scene_buffer.mapped_data->view = KGL::CAMERA::GetView(camera);
 
 	for (auto& model : models)
 	{
@@ -85,7 +85,7 @@ HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
-		model.UpdateWVP(scene_mapped_buff->view * scene_mapped_buff->proj);
+		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}
 
 	return Render(desc);
@@ -123,8 +123,8 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 
 		pmd_renderer->SetState(cmd_list);
 
-		cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 
 		for (auto& model : models)
 		{

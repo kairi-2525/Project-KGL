@@ -110,10 +110,11 @@ HRESULT PMD_Model::CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std:
 	const size_t material_buffer_size = (sizeof(MODEL::MaterialForHLSL) + 0xff) & ~0xff;
 
 	m_index_counts.resize(m_material_num);
-
+	m_index_count_total = 0;
 	for (size_t i = 0u; i < material_size; i++)
 	{
 		m_index_counts[i] = mtr.at(i).indices_num;
+		m_index_count_total += m_index_counts[i];
 
 		hlsl_materials[i].deffuse = mtr.at(i).diffuse;
 		hlsl_materials[i].alpha = mtr.at(i).alpha;
@@ -392,6 +393,20 @@ HRESULT PMD_Model::Render(
 		heap_handle.ptr += cbv_increment_size;
 		index_offset += index_count;
 	}
+
+	return S_OK;
+}
+
+HRESULT PMD_Model::NonMaterialRender(
+	const ComPtr<ID3D12Device>& device,
+	const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+	UINT instance_count
+) const noexcept
+{
+	cmd_list->IASetVertexBuffers(0, 1, &m_vb_view);
+	cmd_list->IASetIndexBuffer(&m_ib_view);
+
+	cmd_list->DrawIndexedInstanced(m_index_count_total, instance_count, 0, 0, 0);
 
 	return S_OK;
 }

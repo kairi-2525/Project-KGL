@@ -13,6 +13,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
+	auto window_size = desc.window->GetClientSize();
 
 	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
@@ -31,14 +32,14 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		device->CreateShaderResourceView(tex_effect->Data().Get(), &srv_desc, effect_desc_handle.Cpu());
 	}
 
-	tex_blur_w = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
-	tex_blur_h = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
-	tex_rendet_target = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	first_rtv = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	blur_vertical_rtv = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
+	blur_horizontal_rtv = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
 	{
 		std::vector<KGL::ComPtr<ID3D12Resource>> resources(3);
-		resources[0] = tex_blur_w->Data();
-		resources[1] = tex_blur_h->Data();
-		resources[2] = tex_rendet_target->Data();
+		resources[0] = first_rtv->Data();
+		resources[1] = blur_vertical_rtv->Data();
+		resources[2] = blur_horizontal_rtv->Data();
 		texture_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
 	}
 
@@ -108,7 +109,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		device->CreateConstantBufferView(&mat_cbv_desc, blur_buff_handle.Cpu());
 	}
 
-	hr = SceneBaseDx12::Load(desc);
+	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
 	return hr;
@@ -130,7 +131,7 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 
-	scene_mapped_buff->proj = proj_mat;
+	scene_buffer.mapped_data->proj = proj_mat;
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -143,8 +144,8 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
-	scene_mapped_buff->eye = camera.eye;
-	scene_mapped_buff->view = KGL::CAMERA::GetView(camera);
+	scene_buffer.mapped_data->eye = camera.eye;
+	scene_buffer.mapped_data->view = KGL::CAMERA::GetView(camera);
 
 	for (auto& model : models)
 	{
@@ -153,7 +154,7 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
-		model.UpdateWVP(scene_mapped_buff->view * scene_mapped_buff->proj);
+		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}
 
 	total_elapsed_time += elapsed_time;
@@ -202,8 +203,8 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 
 			pmd_renderer->SetState(cmd_list);
 
-			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 
 			for (auto& model : models)
 			{
@@ -287,8 +288,8 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 
 			pmd_renderer->SetState(cmd_list);
 
-			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 
 			for (auto& model : models)
 			{
@@ -351,8 +352,8 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 
 			pmd_renderer->SetState(cmd_list);
 
-			cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 
 			for (auto& model : models)
 			{

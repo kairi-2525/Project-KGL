@@ -16,9 +16,11 @@
 
 #include "../Obj3D.hpp"
 
-class TestScene00 : public SceneBaseDx12<SceneBase::SceneBuffers>
+class TestScene00 : public SceneBase
 {
 private:
+	SceneBufferDx12<SceneBuffers>			scene_buffer;
+
 	KGL::VecCamera camera;
 
 	std::shared_ptr<KGL::PMD_Loader>		pmd_data;
@@ -29,14 +31,14 @@ private:
 
 	std::shared_ptr<KGL::RenderTargetView>	texture_rtv;
 	KGL::TextureManager						tex_mgr;
-	std::shared_ptr<KGL::Texture>			tex_blur_w;
-	std::shared_ptr<KGL::Texture>			tex_blur_h;
+	std::shared_ptr<KGL::Texture>			first_rtv;
+	std::shared_ptr<KGL::Texture>			blur_vertical_rtv;
+	std::shared_ptr<KGL::Texture>			blur_horizontal_rtv;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_sprite;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_w;
 	std::shared_ptr<KGL::BaseRenderer>		renderer_blur_h;
 	std::shared_ptr<KGL::Sprite>			sprite;
 
-	std::shared_ptr<KGL::Texture>			tex_rendet_target;
 	std::shared_ptr<KGL::DescriptorManager>	effect_desc_mgr;
 	KGL::DescriptorHandle					effect_desc_handle;
 	std::shared_ptr<KGL::Texture>			tex_effect;

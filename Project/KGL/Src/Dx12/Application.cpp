@@ -45,6 +45,9 @@ Application::Application(HWND hwnd, bool debug_layer, bool gbv) noexcept
 		hr = CreateDevice(factory);
 		RCHECK(FAILED(hr), "CreateDevice‚ÉŽ¸”s");
 
+		hr = CheckMaxSampleCount();
+		RCHECK(FAILED(hr), "CheckMaxSampleCount‚ÉŽ¸”s");
+
 		hr = CreateSwapchain(factory, hwnd);
 		RCHECK(FAILED(hr), "CreateSwapchain‚ÉŽ¸”s");
 		hr = CreateHeaps();
@@ -213,7 +216,7 @@ HRESULT Application::CreateSwapchain(ComPtr<IDXGIFactory6> factory, HWND hwnd) n
 	return hr;
 }
 
-HRESULT Application::CreateHeaps()
+HRESULT Application::CreateHeaps() noexcept
 {
 	HRESULT hr = S_OK;
 	{
@@ -242,6 +245,11 @@ HRESULT Application::CreateHeaps()
 		// SRGB—pƒŒƒ“ƒ_[ƒ^[ƒQƒbƒgƒrƒ…[Ý’è
 		D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
 		rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // ƒKƒ“ƒ}•â³‚ ‚è(sRGB)
+		rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		rtv_desc_ptr = &rtv_desc;
+#else
+		D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+		rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 		rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		rtv_desc_ptr = &rtv_desc;
 #endif
@@ -314,6 +322,30 @@ HRESULT Application::CreateHeaps()
 			&dsv_desc,
 			m_dsv_heap->GetCPUDescriptorHandleForHeapStart()
 		);
+	}
+	return hr;
+}
+
+HRESULT Application::CheckMaxSampleCount() noexcept
+{
+	HRESULT hr = S_OK;
+	m_max_quality_level = 0u;
+	m_max_sample_count = 1u;
+	for (UINT sample_count = 1; sample_count <= D3D12_MAX_MULTISAMPLE_SAMPLE_COUNT; sample_count++) {
+		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaa_quality_desc{};
+		msaa_quality_desc.SampleCount = sample_count;
+		msaa_quality_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		msaa_quality_desc.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+		msaa_quality_desc.NumQualityLevels = 0;
+
+		hr = m_dev->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaa_quality_desc, sizeof(msaa_quality_desc));
+		RCHECK_HR(hr, "MSAA‚ÌSampleCount‚Ìƒ`ƒFƒbƒN‚ÉŽ¸”s‚ÉŽ¸”s");
+		if (msaa_quality_desc.NumQualityLevels > 0) {
+			if (m_max_quality_level <= msaa_quality_desc.NumQualityLevels) {
+				m_max_quality_level = msaa_quality_desc.NumQualityLevels;
+				m_max_sample_count = sample_count;
+			}
+		}
 	}
 	return hr;
 }

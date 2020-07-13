@@ -313,49 +313,29 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 }
 
 // フォーマット指定空テクスチャ
-//HRESULT Texture::Create(ComPtr<ID3D12Device> device, DXGI_FORMAT format,
-//	UINT16 w, UINT16 h, UCHAR clear_value) noexcept
-//{
-//	// WriteToSubresourceで転送する用のヒープ設定
-//	D3D12_HEAP_PROPERTIES tex_heap_prop = {};
-//	tex_heap_prop.Type = D3D12_HEAP_TYPE_CUSTOM;
-//	tex_heap_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-//	tex_heap_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-//	tex_heap_prop.CreationNodeMask = 0;		// 単一アダプタのため
-//	tex_heap_prop.VisibleNodeMask = 0;		// 単一アダプタのため
-//
-//	auto res_desc =
-//		CD3DX12_RESOURCE_DESC::Tex2D(
-//			format,
-//			w,
-//			h
-//		);
-//	// バッファ作成
-//	auto hr = device->CreateCommittedResource(
-//		&tex_heap_prop,
-//		D3D12_HEAP_FLAG_NONE,
-//		&res_desc,
-//		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-//		nullptr,
-//		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
-//	);
-//	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
-//	
-//	std::vector<UCHAR> data(4 * w * h);	 // 色 * 幅 * 高さ
-//	// 全部255で埋める
-//	const size_t data_size = data.size();
-//	std::fill(data.begin(), data.end(), clear_value);
-//	// データ送信
-//	hr = m_buffer->WriteToSubresource(
-//		0,
-//		nullptr,
-//		data.data(),
-//		w * h,
-//		SCAST<UINT>(data.size())
-//	);
-//	RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
-//	return hr;
-//}
+HRESULT Texture::Create(
+	ComPtr<ID3D12Device> device,
+	const D3D12_RESOURCE_DESC& res_desc,
+	const D3D12_CLEAR_VALUE& clear_value,
+	D3D12_RESOURCE_STATES res_state
+) noexcept
+{
+	if (m_path.empty()) m_path = "noname";
+
+	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	// バッファ作成
+	auto hr = device->CreateCommittedResource(
+		&heap_prop,
+		D3D12_HEAP_FLAG_NONE,
+		&res_desc,	
+		res_state,
+		&clear_value,
+		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
+	return hr;
+}
 
 // 作成済みのテクスチャをもとに作成
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,

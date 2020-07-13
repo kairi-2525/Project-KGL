@@ -23,12 +23,57 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 
 	{
-		auto renderer_desc = KGL::PMD_Renderer::DEFAULT_DESC;
-		renderer_desc.vs_desc.hlsl = "./HLSL/3D/PMDGroundShadow_vs.hlsl";
-		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDGroundShadow_ps.hlsl";
+		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
+		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges);
+			renderer_desc.add_root_param.push_back(root_param);
+		}
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDShadowMap_ps.hlsl";
 		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
 	}
+	{
+		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/PMDShadowMap_vs.hlsl";
+		renderer_desc.ps_desc.hlsl.clear();
+		renderer_desc.render_targets.clear();
+		pmd_light_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+	}
 
+	sprite = std::make_shared<KGL::Sprite>(device);
+	{
+		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
+		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Depth_ps.hlsl";
+		depth_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+	}
+
+	{
+		D3D12_CLEAR_VALUE depth_clear_value = {};
+		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
+		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
+		auto texture_desc = CD3DX12_RESOURCE_DESC::Tex2D(
+			DXGI_FORMAT_R32_TYPELESS,
+			SHADOW_DIFINITION, SHADOW_DIFINITION
+		);
+		texture_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		light_dsv =
+			std::make_shared<KGL::Texture>(device,
+				texture_desc,
+				depth_clear_value,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE
+			);
+	}
+	{
+		light_dsv_desc_mgr = std::make_shared<KGL::DescriptorManager>(
+			device, 1u, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
+		light_dsv_handle = light_dsv_desc_mgr->Alloc();
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
+		device->CreateDepthStencilView(light_dsv->Data().Get(), &dsv_desc, light_dsv_handle.Cpu());
+	}
 	dsv_srv_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	dsv_srv_handle = dsv_srv_desc_mgr->Alloc();
 	{
@@ -38,30 +83,15 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		res_desc.Texture2D.MipLevels = 1;
 		res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		device->CreateShaderResourceView(
-			desc.app->GetDsvBuffer().Get(),
+			light_dsv->Data().Get(),
 			&res_desc,
 			dsv_srv_handle.Cpu()
 		);
 	}
-
-	sprite = std::make_shared<KGL::Sprite>(device);
 	{
-		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
-		auto add_ranges_dsv = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
-		{
-			CD3DX12_ROOT_PARAMETER root_param;
-			root_param.InitAsDescriptorTable(1, &add_ranges_dsv);
-			renderer_desc.add_root_param.push_back(root_param);
-		}
-		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Depth_ps.hlsl";
-		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
-	}
-
-	tex_rt = std::make_shared<KGL::Texture>(device, desc.app->GetRtvBuffers().at(0), DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
-	{
-		std::vector<KGL::ComPtr<ID3D12Resource>> resources(1);
-		resources[0] = tex_rt->Data();
-		rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
+		//std::vector<KGL::ComPtr<ID3D12Resource>> resources(1);
+		//resources[0] = light_depth_rt->Data();
+		//rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
 	}
 
 	models.resize(1, { device, *pmd_model });
@@ -70,7 +100,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		model.SetAnimation(vmd_data->GetDesc());
 	}
 
-	hr = SceneBaseDx12::Load(desc);
+	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
 	return hr;
@@ -86,13 +116,16 @@ HRESULT TestScene02::Init(const SceneDesc& desc)
 	camera.focus_vec = { 0.f, 0.f, 15.f };
 	camera.up = { 0.f, 1.f, 0.f };
 
+	light_camera.up = { 0.f, 1.f, 0.f };
+	light_vec = XMVector3Normalize(XMVectorSet(-0.5f, -1.f, 0.5f, 0.f));
+
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
 		static_cast<float>(window_size.x) / static_cast<float>(window_size.y),	// アスペクト比
 		1.0f, 100.0f // near, far
 	);
 
-	scene_mapped_buff->proj = proj_mat;
+	scene_buffer.mapped_data->proj = proj_mat;
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -103,8 +136,17 @@ HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
-	scene_mapped_buff->eye = camera.eye;
-	scene_mapped_buff->view = KGL::CAMERA::GetView(camera);
+	scene_buffer.mapped_data->eye = camera.eye;
+	scene_buffer.mapped_data->view = KGL::CAMERA::GetView(camera);
+
+	light_camera.focus = KGL::CAMERA::GetFocusPos(camera);
+
+	auto light_length = XMVector3Length(XMLoadFloat3(&camera.focus_vec));
+	XMStoreFloat3(&light_camera.eye, 
+		XMLoadFloat3(&light_camera.focus) 
+		- (light_vec * light_length)
+	);
+	scene_buffer.mapped_data->light_cam = KGL::CAMERA::GetView(light_camera) * XMMatrixOrthographicLH(40.f, 40.f, 1.f, 100.f);
 
 	for (auto& model : models)
 	{
@@ -113,7 +155,7 @@ HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
-		model.UpdateWVP(scene_mapped_buff->view * scene_mapped_buff->proj);
+		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}
 
 	return Render(desc);
@@ -138,11 +180,36 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 		0, 0,
 		window_size.x, window_size.y
 	);
+
 	{
-		cmd_list->ResourceBarrier(1, &rtv->GetRtvResourceBarrier(true));
-		rtv->Set(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
-		rtv->Clear(cmd_list, DirectX::XMFLOAT4(1.f, 1.f, 1.f, 1.f));
-		desc.app->ClearDsv(cmd_list);
+		cmd_list->OMSetRenderTargets(0, nullptr, false, &light_dsv_handle.Cpu());
+		cmd_list->ClearDepthStencilView(light_dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+		cmd_list->RSSetViewports(1, &CD3DX12_VIEWPORT(0.f, 0.f, SCAST<FLOAT>(SHADOW_DIFINITION), SCAST<FLOAT>(SHADOW_DIFINITION)));
+		cmd_list->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, SHADOW_DIFINITION, SHADOW_DIFINITION));
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		pmd_light_renderer->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+
+		for (auto& model : models)
+		{
+			model.Render(cmd_list);
+
+			hr = pmd_toon_model->NonMaterialRender(
+				desc.app->GetDevice(),
+				cmd_list
+			);
+			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+		}
+	}
+	{
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->SetRtvDsv(cmd_list);
+		desc.app->ClearRtvDsv(cmd_list, clear_color);
 
 		cmd_list->RSSetViewports(1, &viewport);
 		cmd_list->RSSetScissorRects(1, &scissorrect);
@@ -151,8 +218,8 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 
 		pmd_renderer->SetState(cmd_list);
 
-		cmd_list->SetDescriptorHeaps(1, scene_buff_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buff_handle.Gpu());
+		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(3, dsv_srv_handle.Gpu());
 
 		for (auto& model : models)
 		{
@@ -165,19 +232,18 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 
-		cmd_list->ResourceBarrier(1, &rtv->GetRtvResourceBarrier(false));
-	}
-	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
 		desc.app->SetRtv(cmd_list);
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->ClearRtv(cmd_list, clear_color);
 
-		cmd_list->RSSetViewports(1, &viewport);
-		cmd_list->RSSetScissorRects(1, &scissorrect);
+		auto viewport_l = viewport;
+		viewport_l.Width /= 2; viewport_l.Height /= 2;
+		auto scissorrect_l = scissorrect;
+		scissorrect_l.right /= 2; scissorrect_l.bottom /= 2;
+		cmd_list->RSSetViewports(1, &viewport_l);
+		cmd_list->RSSetScissorRects(1, &scissorrect_l);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
-		sprite_renderer->SetState(cmd_list);
+		depth_renderer->SetState(cmd_list);
 
 		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());

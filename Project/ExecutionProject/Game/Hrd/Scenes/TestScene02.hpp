@@ -16,16 +16,23 @@
 
 #include "../Obj3D.hpp"
 
-class TestScene02 : public SceneBaseDx12<SceneBase::SceneBuffers>
+class TestScene02 : public SceneBase
 {
 private:
+	static inline const UINT SHADOW_DIFINITION = 2048u;
+private:
+	SceneBufferDx12<SceneBuffers>			scene_buffer;
 
 	KGL::VecCamera camera;
-
+	KGL::Camera light_camera;
+	
 	std::shared_ptr<KGL::RenderTargetView>	rtv;
-	std::shared_ptr<KGL::Texture>			tex_rt;
+	std::shared_ptr<KGL::DescriptorManager>	light_dsv_desc_mgr;
+	KGL::DescriptorHandle					light_dsv_handle;
+	std::shared_ptr<KGL::Texture>			light_dsv;
 
-	std::shared_ptr<KGL::BaseRenderer>		sprite_renderer;
+	std::shared_ptr<KGL::BaseRenderer>		pmd_light_renderer;
+	std::shared_ptr<KGL::BaseRenderer>		depth_renderer;
 	std::shared_ptr<KGL::Sprite>			sprite;
 
 	KGL::TextureManager						tex_mgr;
@@ -41,7 +48,7 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 
 	DirectX::XMFLOAT4						clear_color;
-	DirectX::XMVECTOR						light_pos;
+	DirectX::XMVECTOR						light_vec;
 
 	std::shared_ptr<KGL::DescriptorManager>	dsv_srv_desc_mgr;
 	KGL::DescriptorHandle					dsv_srv_handle;

@@ -57,6 +57,15 @@ namespace KGL
 				auto hr = Create(device, tr, tg, tb, ta, br, bg, bb, ba, height, mgr); AssertLoadResult(hr, m_path.string());
 				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
+			// フォーマット指定空テクスチャ
+			explicit Texture(
+				ComPtr<ID3D12Device> device,
+				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value,
+				D3D12_RESOURCE_STATES res_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) noexcept
+			{
+				auto hr = Create(device, res_desc, clear_value, res_state); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+			}
 			// 作成済みのテクスチャをもとに作成
 			explicit Texture(const ComPtr<ID3D12Device>& device,
 				const Texture& resource, const DirectX::XMFLOAT4& clear_value) noexcept
@@ -82,7 +91,9 @@ namespace KGL
 				UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
 				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 256, TextureManager* mgr = nullptr) noexcept;
 			// フォーマット指定空テクスチャ
-			//HRESULT Create(ComPtr<ID3D12Device> device, DXGI_FORMAT format, UINT16 w, UINT16 h, UCHAR clear_value) noexcept;
+			HRESULT Create(ComPtr<ID3D12Device> device,
+				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value,
+				D3D12_RESOURCE_STATES res_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) noexcept;
 			// 作成済みのテクスチャをもとに作成
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
 				const Texture& resource, const DirectX::XMFLOAT4& clear_value) noexcept

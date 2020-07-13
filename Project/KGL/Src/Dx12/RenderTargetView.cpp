@@ -39,7 +39,6 @@ RenderTargetView::RenderTargetView(
 
 	// RTV—pDesc
 	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-	rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// SRV—pDesc
@@ -55,6 +54,7 @@ RenderTargetView::RenderTargetView(
 	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	for (auto i = 0; i < size; i++)
 	{
+		rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
 		device->CreateRenderTargetView(
 			m_buffers[i].Get(),
 			&rtv_desc,

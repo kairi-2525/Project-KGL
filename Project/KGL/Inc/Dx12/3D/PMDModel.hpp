@@ -35,6 +35,7 @@ namespace KGL
 				D3D12_INDEX_BUFFER_VIEW					m_ib_view;
 				size_t									m_material_num;
 				std::vector<UINT>						m_index_counts;
+				UINT									m_index_count_total;
 				std::vector<DirectX::XMMATRIX>			m_bone_matrices;
 				std::shared_ptr<const PMD::Desc>		m_desc;
 			private:
@@ -59,6 +60,11 @@ namespace KGL
 					const std::filesystem::path& toon_folder = {},	// FOLDER/
 					TextureManager* mgr = nullptr) noexcept;
 				HRESULT Render(
+					const ComPtr<ID3D12Device>& device,
+					const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
+					UINT instance_count = 1u
+				) const noexcept;
+				HRESULT NonMaterialRender(
 					const ComPtr<ID3D12Device>& device,
 					const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 					UINT instance_count = 1u

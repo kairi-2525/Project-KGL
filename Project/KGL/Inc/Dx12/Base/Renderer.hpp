@@ -20,6 +20,7 @@ namespace KGL
 				std::vector<D3D12_DESCRIPTOR_RANGE>		add_range;
 				std::vector<D3D12_ROOT_PARAMETER>		add_root_param;
 				std::vector<D3D12_STATIC_SAMPLER_DESC>	add_smp_desc;
+				std::vector<DXGI_FORMAT>				render_targets;
 			};
 		protected:
 			ComPtr<ID3D12PipelineState>	m_pl_state;

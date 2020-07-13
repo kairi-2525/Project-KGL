@@ -16,17 +16,18 @@
 
 #include "../Obj3D.hpp"
 
-struct SceneBuffers
-{
-	DirectX::XMMATRIX view;
-	DirectX::XMMATRIX proj;
-	DirectX::XMMATRIX shadow;
-	DirectX::XMFLOAT3 eye;	// 視点座標
-};
-
-class TestScene01 : public SceneBaseDx12<SceneBuffers>
+class TestScene01 : public SceneBase
 {
 private:
+	struct SceneBuffers
+	{
+		DirectX::XMMATRIX view;
+		DirectX::XMMATRIX proj;
+		DirectX::XMMATRIX shadow;
+		DirectX::XMFLOAT3 eye;	// 視点座標
+	};
+private:
+	SceneBufferDx12<SceneBuffers>			scene_buffer;
 
 	KGL::VecCamera camera;
 

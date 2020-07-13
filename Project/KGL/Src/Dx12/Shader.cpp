@@ -48,25 +48,32 @@ Shader::Shader(const Desc& vs, const Desc& ps,
 	try
 	{
 		// VS
-		hr = Load(
-			vs,
-			p_defines,
-			p_include,
-			flag0, flag1,
-			&m_vs,
-			error_code.ReleaseAndGetAddressOf()
-		);
-		RCHECK(FAILED(hr), "VSÇÃê∂ê¨Ç…é∏îs");
-		// PS
-		hr = Load(
-			ps,
-			p_defines,
-			p_include,
-			flag0, flag1,
-			&m_ps,
-			error_code.ReleaseAndGetAddressOf()
-		);
-		RCHECK(FAILED(hr), "PSÇÃê∂ê¨Ç…é∏îs");
+		if (!vs.hlsl.empty())
+		{
+			hr = Load(
+				vs,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_vs,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "VSÇÃê∂ê¨Ç…é∏îs");
+		}
+		// VS
+		if (!ps.hlsl.empty())
+		{
+			// PS
+			hr = Load(
+				ps,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_ps,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "PSÇÃê∂ê¨Ç…é∏îs");
+		}
 	}
 	catch (std::runtime_error& exception)
 	{

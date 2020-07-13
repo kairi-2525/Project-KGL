@@ -42,6 +42,25 @@ namespace KGL
 					XMVectorSet(camera.up.x, camera.up.y, camera.up.z, 0.f)				// è„ÉxÉNÉgÉã
 				);
 			}
+
+			inline DirectX::XMFLOAT3 GetFocusPos(const VecCamera& camera)
+			{
+				using namespace DirectX;
+				return { 
+					camera.eye.x + camera.focus_vec.x,
+					camera.eye.y + camera.focus_vec.y,
+					camera.eye.z + camera.focus_vec.z
+				};
+			}
+			inline DirectX::XMFLOAT3 GetFocusVec(const Camera& camera)
+			{
+				using namespace DirectX;
+				return {
+					camera.focus.x - camera.eye.x,
+					camera.focus.y - camera.eye.y,
+					camera.focus.z - camera.eye.z
+				};
+			}
 		}
 	}
 }

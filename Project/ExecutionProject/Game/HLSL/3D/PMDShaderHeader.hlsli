@@ -7,6 +7,7 @@ struct Output
 	float4 vnormal : NORMAL1;	// ビュー返還後の法線ベクトル
 	float2 uv : TEXCOORD;		// uv値
 	float3 ray : VECTOR;		// ベクトル
+	float4 tpos : TPOS;
 };
 
 Texture2D<float4> material_tex : register(t0);
@@ -21,6 +22,7 @@ cbuffer scene_buff : register(b0)
 {
 	row_major matrix view;				// ビュー変換行列
 	row_major matrix proj;				// プロジェクション変換行列
+	row_major matrix light_camera;
 	float3 eye;							// 視点
 }
 cbuffer model_buff : register(b1)

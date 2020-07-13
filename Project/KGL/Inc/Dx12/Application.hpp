@@ -31,6 +31,8 @@ namespace KGL
 			std::shared_ptr<CommandQueue>			m_cmd_queue;
 
 			bool									m_tearing_support;
+			UINT									m_max_quality_level;
+			UINT									m_max_sample_count;
 		public:
 			static bool CheckTearingSupport();
 		private:
@@ -41,7 +43,8 @@ namespace KGL
 			HRESULT CreateFactory(ComPtr<IDXGIFactory6>& factory, bool debug_layer, bool gbv);
 			HRESULT CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept;
 			HRESULT CreateSwapchain(ComPtr<IDXGIFactory6> factory, HWND hwnd) noexcept;
-			HRESULT CreateHeaps();
+			HRESULT CreateHeaps() noexcept;
+			HRESULT CheckMaxSampleCount() noexcept;
 		public:
 			explicit Application(HWND hwnd, bool debug_layer = false, bool gbv = false) noexcept;
 			~Application();
@@ -67,6 +70,8 @@ namespace KGL
 			const ComPtr<ID3D12DescriptorHeap>& GetRtvHeap() const noexcept { return  m_rtv_heap; }
 			const ComPtr<ID3D12DescriptorHeap>& GetDsvHeap() const noexcept { return  m_dsv_heap; }
 			bool IsTearingSupport() const noexcept { return m_tearing_support; }
+			UINT GetMaxQualityLevel() const noexcept { return m_max_quality_level; }
+			UINT GetMaxSampleCount() const noexcept { return m_max_sample_count; }
 		};
 
 		using App = Application;

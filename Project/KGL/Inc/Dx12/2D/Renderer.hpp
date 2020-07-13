@@ -44,7 +44,9 @@ namespace KGL
 				{
 					BDTYPE::DEFAULT,
 					VS_DESC, PS_DESC,
-					INPUT_LAYOUTS
+					INPUT_LAYOUTS,
+					{}, {}, {},
+					std::vector<DXGI_FORMAT>(1, DXGI_FORMAT_R8G8B8A8_UNORM)
 				};
 			private:
 

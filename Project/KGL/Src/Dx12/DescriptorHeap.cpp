@@ -24,12 +24,15 @@ DescriptorHandle::DescriptorHandle(
 DescriptorManager::DescriptorManager(
 	ComPtrC<ID3D12Device> device,
 	size_t amount,
-	D3D12_DESCRIPTOR_HEAP_TYPE type
+	D3D12_DESCRIPTOR_HEAP_TYPE type,
+	D3D12_DESCRIPTOR_HEAP_FLAGS flags
 ) noexcept
 {
 	RCHECK(amount == 0u, "amount ‚ª 0");
 	m_create_amount = amount;
 	m_icmt_size = device->GetDescriptorHandleIncrementSize(type);
+	m_type = type;
+	m_flags = flags;
 
 	Create(device, m_create_amount);
 }
@@ -40,10 +43,10 @@ HRESULT DescriptorManager::Create(ComPtrC<ID3D12Device> device, size_t amount)
 	auto& itr = m_descs.emplace_back();
 
 	D3D12_DESCRIPTOR_HEAP_DESC mat_heap_desc = {};
-	mat_heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	mat_heap_desc.Flags = m_flags;
 	mat_heap_desc.NodeMask = 0;
 	mat_heap_desc.NumDescriptors = SCAST<UINT>(amount);
-	mat_heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	mat_heap_desc.Type = m_type;
 	auto hr = device->CreateDescriptorHeap(
 		&mat_heap_desc, IID_PPV_ARGS(itr.heap.ReleaseAndGetAddressOf())
 	);
