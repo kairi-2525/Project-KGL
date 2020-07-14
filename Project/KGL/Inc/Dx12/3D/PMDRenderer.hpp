@@ -54,11 +54,11 @@ namespace KGL
 				};
 				static inline const Shader::Desc VS_DESC =
 				{
-					"./HLSL/3D/PMDVertexShader.hlsl", "VSMain", "vs_5_0"
+					"./HLSL/3D/PMDVertexShader.hlsl", "VSMain", "vs_5_1"
 				};
 				static inline const Shader::Desc PS_DESC =
 				{
-					"./HLSL/3D/PMDPixelShader.hlsl", "PSMain", "ps_5_0"
+					"./HLSL/3D/PMDPixelShader.hlsl", "PSMain", "ps_5_1"
 				};
 				static inline const Desc DEFAULT_DESC =
 				{

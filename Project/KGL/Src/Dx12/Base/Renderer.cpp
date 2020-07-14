@@ -2,6 +2,7 @@
 #include <Dx12/BlendState.hpp>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/ThrowAssert.hpp>
+#include <Dx12/SetName.hpp>
 
 using namespace KGL;
 
@@ -32,4 +33,10 @@ void BaseRenderer::SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) c
 {
 	cmd_list->SetPipelineState(m_pl_state.Get());
 	cmd_list->SetGraphicsRootSignature(m_rootsig.Get());
+}
+
+void BaseRenderer::SetName(const std::filesystem::path& name) const noexcept
+{
+	DX12::SetName<ID3D12PipelineState>(m_pl_state, RCAST<INT_PTR>(this), name.wstring());
+	DX12::SetName<ID3D12RootSignature>(m_rootsig, RCAST<INT_PTR>(this), name.wstring());
 }

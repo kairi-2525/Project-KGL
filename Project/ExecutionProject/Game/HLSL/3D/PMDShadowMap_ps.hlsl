@@ -35,11 +35,11 @@ float4 PSMain(Output input) : SV_TARGET
 		);
 
 	float3 light_vp_pos = input.tpos.xyz / input.tpos.w;
-	float2 shadow_uv = (light_vp_pos.xy + float2(1, -1) * float2(0.5f, 0.5f));
+	float2 shadow_uv = (light_vp_pos.xy + float2(1, -1) * float2(0.5f, -0.5f));
 
 	float depth_light = light_depth_tex.Sample(smp, shadow_uv);
 	float shadow_weight = 1.f;
-	if (depth_light < input.tpos.z)
+	if (depth_light < light_vp_pos.z)
 	{
 		shadow_weight = 0.5f;
 	}

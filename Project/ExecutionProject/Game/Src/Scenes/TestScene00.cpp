@@ -44,27 +44,32 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	}
 
 	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device);
+	renderer_sprite->SetName("renderer_sprite");
 	{
 		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		{
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges);
+			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
 			renderer_desc.add_root_param.push_back(root_param);
 		}
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_0" };
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_0" };
-		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_blur_w->SetName("renderer_blur_w");
 
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_1" };
+		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_blur_h->SetName("renderer_blur_h");
 		auto add_ranges_effect = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 		{
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges_effect);
 			renderer_desc.add_root_param.push_back(root_param);
 		}
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_0" };
+		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_effect->SetName("renderer_effect");
 	}
 	sprite = std::make_shared<KGL::Sprite>(device);
 
@@ -73,6 +78,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
 	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
+	pmd_renderer->SetName("pmd_renderer");
 
 	models.resize(1, { device, *pmd_model });
 	for (auto& model : models)
@@ -185,8 +191,13 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 	const UINT total_count = 9u;
 	auto counter = SCAST<INT8>(fmodf(total_elapsed_time, SCAST<float>(total_count)));
 
+#if 0
 	bool gauss_flg = counter >= (total_count / 3) * 1;
 	bool effect_flg = counter >= (total_count / 3) * 2;
+#else
+	bool gauss_flg = true;
+	bool effect_flg = true;
+#endif
 
 	if (gauss_flg && effect_flg)
 	{

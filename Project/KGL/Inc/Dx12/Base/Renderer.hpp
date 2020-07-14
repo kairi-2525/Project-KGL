@@ -35,6 +35,7 @@ namespace KGL
 			BaseRenderer() = default;
 			virtual ~BaseRenderer() = default;
 			void SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
+			void SetName(const std::filesystem::path& name) const noexcept;
 		};
 	}
 }

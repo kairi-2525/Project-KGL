@@ -70,6 +70,7 @@ namespace KGL
 					UINT instance_count = 1u
 				) const noexcept;
 
+				ComPtrC<ID3D12DescriptorHeap> GetMaterialHeap() const noexcept { return m_mtr_heap; }
 				size_t GetMaterialCount() const noexcept { return m_material_num; }
 				const std::vector<DirectX::XMMATRIX>& GetBoneMatrices() const noexcept { return m_bone_matrices; }
 				const std::shared_ptr<const PMD::Desc>& GetDesc() const noexcept { return m_desc; }

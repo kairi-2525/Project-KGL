@@ -58,6 +58,7 @@ namespace KGL
 				void Render(
 					const ComPtr<ID3D12GraphicsCommandList>& cmd_list
 				) const noexcept;
+				ComPtrC<ID3D12DescriptorHeap> GetHeap() const noexcept { return m_desc_heap; }
 				ConstantBuffers* GetMappedBuffers() { return m_map_buffers; }
 				void RecursiveMatrixMultiply(
 					const PMD::BoneNode* node,

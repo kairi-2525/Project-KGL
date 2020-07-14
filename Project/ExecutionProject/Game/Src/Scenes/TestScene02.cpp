@@ -28,10 +28,12 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		{
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges);
+			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
 			renderer_desc.add_root_param.push_back(root_param);
 		}
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDShadowMap_ps.hlsl";
 		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_renderer->SetName("pmd_renderer");
 	}
 	{
 		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
@@ -39,6 +41,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		renderer_desc.ps_desc.hlsl.clear();
 		renderer_desc.render_targets.clear();
 		pmd_light_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_light_renderer->SetName("pmd_light_renderer");
 	}
 
 	sprite = std::make_shared<KGL::Sprite>(device);
@@ -46,6 +49,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Depth_ps.hlsl";
 		depth_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		depth_renderer->SetName("depth_renderer");
 	}
 
 	{
@@ -143,16 +147,17 @@ HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 
 	auto light_length = XMVector3Length(XMLoadFloat3(&camera.focus_vec));
 	XMStoreFloat3(&light_camera.eye, 
-		XMLoadFloat3(&light_camera.focus) 
+		XMLoadFloat3(&light_camera.focus)
 		- (light_vec * light_length)
 	);
+
 	scene_buffer.mapped_data->light_cam = KGL::CAMERA::GetView(light_camera) * XMMatrixOrthographicLH(40.f, 40.f, 1.f, 100.f);
 
 	for (auto& model : models)
 	{
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
-		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
+		model.rotation.y += XMConvertToRadians(10.f) * elapsed_time;
 		model.MotionUpdate(elapsed_time, true);
 		model.Update(elapsed_time);
 		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
@@ -232,7 +237,7 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 
-		desc.app->SetRtv(cmd_list);
+		/*desc.app->SetRtv(cmd_list);
 
 		auto viewport_l = viewport;
 		viewport_l.Width /= 2; viewport_l.Height /= 2;
@@ -248,7 +253,7 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());
 
-		sprite->Render(cmd_list);
+		sprite->Render(cmd_list);*/
 
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}

@@ -14,7 +14,8 @@ namespace KGL
 		inline namespace HELPER
 		{
 			//template<class _Ty = ComPtr<ID3D12Resource>>
-			inline HRESULT SetName(const ComPtr<ID3D12Resource>& data, INT64 num, std::wstring name0, std::wstring name1 = L"")
+			template <class _Ty = ID3D12Resource>
+			inline HRESULT SetName(const ComPtr<_Ty>& data, INT64 num, std::wstring name0, std::wstring name1 = L"")
 			{
 				auto hr = data->SetName(
 					(
