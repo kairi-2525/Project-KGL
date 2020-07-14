@@ -31,6 +31,24 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
 			renderer_desc.add_root_param.push_back(root_param);
 		}
+		{
+			D3D12_STATIC_SAMPLER_DESC sampler_desc = 
+				CD3DX12_STATIC_SAMPLER_DESC(
+					2u,
+					D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR, // 比較結果をバイリニア補完
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+					);
+			sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+			sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;	// <= であれば 1.0 そうでなければ 0.0
+			sampler_desc.MaxAnisotropy = 1; // 深度傾斜を有効化
+			sampler_desc.MinLOD = -D3D12_FLOAT32_MAX;
+			sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+
+			renderer_desc.add_smp_desc.push_back(sampler_desc);
+		}
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDShadowMap_ps.hlsl";
 		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
 		pmd_renderer->SetName("pmd_renderer");
@@ -98,7 +116,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 		//rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
 	}
 
-	models.resize(1, { device, *pmd_model });
+	models.resize(2, { device, *pmd_model });
 	for (auto& model : models)
 	{
 		model.SetAnimation(vmd_data->GetDesc());
@@ -121,7 +139,7 @@ HRESULT TestScene02::Init(const SceneDesc& desc)
 	camera.up = { 0.f, 1.f, 0.f };
 
 	light_camera.up = { 0.f, 1.f, 0.f };
-	light_vec = XMVector3Normalize(XMVectorSet(-0.5f, -1.f, 0.5f, 0.f));
+	light_vec = XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f));
 
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
@@ -237,12 +255,12 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 
-		/*desc.app->SetRtv(cmd_list);
+		desc.app->SetRtv(cmd_list);
 
 		auto viewport_l = viewport;
-		viewport_l.Width /= 2; viewport_l.Height /= 2;
+		viewport_l.Width /= 4; viewport_l.Height /= 4;
 		auto scissorrect_l = scissorrect;
-		scissorrect_l.right /= 2; scissorrect_l.bottom /= 2;
+		scissorrect_l.right /= 4; scissorrect_l.bottom /= 4;
 		cmd_list->RSSetViewports(1, &viewport_l);
 		cmd_list->RSSetScissorRects(1, &scissorrect_l);
 
@@ -253,7 +271,7 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());
 
-		sprite->Render(cmd_list);*/
+		sprite->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
