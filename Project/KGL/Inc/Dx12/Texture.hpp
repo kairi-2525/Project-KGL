@@ -11,6 +11,8 @@
 #include "../Loader/Loader.hpp"
 #include "SetName.hpp"
 #include <DirectXMath.h>
+#include <vector>
+#include <memory>
 
 namespace KGL
 {
@@ -105,5 +107,21 @@ namespace KGL
 			
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
 		};
+		
+		namespace TEXTURE
+		{
+			inline std::vector<ComPtr<ID3D12Resource>> GetResources(
+				const std::vector<std::shared_ptr<Texture>>& in_tex
+			)
+			{
+				std::vector<ComPtr<ID3D12Resource>> ret;
+				ret.reserve(in_tex.size());
+				for (const auto& tex : in_tex)
+				{
+					if (tex) ret.emplace_back(tex->Data());
+				}
+				return std::move(ret);
+			}
+		}
 	}
 }

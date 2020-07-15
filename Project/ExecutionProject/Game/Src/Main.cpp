@@ -13,6 +13,7 @@
 #include "../Hrd/Scenes/TestScene00.hpp"
 #include "../Hrd/Scenes/TestScene01.hpp"
 #include "../Hrd/Scenes/TestScene02.hpp"
+#include "../Hrd/Scenes/TestScene03.hpp"
 #include "../Hrd/SceneGame.hpp"
 
 #ifdef _DEBUG
@@ -55,7 +56,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				device = app->GetDevice();
 
 				SceneDesc scene_desc = { app, window };
-				hr = scene_mgr.Init<TestScene02>(scene_desc);
+				hr = scene_mgr.Init<TestScene03>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;

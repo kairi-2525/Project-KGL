@@ -54,6 +54,8 @@ RenderTargetView::RenderTargetView(
 	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	for (auto i = 0; i < size; i++)
 	{
+		if (!m_buffers[i]) continue;
+
 		rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
 		device->CreateRenderTargetView(
 			m_buffers[i].Get(),
