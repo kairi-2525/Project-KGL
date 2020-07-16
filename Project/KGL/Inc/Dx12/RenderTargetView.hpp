@@ -33,6 +33,7 @@ namespace KGL
 			HRESULT Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 				const DirectX::XMFLOAT4& clear_color, UINT num = 0u) const noexcept;
 			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target, UINT num = 0u) noexcept;
+			std::vector<D3D12_RESOURCE_BARRIER> GetRtvResourceBarriers(bool render_target) noexcept;
 		};
 	}
 }

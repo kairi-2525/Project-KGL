@@ -24,37 +24,6 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 
 	{
 		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
-		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
-		{
-			CD3DX12_ROOT_PARAMETER root_param;
-			root_param.InitAsDescriptorTable(1, &add_ranges);
-			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
-			renderer_desc.add_root_param.push_back(root_param);
-		}
-		{
-			D3D12_STATIC_SAMPLER_DESC sampler_desc =
-				CD3DX12_STATIC_SAMPLER_DESC(
-					2u,
-					D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR, // 比較結果をバイリニア補完
-					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
-					D3D12_TEXTURE_ADDRESS_MODE_CLAMP
-				);
-			sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-			sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;	// <= であれば 1.0 そうでなければ 0.0
-			sampler_desc.MaxAnisotropy = 1; // 深度傾斜を有効化
-			sampler_desc.MinLOD = -D3D12_FLOAT32_MAX;
-			sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-
-
-			renderer_desc.add_smp_desc.push_back(sampler_desc);
-		}
-		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDShadowMap_ps.hlsl";
-		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
-		pmd_renderer->SetName("pmd_renderer");
-	}
-	{
-		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/PMDShadowMap_vs.hlsl";
 		renderer_desc.ps_desc.hlsl.clear();
 		renderer_desc.render_targets.clear();
@@ -70,6 +39,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 		depth_renderer->SetName("depth_renderer");
 	}
 
+	sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device);
 	{
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
@@ -120,6 +90,39 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 			device, desc.app->GetRtvBuffers().at(0), clear_value));
 		const auto& resources = KGL::TEXTURE::GetResources(rtv_textures);
 		rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
+	}
+	{
+		auto renderer_desc = KGL::_3D::PMD_Renderer::DEFAULT_DESC;
+		renderer_desc.render_targets.push_back(desc.app->GetRtvBuffers().at(0)->GetDesc().Format);
+		renderer_desc.render_targets.push_back(desc.app->GetRtvBuffers().at(0)->GetDesc().Format);
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDMultiRenderTarget_ps.hlsl";
+		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 4);
+		{
+			CD3DX12_ROOT_PARAMETER root_param;
+			root_param.InitAsDescriptorTable(1, &add_ranges);
+			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
+			renderer_desc.add_root_param.push_back(root_param);
+		}
+		{
+			D3D12_STATIC_SAMPLER_DESC sampler_desc =
+				CD3DX12_STATIC_SAMPLER_DESC(
+					2u,
+					D3D12_FILTER_COMPARISON_MIN_MAG_MIP_LINEAR, // 比較結果をバイリニア補完
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+					D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+				);
+			sampler_desc.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
+			sampler_desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;	// <= であれば 1.0 そうでなければ 0.0
+			sampler_desc.MaxAnisotropy = 1; // 深度傾斜を有効化
+			sampler_desc.MinLOD = -D3D12_FLOAT32_MAX;
+			sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+
+			renderer_desc.add_smp_desc.push_back(sampler_desc);
+		}
+		pmd_multi_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_multi_renderer->SetName("pmd_multi_renderer");
 	}
 
 	models.resize(2, { device, *pmd_model });
@@ -235,44 +238,102 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 	}
+
+	cmd_list->RSSetViewports(1, &viewport);
+	cmd_list->RSSetScissorRects(1, &scissorrect);
+
 	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->SetRtvDsv(cmd_list);
-		desc.app->ClearRtvDsv(cmd_list, clear_color);
+		const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
+		const size_t rtv_size = rbs_rt.size();
+		cmd_list->ResourceBarrier(rtv_size, rbs_rt.data());
+		rtvs->SetAll(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
+		DirectX::XMFLOAT4 clear_color = { 1.f, 1.f, 1.f, 1.f };
+		for (size_t i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_color, i);
+		desc.app->ClearDsv(cmd_list);
 
-		cmd_list->RSSetViewports(1, &viewport);
-		cmd_list->RSSetScissorRects(1, &scissorrect);
-
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		pmd_renderer->SetState(cmd_list);
-
-		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(3, dsv_srv_handle.Gpu());
-
-		for (auto& model : models)
 		{
-			model.Render(cmd_list);
+			pmd_multi_renderer->SetState(cmd_list);
 
-			hr = pmd_toon_model->Render(
-				desc.app->GetDevice(),
-				cmd_list
-			);
-			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+			cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(3, dsv_srv_handle.Gpu());
+
+			for (auto& model : models)
+			{
+				model.Render(cmd_list);
+
+				hr = pmd_toon_model->Render(
+					desc.app->GetDevice(),
+					cmd_list
+				);
+				RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
+			}
 		}
 
+		const auto& rbs_sr = rtvs->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(rtv_size, rbs_sr.data());
+	}
+	{
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->SetRtv(cmd_list);
+		desc.app->ClearRtv(cmd_list, clear_color);
 
-		auto viewport_l = viewport;
-		viewport_l.Width /= 4; viewport_l.Height /= 4;
-		auto scissorrect_l = scissorrect;
-		scissorrect_l.right /= 4; scissorrect_l.bottom /= 4;
-		cmd_list->RSSetViewports(1, &viewport_l);
-		cmd_list->RSSetScissorRects(1, &scissorrect_l);
+		{
+			auto viewport_lb = viewport;
+			viewport_lb.TopLeftX = viewport.Width / 2;
+			viewport_lb.TopLeftY = viewport.Height / 2;
+			viewport_lb.Width /= 2;
+			viewport_lb.Height /= 2;
+			cmd_list->RSSetViewports(1, &viewport_lb);
+			cmd_list->RSSetScissorRects(1, &scissorrect);
+		}
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
+		sprite_renderer->SetState(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
+
+		sprite->Render(cmd_list);
+
+		{
+			auto viewport_ru = viewport;
+			viewport_ru.Width /= 2;
+			viewport_ru.Height /= 2;
+			cmd_list->RSSetViewports(1, &viewport_ru);
+		}
+
+		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
+
+		sprite->Render(cmd_list);
+
+		{
+			auto viewport_lu = viewport;
+			viewport_lu.TopLeftX = viewport.Width / 2;
+			viewport_lu.Width /= 2;
+			viewport_lu.Height /= 2;
+			cmd_list->RSSetViewports(1, &viewport_lu);
+		}
+
+		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(2));
+
+		sprite->Render(cmd_list);
+
+
 		depth_renderer->SetState(cmd_list);
+		{
+			auto viewport_rb = viewport;
+			viewport_rb.TopLeftY = viewport.Height / 2;
+			viewport_rb.Width /= 2;
+			viewport_rb.Height /= 2;
+			cmd_list->RSSetViewports(1, &viewport_rb);
+		}
 
 		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());

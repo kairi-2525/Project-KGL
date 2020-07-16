@@ -111,7 +111,7 @@ HRESULT RenderTargetView::SetAll(const ComPtr<ID3D12GraphicsCommandList>& cmd_li
 	for (auto& it : handles)
 	{
 		it = handle;
-		handle.ptr = icmt_rtv;
+		handle.ptr += icmt_rtv;
 	}
 	cmd_list->OMSetRenderTargets(
 		handles.size(), handles.data(), false,
@@ -155,6 +155,17 @@ D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_targe
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		);
+}
+
+std::vector<D3D12_RESOURCE_BARRIER> RenderTargetView::GetRtvResourceBarriers(bool render_target) noexcept
+{
+	const size_t buffer_num = m_buffers.size();
+	std::vector<D3D12_RESOURCE_BARRIER> rbs(buffer_num);
+	for (auto i = 0; i < buffer_num; i++)
+	{
+		rbs[i] = GetRtvResourceBarrier(render_target, i);
+	}
+	return std::move(rbs);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView::GetRTVCPUHandle(UINT num) const noexcept

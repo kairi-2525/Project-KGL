@@ -15,7 +15,8 @@ Output VSMain(
 
 	float4 bm_pos = mul(pos, bm);
 	output.svpos = mul(bm_pos, wvp);
-	output.tpos = mul(mul(bm_pos, world), light_camera);
+	output.pos = mul(bm_pos, world);
+	output.tpos = mul(output.pos, light_camera);
 
 	normal.w = 0;	// •½sˆÚ“®¬•ª‚ğ–³Œø‰»
 

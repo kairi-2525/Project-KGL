@@ -90,6 +90,7 @@
     <FxCompile Include="HLSL\2D\Depth_ps.hlsl" />
     <FxCompile Include="HLSL\3D\PMDShadowMap_ps.hlsl" />
     <FxCompile Include="HLSL\3D\PMDShadowMap_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\PMDMultiRenderTarget_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

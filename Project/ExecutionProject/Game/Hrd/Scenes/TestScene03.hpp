@@ -34,6 +34,7 @@ private:
 
 	std::shared_ptr<KGL::BaseRenderer>			pmd_light_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			depth_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 
 	KGL::TextureManager							tex_mgr;
@@ -41,7 +42,7 @@ private:
 	std::shared_ptr<KGL::VMD_Loader>			vmd_data;
 	std::shared_ptr<KGL::PMD_Model>				pmd_model;
 	std::shared_ptr<KGL::PMD_Model>				pmd_toon_model;
-	std::shared_ptr<KGL::PMD_Renderer>			pmd_renderer;
+	std::shared_ptr<KGL::PMD_Renderer>			pmd_multi_renderer;
 
 	std::vector<Obj3D>							models;
 
