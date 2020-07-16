@@ -25,6 +25,7 @@ private:
 		DirectX::XMMATRIX proj;
 		DirectX::XMMATRIX shadow;
 		DirectX::XMFLOAT3 eye;	// éãì_ç¿ïW
+		float padding;
 		DirectX::XMFLOAT3 light_pos;
 	};
 private:
