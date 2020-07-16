@@ -48,7 +48,6 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>	cmd_list;
 
 	DirectX::XMFLOAT4						clear_color;
-	DirectX::XMVECTOR						light_vec;
 
 	std::shared_ptr<KGL::DescriptorManager>	dsv_srv_desc_mgr;
 	KGL::DescriptorHandle					dsv_srv_handle;

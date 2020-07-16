@@ -30,6 +30,8 @@ public:
 		DirectX::XMMATRIX proj;
 		DirectX::XMMATRIX light_cam;
 		DirectX::XMFLOAT3 eye;	// 視点座標
+		float pading;
+		DirectX::XMFLOAT3 light_vector;	// ライトベクトル
 	};
 private:
 	bool m_move_allow;

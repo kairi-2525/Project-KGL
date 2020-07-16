@@ -16,7 +16,7 @@
 
 #include "../Obj3D.hpp"
 
-class TestScene03 : public SceneBase
+class TestScene04 : public SceneBase
 {
 private:
 	static inline const UINT SHADOW_DIFINITION = 2048u;
@@ -61,6 +61,6 @@ public:
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc) override;
 
-	TestScene03() = default;
-	~TestScene03() = default;
+	TestScene04() = default;
+	~TestScene04() = default;
 };

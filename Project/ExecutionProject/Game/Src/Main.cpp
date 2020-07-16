@@ -14,6 +14,8 @@
 #include "../Hrd/Scenes/TestScene01.hpp"
 #include "../Hrd/Scenes/TestScene02.hpp"
 #include "../Hrd/Scenes/TestScene03.hpp"
+#include "../Hrd/Scenes/TestScene04.hpp"
+
 #include "../Hrd/SceneGame.hpp"
 
 #ifdef _DEBUG

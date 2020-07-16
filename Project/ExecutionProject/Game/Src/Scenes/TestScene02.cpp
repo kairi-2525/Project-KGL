@@ -139,7 +139,7 @@ HRESULT TestScene02::Init(const SceneDesc& desc)
 	camera.up = { 0.f, 1.f, 0.f };
 
 	light_camera.up = { 0.f, 1.f, 0.f };
-	light_vec = XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f));
+	XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
@@ -166,7 +166,7 @@ HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 	auto light_length = XMVector3Length(XMLoadFloat3(&camera.focus_vec));
 	XMStoreFloat3(&light_camera.eye, 
 		XMLoadFloat3(&light_camera.focus)
-		- (light_vec * light_length)
+		- (XMLoadFloat3(&scene_buffer.mapped_data->light_vector) * light_length)
 	);
 
 	scene_buffer.mapped_data->light_cam = KGL::CAMERA::GetView(light_camera) * XMMatrixOrthographicLH(40.f, 40.f, 1.f, 100.f);

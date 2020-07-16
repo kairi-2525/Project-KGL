@@ -24,6 +24,7 @@ cbuffer scene_buff : register(b0)
 	row_major matrix proj;				// プロジェクション変換行列
 	row_major matrix shadow;
 	float3 eye;							// 視点
+	float3 light_pos;
 }
 cbuffer model_buff : register(b1)
 {

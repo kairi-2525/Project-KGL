@@ -182,6 +182,7 @@
     <ClCompile Include="Src\Scenes\TestScene01.cpp" />
     <ClCompile Include="Src\Scenes\TestScene02.cpp" />
     <ClCompile Include="Src\Scenes\TestScene03.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene04.cpp" />
     <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -192,6 +193,7 @@
     <ClInclude Include="Hrd\Scenes\TestScene01.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene02.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene03.hpp" />
+    <ClInclude Include="Hrd\Scenes\TestScene04.hpp" />
     <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
   </ItemGroup>
   <ItemGroup>

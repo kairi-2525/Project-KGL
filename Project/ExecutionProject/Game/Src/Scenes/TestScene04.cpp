@@ -1,4 +1,4 @@
-#include "../../Hrd/Scenes/TestScene03.hpp"
+#include "../../Hrd/Scenes/TestScene04.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -7,7 +7,7 @@
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
 
-HRESULT TestScene03::Load(const SceneDesc& desc)
+HRESULT TestScene04::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
@@ -137,7 +137,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene03::Init(const SceneDesc& desc)
+HRESULT TestScene04::Init(const SceneDesc& desc)
 {
 	using namespace DirectX;
 
@@ -163,7 +163,7 @@ HRESULT TestScene03::Init(const SceneDesc& desc)
 	return S_OK;
 }
 
-HRESULT TestScene03::Update(const SceneDesc& desc, float elapsed_time)
+HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
 
@@ -193,7 +193,7 @@ HRESULT TestScene03::Update(const SceneDesc& desc, float elapsed_time)
 	return Render(desc);
 }
 
-HRESULT TestScene03::Render(const SceneDesc& desc)
+HRESULT TestScene04::Render(const SceneDesc& desc)
 {
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
@@ -281,62 +281,12 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 		desc.app->SetRtv(cmd_list);
 		desc.app->ClearRtv(cmd_list, clear_color);
 
-		{
-			auto viewport_lb = viewport;
-			viewport_lb.TopLeftX = viewport.Width / 2;
-			viewport_lb.TopLeftY = viewport.Height / 2;
-			viewport_lb.Width /= 2;
-			viewport_lb.Height /= 2;
-			cmd_list->RSSetViewports(1, &viewport_lb);
-			cmd_list->RSSetScissorRects(1, &scissorrect);
-		}
-
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 		sprite_renderer->SetState(cmd_list);
 
 		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
-
-		sprite->Render(cmd_list);
-
-		{
-			auto viewport_ru = viewport;
-			viewport_ru.Width /= 2;
-			viewport_ru.Height /= 2;
-			cmd_list->RSSetViewports(1, &viewport_ru);
-		}
-
-		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
-
-		sprite->Render(cmd_list);
-
-		{
-			auto viewport_lu = viewport;
-			viewport_lu.TopLeftX = viewport.Width / 2;
-			viewport_lu.Width /= 2;
-			viewport_lu.Height /= 2;
-			cmd_list->RSSetViewports(1, &viewport_lu);
-		}
-
-		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(2));
-
-		sprite->Render(cmd_list);
-
-
-		depth_renderer->SetState(cmd_list);
-		{
-			auto viewport_rb = viewport;
-			viewport_rb.TopLeftY = viewport.Height / 2;
-			viewport_rb.Width /= 2;
-			viewport_rb.Height /= 2;
-			cmd_list->RSSetViewports(1, &viewport_rb);
-		}
-
-		cmd_list->SetDescriptorHeaps(1, dsv_srv_handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, dsv_srv_handle.Gpu());
 
 		sprite->Render(cmd_list);
 
@@ -360,7 +310,7 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene03::UnInit(const SceneDesc& desc)
+HRESULT TestScene04::UnInit(const SceneDesc& desc)
 {
 	return S_OK;
 }

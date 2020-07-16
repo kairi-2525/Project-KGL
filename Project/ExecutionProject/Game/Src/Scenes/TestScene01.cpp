@@ -66,6 +66,7 @@ HRESULT TestScene01::Init(const SceneDesc& desc)
 
 	auto plane = XMVectorSet(0.f, 1.f, 0.f, 0.f);
 
+	XMStoreFloat3(&scene_buffer.mapped_data->light_pos, light_pos);
 	scene_buffer.mapped_data->shadow = XMMatrixShadow(plane, light_pos);
 
 	return S_OK;

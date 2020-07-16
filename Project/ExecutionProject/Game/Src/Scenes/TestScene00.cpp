@@ -138,6 +138,7 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 	);
 
 	scene_buffer.mapped_data->proj = proj_mat;
+	XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -191,7 +192,7 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 	const UINT total_count = 9u;
 	auto counter = SCAST<INT8>(fmodf(total_elapsed_time, SCAST<float>(total_count)));
 
-#if 0
+#if 1
 	bool gauss_flg = counter >= (total_count / 3) * 1;
 	bool effect_flg = counter >= (total_count / 3) * 2;
 #else
