@@ -10,7 +10,7 @@ struct PSOut
 	float4 pos : SV_TARGET2;
 };
 
-PSOut PSMain(Output input) : SV_TARGET
+PSOut PSMain(Output input)
 {
 	PSOut output = (PSOut)0;
 

@@ -17,7 +17,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
-	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
+	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミクVer2.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
@@ -101,7 +101,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges);
 			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
-			renderer_desc.add_root_param.push_back(root_param);
+			renderer_desc.root_params.push_back(root_param);
 		}
 		{
 			D3D12_STATIC_SAMPLER_DESC sampler_desc =
@@ -119,7 +119,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 			sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 
-			renderer_desc.add_smp_desc.push_back(sampler_desc);
+			renderer_desc.static_samplers.push_back(sampler_desc);
 		}
 		pmd_multi_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
 		pmd_multi_renderer->SetName("pmd_multi_renderer");
@@ -185,7 +185,11 @@ HRESULT TestScene03::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.rotation.y += XMConvertToRadians(10.f) * elapsed_time;
-		model.MotionUpdate(elapsed_time, true);
+
+		model.MotionSetup(elapsed_time, true);
+		model.MotionMatrixUpdate();
+
+		model.IKUpdate();
 		model.Update(elapsed_time);
 		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}
@@ -245,10 +249,10 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 	{
 		const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
 		const size_t rtv_size = rbs_rt.size();
-		cmd_list->ResourceBarrier(rtv_size, rbs_rt.data());
+		cmd_list->ResourceBarrier(KGL::SCAST<UINT>(rtv_size), rbs_rt.data());
 		rtvs->SetAll(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
 		DirectX::XMFLOAT4 clear_color = { 1.f, 1.f, 1.f, 1.f };
-		for (size_t i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_color, i);
+		for (UINT i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_color, i);
 		desc.app->ClearDsv(cmd_list);
 
 		{
@@ -274,7 +278,7 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 		}
 
 		const auto& rbs_sr = rtvs->GetRtvResourceBarriers(false);
-		cmd_list->ResourceBarrier(rtv_size, rbs_sr.data());
+		cmd_list->ResourceBarrier(KGL::SCAST<UINT>(rtv_size), rbs_sr.data());
 	}
 	{
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));

@@ -25,6 +25,8 @@
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Base\VMD.hpp" />
     <ClInclude Include="Inc\Dx12\2D\Renderer.hpp" />
+    <ClInclude Include="Inc\Dx12\3D\BillBoard.hpp" />
+    <ClInclude Include="Inc\Dx12\3D\Renderer.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
@@ -58,7 +60,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Base\Model.cpp" />
-    <ClCompile Include="Src\Dx12\2D\Renderer.cpp" />
     <ClCompile Include="Src\Dx12\2D\Sprite.cpp" />
     <ClCompile Include="Src\Dx12\Application.cpp" />
     <ClCompile Include="Src\Base\Window.cpp" />
@@ -70,7 +71,6 @@
     <ClCompile Include="Src\Dx12\PipelineState.cpp" />
     <ClCompile Include="Src\Dx12\3D\PMDActor.cpp" />
     <ClCompile Include="Src\Dx12\3D\PMDModel.cpp" />
-    <ClCompile Include="Src\Dx12\3D\PMDRenderer.cpp" />
     <ClCompile Include="Src\Dx12\RenderTargetView.cpp" />
     <ClCompile Include="Src\Dx12\Shader.cpp" />
     <ClCompile Include="Src\Dx12\Texture.cpp" />

@@ -29,7 +29,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges);
 			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
-			renderer_desc.add_root_param.push_back(root_param);
+			renderer_desc.root_params.push_back(root_param);
 		}
 		{
 			D3D12_STATIC_SAMPLER_DESC sampler_desc = 
@@ -47,7 +47,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 			sampler_desc.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
 
-			renderer_desc.add_smp_desc.push_back(sampler_desc);
+			renderer_desc.static_samplers.push_back(sampler_desc);
 		}
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDShadowMap_ps.hlsl";
 		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
@@ -176,7 +176,8 @@ HRESULT TestScene02::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.rotation.y += XMConvertToRadians(10.f) * elapsed_time;
-		model.MotionUpdate(elapsed_time, true);
+		model.MotionSetup(elapsed_time, true);
+		model.MotionMatrixUpdate();
 		model.Update(elapsed_time);
 		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}

@@ -7,7 +7,7 @@ float4 PSMain(Output input) : SV_TARGET
 		return float4(0.f, 0.f, 0.f, 1.f);
 	}
 	input.pos.xyz /= input.pos.w;
-	float3 light_vec = normalize(input.pos - light_pos);
+	float3 light_vec = normalize(input.pos.xyz - light_pos);
 	float3 light_color = float3(1, 1, 1);
 
 	// ‹P“x

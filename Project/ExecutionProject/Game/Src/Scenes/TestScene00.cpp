@@ -52,7 +52,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges);
 			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
-			renderer_desc.add_root_param.push_back(root_param);
+			renderer_desc.root_params.push_back(root_param);
 		}
 		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
@@ -65,7 +65,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		{
 			CD3DX12_ROOT_PARAMETER root_param;
 			root_param.InitAsDescriptorTable(1, &add_ranges_effect);
-			renderer_desc.add_root_param.push_back(root_param);
+			renderer_desc.root_params.push_back(root_param);
 		}
 		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
@@ -93,7 +93,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		// ガウス処理をあらかじめ計算しておく
 		const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
 
-		const auto buff_size = ((weights.size() * sizeof(weights[0])) + 0xff) & ~0xff;
+		const UINT buff_size = KGL::SCAST<UINT>(((weights.size() * sizeof(weights[0])) + 0xff) & ~0xff);
 		hr = device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 			D3D12_HEAP_FLAG_NONE,
@@ -159,7 +159,8 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
-		model.MotionUpdate(elapsed_time, true);
+		model.MotionSetup(elapsed_time, true);
+		model.MotionMatrixUpdate();
 		model.Update(elapsed_time);
 		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}

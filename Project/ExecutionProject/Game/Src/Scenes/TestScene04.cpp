@@ -61,7 +61,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
 	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	uav_desc.Format = DXGI_FORMAT_UNKNOWN;
-	uav_desc.Buffer.NumElements = particle_resource->Size();
+	uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(particle_resource->Size());
 	uav_desc.Buffer.StructureByteStride = sizeof(Particle);
 
 	particle_begin_handle = particle_desc_mgr->Alloc();
@@ -114,7 +114,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	cpt_cmd_list->SetComputeRootDescriptorTable(0, scene_buffer.handle.Gpu());
 	cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
 	cpt_cmd_list->SetComputeRootDescriptorTable(0, particle_begin_handle.Gpu());
-	const UINT ptcl_size = particle_resource->Size();
+	const UINT ptcl_size = KGL::SCAST<UINT>(particle_resource->Size());
 	DirectX::XMUINT3 patch = {};
 	constexpr auto patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 	patch.x = (patch_max / 64) + (patch_max % 64);
@@ -163,10 +163,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 	{
 		const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
-		const size_t rtv_size = rbs_rt.size();
+		const UINT rtv_size = KGL::SCAST<UINT>(rbs_rt.size());
 		cmd_list->ResourceBarrier(rtv_size, rbs_rt.data());
 		rtvs->SetAll(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
-		for (size_t i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_value, i);
+		for (UINT i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_value, i);
 		desc.app->ClearDsv(cmd_list);
 
 		const auto& rbs_sr = rtvs->GetRtvResourceBarriers(false);

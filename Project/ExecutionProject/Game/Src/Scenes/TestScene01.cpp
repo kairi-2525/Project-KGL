@@ -84,7 +84,8 @@ HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
-		model.MotionUpdate(elapsed_time, true);
+		model.MotionSetup(elapsed_time, true);
+		model.MotionMatrixUpdate();
 		model.Update(elapsed_time);
 		model.UpdateWVP(scene_buffer.mapped_data->view * scene_buffer.mapped_data->proj);
 	}

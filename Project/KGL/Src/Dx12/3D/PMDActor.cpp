@@ -49,6 +49,18 @@ float PMD_Actor::GetYFromXOnBezier(
 }
 
 void PMD_Actor::RecursiveMatrixMultiply(
+	const DirectX::XMMATRIX& mat
+) noexcept
+{
+	const auto& bone_table = m_model_desc->bone_node_table;
+	const auto& node = bone_table.at("センター");
+	m_map_buffers->bones[node.bone_idx] *= mat;
+	for (auto& cnode : node.children)
+	{
+		RecursiveMatrixMultiply(cnode, m_map_buffers->bones[node.bone_idx]);
+	}
+}
+void PMD_Actor::RecursiveMatrixMultiply(
 	const PMD::BoneNode* node,
 	const DirectX::XMMATRIX& mat
 ) noexcept
@@ -138,7 +150,7 @@ void PMD_Actor::ClearAnimation() noexcept
 	);
 }
 
-void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcept
+void PMD_Actor::MotionSetup(float elapsed_time, bool loop, bool bezier) noexcept
 {
 	using namespace DirectX;
 	if (m_anim_desc)
@@ -165,15 +177,16 @@ void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcep
 		const auto& bone_table = m_model_desc->bone_node_table;
 		for (const auto& bone_motion : motion_data)
 		{
+			if (bone_table.count(bone_motion.first) == 0u) continue;
 			const auto& node = bone_table.at(bone_motion.first);
 			const auto& motions = bone_motion.second;
 			// フレームナンバーが小さい順に並んでいることが前提
 			auto ritr = std::find_if(
 				motions.crbegin(), motions.crend(),
 				[frame_no](const KGL::VMD::Key_Frame& motion)
-				{
-					return motion.frame_no <= frame_no;
-				}
+			{
+				return motion.frame_no <= frame_no;
+			}
 			);
 			if (ritr == motions.crend())
 			{
@@ -201,14 +214,20 @@ void PMD_Actor::MotionUpdate(float elapsed_time, bool loop, bool bezier) noexcep
 				* rotation
 				* XMMatrixTranslation(pos.x, pos.y, pos.z);
 		}
-		const auto& node = bone_table.at("センター");
-		RecursiveMatrixMultiply(
-			&node,
-			XMMatrixIdentity()
-		);
-
-		IKSolve(frame_no);
 	}
+}
+
+void PMD_Actor::MotionMatrixUpdate(DirectX::CXMMATRIX mat) noexcept
+{
+	RecursiveMatrixMultiply(
+		mat
+	);
+}
+
+void PMD_Actor::IKUpdate()
+{
+	UINT frame_no = SCAST<UINT>(30 * m_anim_counter);
+	IKSolve(frame_no);
 }
 
 void PMD_Actor::UpdateWVP(DirectX::CXMMATRIX view_proj)
@@ -458,6 +477,20 @@ void PMD_Actor::SolveCosineIK(const PMD::IK& ik) noexcept
 	{
 		// 右
 		axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
+
+		/*auto vm = XMVector3Normalize(
+			XMVectorSubtract(positions[2], positions[0])
+		);
+		auto vt = XMVector3Normalize(
+			XMVectorSubtract(target_pos, positions[0])
+		);
+
+		axis = XMVector3Cross(vt, vm);
+
+		float length_sq;
+		XMStoreFloat(&length_sq, XMVector3LengthSq(axis));
+		if (length_sq == 0.0f)
+			axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);*/
 	}
 
 	// IKチェーンはルートに向かってから数えられるため１がルートに近い

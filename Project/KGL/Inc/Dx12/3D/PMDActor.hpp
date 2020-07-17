@@ -53,13 +53,18 @@ namespace KGL
 
 				void SetAnimation(const std::shared_ptr<const VMD::Desc>& desc) noexcept;
 				void ClearAnimation() noexcept;
-				void MotionUpdate(float elapsed_time, bool loop = true, bool bezier = true) noexcept;
+				void MotionSetup(float elapsed_time, bool loop = true, bool bezier = true) noexcept;
+				void MotionMatrixUpdate(DirectX::CXMMATRIX mat = DirectX::XMMatrixIdentity()) noexcept;
+				void IKUpdate();
 				void UpdateWVP(DirectX::CXMMATRIX view_proj);
 				void Render(
 					const ComPtr<ID3D12GraphicsCommandList>& cmd_list
 				) const noexcept;
 				ComPtrC<ID3D12DescriptorHeap> GetHeap() const noexcept { return m_desc_heap; }
 				ConstantBuffers* GetMappedBuffers() { return m_map_buffers; }
+				void RecursiveMatrixMultiply(
+					const DirectX::XMMATRIX& mat
+				) noexcept;
 				void RecursiveMatrixMultiply(
 					const PMD::BoneNode* node,
 					const DirectX::XMMATRIX& mat

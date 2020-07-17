@@ -11,16 +11,25 @@ namespace KGL
 		class BaseRenderer
 		{
 		public:
+			struct OtherDesc
+			{
+				D3D12_PRIMITIVE_TOPOLOGY_TYPE			topology_type;
+				DXGI_SAMPLE_DESC						sample_desc;
+				DXGI_FORMAT								dsv_format;
+				D3D12_INDEX_BUFFER_STRIP_CUT_VALUE		index_cut_value;
+			};
 			struct Desc
 			{
 				BDTYPE									blend_type;
 				SHADER::Desc							vs_desc;
 				SHADER::Desc							ps_desc;
 				std::vector<D3D12_INPUT_ELEMENT_DESC>	input_layouts;
-				std::vector<D3D12_DESCRIPTOR_RANGE>		add_range;
-				std::vector<D3D12_ROOT_PARAMETER>		add_root_param;
-				std::vector<D3D12_STATIC_SAMPLER_DESC>	add_smp_desc;
+				std::vector<D3D12_ROOT_PARAMETER>		root_params;
+				std::vector<D3D12_STATIC_SAMPLER_DESC>	static_samplers;
 				std::vector<DXGI_FORMAT>				render_targets;
+				D3D12_DEPTH_STENCIL_DESC				depth_desc;
+				D3D12_RASTERIZER_DESC					rastarizer_desc;
+				OtherDesc								other_desc;
 			};
 		protected:
 			ComPtr<ID3D12PipelineState>	m_pl_state;
@@ -31,8 +40,12 @@ namespace KGL
 				const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
 				D3D12_GRAPHICS_PIPELINE_STATE_DESC* out_desc
 			) noexcept;
-		public:
+		protected:
 			BaseRenderer() = default;
+			HRESULT Create(const ComPtr<ID3D12Device>& device, const Desc& desc) noexcept;
+		public:
+			explicit BaseRenderer(const ComPtr<ID3D12Device>& device, const Desc& desc) noexcept
+			{ Create(device, desc); }
 			virtual ~BaseRenderer() = default;
 			void SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
 			void SetName(const std::filesystem::path& name) const noexcept;

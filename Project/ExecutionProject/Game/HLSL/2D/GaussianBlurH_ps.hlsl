@@ -16,10 +16,10 @@ float4 PSMain(PSInput input) : SV_TARGET
 
 	ret += bkweights[0] * col;
 
-	for (int i = 0; i < 8; ++i)
+	for (uint i = 0u; i < 8u; ++i)
 	{
 		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, i * dy));
-		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -i * dy));
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -int(i) * dy));
 	}
 
 	return float4(ret.rgb, col.a);

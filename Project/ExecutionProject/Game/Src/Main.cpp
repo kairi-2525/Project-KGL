@@ -58,7 +58,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				device = app->GetDevice();
 
 				SceneDesc scene_desc = { app, window };
-				hr = scene_mgr.Init<TestScene04>(scene_desc);
+				hr = scene_mgr.Init<TestScene03>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;
