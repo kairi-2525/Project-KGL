@@ -32,11 +32,11 @@ namespace KGL
 						D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 					}
 				};
-				static inline const Shader::Desc VS_DESC =
+				static inline const SHADER::Desc VS_DESC =
 				{
 					"./HLSL/2D/Sprite_vs.hlsl", "VSMain", "vs_5_1"
 				};
-				static inline const Shader::Desc PS_DESC =
+				static inline const SHADER::Desc PS_DESC =
 				{
 					"./HLSL/2D/Sprite_ps.hlsl", "PSMain", "ps_5_1"
 				};

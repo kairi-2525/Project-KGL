@@ -14,8 +14,8 @@ namespace KGL
 			struct Desc
 			{
 				BDTYPE									blend_type;
-				Shader::Desc							vs_desc;
-				Shader::Desc							ps_desc;
+				SHADER::Desc							vs_desc;
+				SHADER::Desc							ps_desc;
 				std::vector<D3D12_INPUT_ELEMENT_DESC>	input_layouts;
 				std::vector<D3D12_DESCRIPTOR_RANGE>		add_range;
 				std::vector<D3D12_ROOT_PARAMETER>		add_root_param;
@@ -27,7 +27,7 @@ namespace KGL
 			ComPtr<ID3D12RootSignature>	m_rootsig;
 		protected:
 			[[nodiscard]] std::unique_ptr<KGL::Shader> GetShaderDesc(
-				const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
+				const SHADER::Desc& vs_desc, const SHADER::Desc& ps_desc,
 				const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
 				D3D12_GRAPHICS_PIPELINE_STATE_DESC* out_desc
 			) noexcept;

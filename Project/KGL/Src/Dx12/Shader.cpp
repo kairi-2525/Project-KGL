@@ -6,7 +6,7 @@
 
 using namespace KGL;
 
-HRESULT Shader::Load(const Desc& desc,
+HRESULT SHADER::Load(const Desc& desc,
 	_In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* p_defines,
 	_In_opt_ ID3DInclude* p_include,
 	_In_ UINT flag0, _In_ UINT flag1,
@@ -36,7 +36,7 @@ HRESULT Shader::Load(const Desc& desc,
 	return hr;
 }
 
-Shader::Shader(const Desc& vs, const Desc& ps,
+Shader::Shader(const SHADER::Desc& vs, const SHADER::Desc& ps,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_desc,
 	_In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* p_defines,
 	_In_opt_ ID3DInclude* p_include,
@@ -60,7 +60,7 @@ Shader::Shader(const Desc& vs, const Desc& ps,
 			);
 			RCHECK(FAILED(hr), "VSÇÃê∂ê¨Ç…é∏îs");
 		}
-		// VS
+		// PS
 		if (!ps.hlsl.empty())
 		{
 			// PS
@@ -81,4 +81,35 @@ Shader::Shader(const Desc& vs, const Desc& ps,
 	}
 
 	m_input_desc = input_desc;
+}
+
+ShaderCS::ShaderCS(const SHADER::Desc& cs,
+	_In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* p_defines,
+	_In_opt_ ID3DInclude* p_include,
+	_In_ UINT flag0, _In_ UINT flag1
+) noexcept
+{
+	ComPtr<ID3DBlob> error_code;
+	HRESULT hr;
+	try
+	{
+		// CS
+		if (!cs.hlsl.empty())
+		{
+			// CS
+			hr = Load(
+				cs,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_cs,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "PSÇÃê∂ê¨Ç…é∏îs");
+		}
+	}
+	catch (std::runtime_error& exception)
+	{
+		RuntimeErrorStop(exception);
+	}
 }

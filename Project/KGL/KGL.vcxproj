@@ -28,6 +28,8 @@
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
+    <ClInclude Include="Inc\Dx12\Compute.hpp" />
+    <ClInclude Include="Inc\Dx12\ConstantBuffer.hpp" />
     <ClInclude Include="Inc\Dx12\DescriptorHeap.hpp" />
     <ClInclude Include="Inc\Dx12\Helper.hpp" />
     <ClInclude Include="Inc\Dx12\PipelineState.hpp" />
@@ -63,6 +65,7 @@
     <ClCompile Include="Src\Dx12\Base\Renderer.cpp" />
     <ClCompile Include="Src\Dx12\BlendState.cpp" />
     <ClCompile Include="Src\Dx12\CommandQueue.cpp" />
+    <ClCompile Include="Src\Dx12\Compute.cpp" />
     <ClCompile Include="Src\Dx12\DescriptorHeap.cpp" />
     <ClCompile Include="Src\Dx12\PipelineState.cpp" />
     <ClCompile Include="Src\Dx12\3D\PMDActor.cpp" />

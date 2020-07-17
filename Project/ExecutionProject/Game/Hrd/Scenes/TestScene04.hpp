@@ -13,47 +13,38 @@
 #include <Base/Camera.hpp>
 #include <Dx12/RenderTargetView.hpp>
 #include <Dx12/DescriptorHeap.hpp>
+#include <Dx12/ConstantBuffer.hpp>
+#include <Dx12/Compute.hpp>
 
 #include "../Obj3D.hpp"
 
 class TestScene04 : public SceneBase
 {
+	struct Particle
+	{
+		DirectX::XMFLOAT3 position; float pad0;
+		DirectX::XMFLOAT3 scale; float pad1;
+		DirectX::XMFLOAT3 velocity; float pad2;
+		DirectX::XMFLOAT3 accs; float pad3;
+	};
 private:
-	static inline const UINT SHADOW_DIFINITION = 2048u;
-private:
-	SceneBufferDx12<SceneBuffers>			scene_buffer;
+	SceneBufferDx12<SceneBuffers>				scene_buffer;
+	KGL::VecCamera								camera;
 
-	KGL::VecCamera camera;
-	KGL::Camera light_camera;
-
-	std::shared_ptr<KGL::RenderTargetView>		rtvs;
-	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
-	std::shared_ptr<KGL::DescriptorManager>		light_dsv_desc_mgr;
-	KGL::DescriptorHandle						light_dsv_handle;
-	std::shared_ptr<KGL::Texture>				light_dsv;
-
-	std::shared_ptr<KGL::BaseRenderer>			pmd_light_renderer;
-	std::shared_ptr<KGL::BaseRenderer>			depth_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 
 	KGL::TextureManager							tex_mgr;
-	std::shared_ptr<KGL::PMD_Loader>			pmd_data;
-	std::shared_ptr<KGL::VMD_Loader>			vmd_data;
-	std::shared_ptr<KGL::PMD_Model>				pmd_model;
-	std::shared_ptr<KGL::PMD_Model>				pmd_toon_model;
-	std::shared_ptr<KGL::PMD_Renderer>			pmd_multi_renderer;
-
-	std::vector<Obj3D>							models;
 
 	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
 
-	DirectX::XMFLOAT4							clear_color;
+	std::shared_ptr<KGL::RenderTargetView>		rtvs;
+	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 
-	std::shared_ptr<KGL::DescriptorManager>		dsv_srv_desc_mgr;
-	KGL::DescriptorHandle						dsv_srv_handle;
-
+	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
+	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
+	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

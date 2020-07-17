@@ -7,7 +7,7 @@
 using namespace KGL;
 
 std::unique_ptr<KGL::Shader> BaseRenderer::GetShaderDesc(
-	const Shader::Desc& vs_desc, const Shader::Desc& ps_desc,
+	const SHADER::Desc& vs_desc, const SHADER::Desc& ps_desc,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC* out_desc
 ) noexcept

@@ -103,5 +103,7 @@
     <None Include="HLSL\2D\Sprite.hlsli" />
     <None Include="HLSL\3D\PMDGroundShadow.hlsli" />
     <None Include="HLSL\2D\Depth.hlsli" />
+    <None Include="HLSL\GrayScale.hlsli" />
+    <None Include="HLSL\GaussianBlur5x5.hlsli" />
   </ItemGroup>
 </Project>
