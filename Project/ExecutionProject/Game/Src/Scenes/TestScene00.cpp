@@ -15,7 +15,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	const auto& device = desc.app->GetDevice();
 	auto window_size = desc.window->GetClientSize();
 
-	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
 	tex_effect = std::make_shared<KGL::Texture>(device, "./Assets/Normals/normalmap.jpg");
@@ -54,11 +54,11 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 			root_param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;	// ピクセルシェーダーのみで使う
 			renderer_desc.add_root_param.push_back(root_param);
 		}
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_1" };
+		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 		renderer_blur_w->SetName("renderer_blur_w");
 
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_1" };
+		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 		renderer_blur_h->SetName("renderer_blur_h");
 		auto add_ranges_effect = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
@@ -67,7 +67,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 			root_param.InitAsDescriptorTable(1, &add_ranges_effect);
 			renderer_desc.add_root_param.push_back(root_param);
 		}
-		renderer_desc.ps_desc = KGL::Shader::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_1" };
+		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_1" };
 		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 		renderer_effect->SetName("renderer_effect");
 	}

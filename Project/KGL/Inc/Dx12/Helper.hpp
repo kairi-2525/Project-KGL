@@ -11,17 +11,19 @@ namespace KGL
 	{
 		namespace HELPER
 		{
+			template <class _Ty = ID3D12GraphicsCommandList>
 			inline HRESULT CreateCommandAllocatorAndList(
 				ComPtrC<ID3D12Device> device,
 				ComPtr<ID3D12CommandAllocator>* p_allocator,
-				ComPtr<ID3D12GraphicsCommandList>* p_list
+				ComPtr<_Ty>* p_list,
+				D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT
 			) {
 				HRESULT hr = S_OK;
 
 				if (p_allocator && !*p_allocator)
 				{
 					auto hr = device->CreateCommandAllocator(
-						D3D12_COMMAND_LIST_TYPE_DIRECT,
+						type,
 						IID_PPV_ARGS(p_allocator->GetAddressOf())
 					);
 					RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", hr);
@@ -29,7 +31,7 @@ namespace KGL
 				if (p_allocator && *p_allocator && p_list)
 				{
 					hr = device->CreateCommandList(0,
-						D3D12_COMMAND_LIST_TYPE_DIRECT,
+						type,
 						p_allocator->Get(), nullptr,
 						IID_PPV_ARGS(p_list->ReleaseAndGetAddressOf())
 					);

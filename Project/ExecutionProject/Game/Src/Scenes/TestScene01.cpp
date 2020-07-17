@@ -14,7 +14,7 @@ HRESULT TestScene01::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	hr = KGL::HELPER::CreateCommandAllocatorAndList(device, &cmd_allocator, &cmd_list);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
 	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");

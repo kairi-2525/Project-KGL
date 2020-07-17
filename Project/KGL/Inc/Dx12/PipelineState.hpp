@@ -3,12 +3,6 @@
 #include <d3d12.h>
 #pragma comment(lib, "d3d12.lib")
 
-#include "../Helper/ComPtr.hpp"
-#include "../Helper/Cast.hpp"
-
-#include <map>
-#include <cstring>
-
 namespace KGL
 {
 	inline namespace DX12

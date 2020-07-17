@@ -26,8 +26,17 @@ class TestScene04 : public SceneBase
 		DirectX::XMFLOAT3 scale; float pad1;
 		DirectX::XMFLOAT3 velocity; float pad2;
 		DirectX::XMFLOAT3 accs; float pad3;
+		bool exist;
+	};
+	struct SceneBuffers
+	{
+		DirectX::XMFLOAT4X4	view_proj;
+		DirectX::XMFLOAT4X4	re_view;
+		float				elapsed_time;
 	};
 private:
+	DirectX::XMFLOAT4X4							proj;
+
 	SceneBufferDx12<SceneBuffers>				scene_buffer;
 	KGL::VecCamera								camera;
 
@@ -39,12 +48,17 @@ private:
 	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
 
+	KGL::ComPtr<ID3D12CommandAllocator>			cpt_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
+	std::shared_ptr<KGL::CommandQueue>			cpt_cmd_queue;
+
 	std::shared_ptr<KGL::RenderTargetView>		rtvs;
 	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 
 	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
 	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
+	KGL::DescriptorHandle						particle_begin_handle;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

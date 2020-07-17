@@ -25,20 +25,37 @@ namespace KGL
 		{
 			_Ty* m_mapped_ptr;
 		public:
-			Resource(ComPtrC<ID3D12Device> device, size_t size) noexcept :
-				ResourcesBase(size)
+			Resource(ComPtrC<ID3D12Device> device, size_t size,
+				const D3D12_HEAP_PROPERTIES* prop = nullptr,
+				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE) noexcept :
+				ResourcesBase(size), m_mapped_ptr(nullptr)
 			{
 				RCHECK(size == 0u, "–³Œø‚ÈƒTƒCƒY");
 				const auto buffer_size = ((sizeof(_Ty) * m_size) + 0xff) & ~0xff;
-
-				auto hr = device->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(buffer_size),
-					D3D12_RESOURCE_STATE_GENERIC_READ,
-					nullptr,
-					IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
-				);
+				if (prop)
+				{
+					auto hr = device->CreateCommittedResource(
+						prop,
+						D3D12_HEAP_FLAG_NONE,
+						&CD3DX12_RESOURCE_DESC::Buffer(buffer_size, flag),
+						D3D12_RESOURCE_STATE_GENERIC_READ,
+						nullptr,
+						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+					);
+					RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s");
+				}
+				else
+				{
+					auto hr = device->CreateCommittedResource(
+						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+						D3D12_HEAP_FLAG_NONE,
+						&CD3DX12_RESOURCE_DESC::Buffer(buffer_size, flag),
+						D3D12_RESOURCE_STATE_GENERIC_READ,
+						nullptr,
+						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+					);
+					RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s");
+				}
 			}
 			_Ty* Map(UINT subresource = 0u, const D3D12_RANGE* p_read_range = nullptr)
 			{
@@ -51,6 +68,7 @@ namespace KGL
 			{
 				m_buffer->Unmap(subresource, p_wwriten_range);
 			}
+			ComPtrC<ID3D12Resource> Data() const noexcept { return m_buffer; };
 		};
 	}
 }
