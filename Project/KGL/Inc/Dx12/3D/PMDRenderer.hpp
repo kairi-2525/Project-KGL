@@ -127,7 +127,7 @@ namespace KGL
 				static inline const Desc DEFAULT_DESC =
 				{
 					BDTYPE::DEFAULT,
-					VS_DESC, PS_DESC,
+					VS_DESC, PS_DESC, {}, {}, {},
 					INPUT_LAYOUTS,
 					ROOT_PARAMS,
 					STATIC_SAMPLERS,

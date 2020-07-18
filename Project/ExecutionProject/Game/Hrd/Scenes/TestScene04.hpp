@@ -59,6 +59,7 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
 	KGL::DescriptorHandle						particle_begin_handle;
+	size_t										next_particle_offset;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

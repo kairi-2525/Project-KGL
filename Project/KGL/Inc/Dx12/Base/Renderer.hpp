@@ -21,8 +21,7 @@ namespace KGL
 			struct Desc
 			{
 				BDTYPE									blend_type;
-				SHADER::Desc							vs_desc;
-				SHADER::Desc							ps_desc;
+				SHADER::Desc							vs_desc, ps_desc, ds_desc, hs_desc, gs_desc;
 				std::vector<D3D12_INPUT_ELEMENT_DESC>	input_layouts;
 				std::vector<D3D12_ROOT_PARAMETER>		root_params;
 				std::vector<D3D12_STATIC_SAMPLER_DESC>	static_samplers;

@@ -26,6 +26,7 @@
     <ClInclude Include="Inc\Base\VMD.hpp" />
     <ClInclude Include="Inc\Dx12\2D\Renderer.hpp" />
     <ClInclude Include="Inc\Dx12\3D\BillBoard.hpp" />
+    <ClInclude Include="Inc\Dx12\3D\Board.hpp" />
     <ClInclude Include="Inc\Dx12\3D\Renderer.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
@@ -61,6 +62,7 @@
   <ItemGroup>
     <ClCompile Include="Src\Base\Model.cpp" />
     <ClCompile Include="Src\Dx12\2D\Sprite.cpp" />
+    <ClCompile Include="Src\Dx12\3D\Board.cpp" />
     <ClCompile Include="Src\Dx12\Application.cpp" />
     <ClCompile Include="Src\Base\Window.cpp" />
     <ClCompile Include="Src\Dx12\Base\Renderer.cpp" />

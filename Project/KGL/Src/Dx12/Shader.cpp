@@ -36,7 +36,9 @@ HRESULT SHADER::Load(const Desc& desc,
 	return hr;
 }
 
-Shader::Shader(const SHADER::Desc& vs, const SHADER::Desc& ps,
+Shader::Shader(
+	const SHADER::Desc& vs, const SHADER::Desc& ps,
+	const SHADER::Desc& ds, const SHADER::Desc& hs, const SHADER::Desc& gs,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_desc,
 	_In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* p_defines,
 	_In_opt_ ID3DInclude* p_include,
@@ -73,6 +75,47 @@ Shader::Shader(const SHADER::Desc& vs, const SHADER::Desc& ps,
 				error_code.ReleaseAndGetAddressOf()
 			);
 			RCHECK(FAILED(hr), "PSÇÃê∂ê¨Ç…é∏îs");
+		}
+		// DS
+		if (!ds.hlsl.empty())
+		{
+			hr = Load(
+				ds,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_ds,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "DSÇÃê∂ê¨Ç…é∏îs");
+		}
+		// HS
+		if (!hs.hlsl.empty())
+		{
+			// HS
+			hr = Load(
+				hs,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_hs,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "HSÇÃê∂ê¨Ç…é∏îs");
+		}
+		// GS
+		if (!gs.hlsl.empty())
+		{
+			// GS
+			hr = Load(
+				gs,
+				p_defines,
+				p_include,
+				flag0, flag1,
+				&m_gs,
+				error_code.ReleaseAndGetAddressOf()
+			);
+			RCHECK(FAILED(hr), "GSÇÃê∂ê¨Ç…é∏îs");
 		}
 	}
 	catch (std::runtime_error& exception)

@@ -114,7 +114,7 @@ HRESULT RenderTargetView::SetAll(const ComPtr<ID3D12GraphicsCommandList>& cmd_li
 		handle.ptr += icmt_rtv;
 	}
 	cmd_list->OMSetRenderTargets(
-		handles.size(), handles.data(), false,
+		SCAST<UINT>(handles.size()), handles.data(), false,
 		p_dsv_handle
 	);
 

@@ -6,6 +6,7 @@
 #include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
+#include <random>
 
 HRESULT TestScene04::Load(const SceneDesc& desc)
 {
@@ -88,6 +89,13 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
+	auto* p_particles = particle_resource->Map();
+	Particle particle_base = {};
+
+	std::fill(&p_particles[0], &p_particles[particle_resource->Size()], particle_base);
+	particle_resource->Unmap();
+
+	next_particle_offset = 0u;
 
 	return S_OK;
 }
@@ -107,6 +115,32 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMStoreFloat4x4(&svre_view, XMMatrixInverse(nullptr, XMLoadFloat4x4(&viewf)));
 		scene_buffer.mapped_data->elapsed_time = elapsed_time;
 	}
+
+	D3D12_RANGE range;
+	range.Begin = next_particle_offset;
+	range.End = range.Begin + sizeof(Particle) * 10;
+	const size_t offset_max = sizeof(Particle) * (particle_resource->Size() - 1);
+	if (range.End > offset_max)
+		range.End = offset_max;
+
+	{
+		std::random_device rd;
+		std::mt19937 mt(rd());
+		std::uniform_real_distribution<float> score(-1.f, 1.f);
+
+		auto particles = particle_resource->Map(0u, &range);
+		for (int i = 0; i < 10; i++)
+		{
+			if (particles[i].exist) continue;
+			particles[i].exist = true;
+			particles[i].position = { 0.f, 0.f, 0.f };
+			particles[i].velocity = { score(mt), score(mt), 1.f };
+		}
+		particle_resource->Unmap(0u, &range);
+	}
+	next_particle_offset = range.End;
+	if (next_particle_offset == offset_max)
+		next_particle_offset = 0u;
 
 	particle_pipeline->SetState(cpt_cmd_list);
 

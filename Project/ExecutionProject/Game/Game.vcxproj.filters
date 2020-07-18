@@ -98,6 +98,8 @@
     <FxCompile Include="HLSL\3D\PMDShadowMap_vs.hlsl" />
     <FxCompile Include="HLSL\3D\PMDMultiRenderTarget_ps.hlsl" />
     <FxCompile Include="HLSL\3D\Particle_cs.hlsl" />
+    <FxCompile Include="HLSL\3D\Board_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\Board_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -106,5 +108,6 @@
     <None Include="HLSL\2D\Depth.hlsli" />
     <None Include="HLSL\GrayScale.hlsli" />
     <None Include="HLSL\GaussianBlur5x5.hlsli" />
+    <None Include="HLSL\3D\Board.hlsli" />
   </ItemGroup>
 </Project>

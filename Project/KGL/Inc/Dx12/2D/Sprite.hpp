@@ -5,6 +5,7 @@
 
 #include <DirectXMath.h>
 #include "../../Helper/ComPtr.hpp"
+#include <array>
 
 namespace KGL
 {
@@ -18,13 +19,18 @@ namespace KGL
 				DirectX::XMFLOAT3 position;
 				DirectX::XMFLOAT2 uv;
 			};
+			using Vertices = std::array<Vertex, 4>;
 		private:
 			ComPtr<ID3D12Resource>		m_vert_buff;
-			ComPtr<ID3D12Resource>		m_idx_buff;
 			D3D12_VERTEX_BUFFER_VIEW	m_vbv;
 		public:
-			Sprite(const ComPtr<ID3D12Device>& device) noexcept;
-			void Render(const ComPtr<ID3D12GraphicsCommandList>& cmd_list);
+			Sprite(const ComPtrC<ID3D12Device>& device) noexcept;
+			HRESULT SetVertices(const Vertices& vertices) const noexcept;
+			HRESULT GetVertices(Vertices* p_vertices) const noexcept;
+
+			HRESULT SetPos(const RECT& rect, float screen_w, float screen_h) const noexcept;
+
+			void Render(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
 		};
 	}
 }

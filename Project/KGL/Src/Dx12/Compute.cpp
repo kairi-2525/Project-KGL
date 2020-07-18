@@ -8,8 +8,8 @@ ComputePipline::ComputePipline(ComPtrC<ID3D12Device> device, const Desc& desc) n
 {
 	CD3DX12_ROOT_SIGNATURE_DESC root_desc = {};
 	root_desc.Init(
-		desc.root_params.size(), desc.root_params.data(),
-		desc.static_samplars.size(), desc.static_samplars.data(),
+		SCAST<UINT>(desc.root_params.size()), desc.root_params.data(),
+		SCAST<UINT>(desc.static_samplars.size()), desc.static_samplars.data(),
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 	KGL::ComPtr<ID3D10Blob> rootsig_blob, error_blob;

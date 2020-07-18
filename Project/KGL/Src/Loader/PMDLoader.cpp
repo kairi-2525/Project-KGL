@@ -86,7 +86,7 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 			name = it.bone_name;
 
 			auto& node = desc->bone_node_table[name];
-			node.bone_idx = i;
+			node.bone_idx = SCAST<UINT32>(i);
 			node.start_pos = it.pos;
 
 			desc->bone_name_array[i] = name;
@@ -94,7 +94,7 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 
 			if (std::string(it.bone_name).find("‚Ð‚´") != std::string::npos)
 			{
-				desc->knee_idxes.emplace_back(i);
+				desc->knee_idxes.emplace_back(SCAST<UINT32>(i));
 			}
 		}
 
