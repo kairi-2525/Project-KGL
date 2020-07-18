@@ -13,9 +13,9 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 	m_desc = desc;
 	desc->path = path;
 
-	UINT vert_num;	// 総頂点数
-	UINT idx_num;	// 総インデックス数
-	UINT material_num;
+	UINT32 vert_num;	// 総頂点数
+	UINT32 idx_num;	// 総インデックス数
+	UINT32 material_num;
 
 	std::ifstream ifs(desc->path, std::ios::in | std::ios::binary);
 	try
@@ -44,8 +44,17 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 		RuntimeErrorStop(exception);
 	}
 
-	desc->vertices.resize(vert_num * PMD::VERTEX_SIZE);
-	ifs.read((char*)desc->vertices.data(), desc->vertices.size());
+	desc->vertices.resize(vert_num);
+	ifs.read((char*)desc->vertices.data(), vert_num * PMD::VERTEX_SIZE);
+
+	//std::vector<PMD::Vertex> vertices(vert_num);
+	//ifs.read((char*)vertices.data(), vert_num * PMD::VERTEX_SIZE);
+	//std::memcpy(vertices.data(), desc->vertices.data(), PMD::VERTEX_SIZE * vert_num);
+	//for (auto& vert : vertices)
+	//{
+	//	vert.normal = { -vert.normal.x, -vert.normal.y, -vert.normal.z };
+	//}
+	//std::memcpy(desc->vertices.data(), vertices.data(), PMD::VERTEX_SIZE * vert_num);
 
 	ifs.read((char*)&idx_num, sizeof(idx_num));
 
@@ -57,7 +66,7 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 
 	ifs.read((char*)desc->materials.data(), SCAST<ULONG>(material_num * sizeof(PMD::Material)));
 
-	USHORT bone_num = 0;
+	UINT16 bone_num = 0;
 	ifs.read((char*)&bone_num, sizeof(bone_num));
 
 	if (bone_num > 0)
@@ -123,7 +132,73 @@ PMD_Loader::PMD_Loader(std::filesystem::path path) noexcept
 		}
 	}
 
-#ifdef _CONSOLE
+	UINT16 morph_num = 0;
+	ifs.read((char*)&morph_num, sizeof(morph_num));
+	desc->morphs.resize(morph_num);
+	for (UINT16 i = 0u; i < morph_num; i++)
+	{
+		PMD::Morph morph;
+		ifs.read((char*)&morph, sizeof(PMD::Morph));
+		desc->morphs[i].name = morph.name;
+		desc->morphs[i].type = morph.type;
+		desc->morphs[i].vertices.resize(morph.vertex_count);
+
+		ifs.read((char*)desc->morphs[i].vertices.data(), sizeof(PMD::MorphVertex) * morph.vertex_count);
+	}
+
+	UINT8 morph_label_num = 0;
+	ifs.read((char*)&morph_label_num, sizeof(morph_label_num));
+	desc->morph_label_indices.resize(morph_label_num);
+	ifs.read((char*)desc->morph_label_indices.data(), sizeof(UINT16) * morph_label_num);
+
+	UINT8 bone_label_num = 0;
+	ifs.read((char*)&bone_label_num, sizeof(bone_label_num));
+	std::vector<char[50]> bone_labels(bone_label_num);
+	desc->bone_labels.resize(bone_label_num);
+	ifs.read((char*)bone_labels.data(), sizeof(char[50]) * bone_label_num);
+	std::copy(bone_labels.begin(), bone_labels.end(), desc->bone_labels.begin());
+
+	UINT32 bone_label_index_num = 0;
+	ifs.read((char*)&bone_label_index_num, sizeof(bone_label_index_num));
+	desc->bone_label_indices.resize(bone_label_index_num);
+	ifs.read((char*)desc->bone_label_indices.data(), sizeof(PMD::BoneLabelIndex) * bone_label_index_num);
+
+	if (!ifs.eof())
+	{
+		ifs.read((char*)&desc->localize_header, sizeof(PMD::LocalizeHeader));
+
+		if (desc->localize_header.flag == 0x1)
+		{
+			{
+				std::vector<char[20]> en_bone_names(bone_num);
+				desc->en.bone_names.resize(bone_num);
+				ifs.read((char*)en_bone_names.data(), sizeof(char[20]) * bone_num);
+				std::copy(en_bone_names.begin(), en_bone_names.end(), desc->en.bone_names.begin());
+			}
+			{
+				std::vector<char[20]> en_morph_names(morph_num - 1);
+				desc->en.morph_names.resize(morph_num - 1);
+				ifs.read((char*)en_morph_names.data(), sizeof(char[20])* (morph_num - 1));
+				std::copy(en_morph_names.begin(), en_morph_names.end(), desc->en.morph_names.begin());
+			}
+			{
+				std::vector<char[50]> en_bone_labels(bone_label_num);
+				desc->en.bone_labels.resize(bone_label_num);
+				ifs.read((char*)en_bone_labels.data(), sizeof(char[50]) * bone_label_num);
+				std::copy(en_bone_labels.begin(), en_bone_labels.end(), desc->en.bone_labels.begin());
+			}
+		}
+	}
+	if (!ifs.eof())
+	{
+		PMD::ToonTextureList toon_textures;
+		ifs.read((char*)&toon_textures, sizeof(PMD::ToonTextureList));
+		for (UCHAR i = 0u; i < 10u; i++)
+		{
+			desc->toon_tex_table[i] = toon_textures.file_name[i];
+		}
+	}
+#ifdef _CONSOLEa
 	auto GetNameFromIdx = [&](UINT16 idx)->std::string
 	{
 		auto itr = std::find_if(

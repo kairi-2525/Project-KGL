@@ -17,7 +17,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
-	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミクVer2.pmd");
+	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/Lat式ミクVer2.31/Lat式ミクVer2.31_Sailor冬服エッジ無し専用.pmd");
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);

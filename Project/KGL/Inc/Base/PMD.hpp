@@ -8,6 +8,7 @@
 #include <map>
 #include <DirectXMath.h>
 #include <memory>
+#include <unordered_map>
 
 namespace KGL
 {
@@ -21,6 +22,8 @@ namespace KGL
 				CHAR	model_name[20];
 				CHAR	comment[256];
 			};
+
+#pragma pack(1)		// ここから１バイトアライメントになる
 			struct Vertex
 			{
 				DirectX::XMFLOAT3	pos;
@@ -30,8 +33,6 @@ namespace KGL
 				UCHAR				bone_weight;	// ボーン影響度
 				UCHAR				edge_flg;		// 輪郭線フラグ
 			};
-
-#pragma pack(1)		// ここから１バイトアライメントになる
 			struct Material
 			{
 				DirectX::XMFLOAT3	diffuse;			// ディフューズ色
@@ -70,18 +71,69 @@ namespace KGL
 
 			struct IK
 			{
-				UINT16				bone_idx;		// IK対象のボーンを示す
-				UINT16				target_idx;		// ターゲットに近づけるためのボーンインデックス
-				UINT16				iterations;		// 試行回数
-				FLOAT				limit;			// 1回あたりの回転制限
-				std::vector<UINT16> node_idxes;		// 間のノード番号
+				UINT16					bone_idx;		// IK対象のボーンを示す
+				UINT16					target_idx;		// ターゲットに近づけるためのボーンインデックス
+				UINT16					iterations;		// 試行回数
+				FLOAT					limit;			// 1回あたりの回転制限
+				std::vector<UINT16>		node_idxes;		// 間のノード番号
 			};
 
+#pragma pack(1)
+			struct Morph			// モーフ
+			{
+				CHAR						name[20];
+				UINT32						vertex_count;
+				UINT8						type;		
+			};
+#pragma pack()
+			struct MorphVertex
+			{
+				UINT32						index;			// 表情用の頂点番号
+				DirectX::XMFLOAT3			position;
+			};
+			struct MorpthData
+			{
+				std::string					name;
+				UINT8						type;
+				std::vector<MorphVertex>	vertices;
+			};
+			enum MORPH_TYPE
+			{
+				PMD_MORPH_TYPE_BASE,
+				PMD_MORPH_TYPE_EYEBROW,
+				PMD_MORPH_TYPE_EYE,
+				PMD_MORPH_TYPE_LIP,
+				PMD_MORPH_TYPE_OTHER
+			};
+#pragma pack(1)
+			struct BoneLabelIndex
+			{
+				UINT16						bone_index;
+				UINT8						frame_index;
+			};
+			struct LocalizeHeader
+			{
+				UINT8						flag;		// 1 : 英語対応あり
+				CHAR						model_name[20];		// 英語名モデル
+				CHAR						comment[256];
+			};
+			struct ToonTextureList
+			{
+				CHAR						file_name[10][100];
+			};
+#pragma pack()
+			struct EnglishDesc
+			{
+				std::vector<std::string>			bone_names;
+				std::vector<std::string>			morph_names;
+				std::vector<std::string>			bone_labels;
+			};
+			using ToonTextureTable = std::unordered_map<UCHAR, std::filesystem::path>;
 			struct Desc
 			{
 				std::filesystem::path				path;
 				Header								header;
-				std::vector<UCHAR>					vertices;
+				std::vector<Vertex>					vertices;
 				std::vector<USHORT>					indices;
 				std::vector<Material>				materials;
 				std::vector<Bone>					bones;
@@ -90,10 +142,41 @@ namespace KGL
 				std::vector<std::string>			bone_name_array;
 				std::vector<BoneNode*>				bone_node_address_array;
 				std::vector<UINT32>					knee_idxes;
+				std::vector<MorpthData>				morphs;
+				std::vector<UINT16>					morph_label_indices;
+				std::vector<std::string>			bone_labels;
+				std::vector<BoneLabelIndex>			bone_label_indices;
+				LocalizeHeader						localize_header;
+				EnglishDesc							en;
+				ToonTextureTable					toon_tex_table;
 			};
-
+			/*class AlignedVertex
+			{
+			public:
+				Vertex vertex;
+			public:
+				const AlignedVertex& operator=(const Vertex& vert) noexcept
+				{
+					vertex.pos = vert.pos;
+					vertex.uv = vert.uv;
+					vertex.normal = vert.normal;
+					vertex.edge_flg = vert.edge_flg;
+					vertex.bone_no[0] = vert.bone_no[0];
+					vertex.bone_no[1] = vert.bone_no[1];
+					vertex.bone_weight = vert.bone_weight;
+					return *this;
+				}
+				void* operator new(size_t size)
+				{
+					return _aligned_malloc(size, 1u);
+				}
+				void operator delete(void* p)
+				{
+					return _aligned_free(p);
+				}
+			};*/
 			static constexpr size_t MT_SIZE = sizeof(Material);
-			static constexpr size_t VERTEX_SIZE = 38u;
+			static constexpr size_t VERTEX_SIZE = sizeof(Vertex);
 		}
 	}
 }

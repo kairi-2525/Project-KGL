@@ -39,11 +39,12 @@ namespace KGL
 				std::vector<DirectX::XMMATRIX>			m_bone_matrices;
 				std::shared_ptr<const PMD::Desc>		m_desc;
 			private:
-				HRESULT CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<UCHAR>& vert) noexcept;
+				HRESULT CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Vertex>& vert) noexcept;
 				HRESULT CreateIndexBuffers(ComPtr<ID3D12Device> device, const std::vector<USHORT>& idx) noexcept;
 				HRESULT CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Material>& mtr) noexcept;
 				HRESULT CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Material>& mtr,
 					const std::filesystem::path& path, const std::filesystem::path& toon_folder,
+					const PMD::ToonTextureTable& toon_table,
 					TextureManager* mgr) noexcept;
 				HRESULT CreateMaterialHeap(ComPtr<ID3D12Device> device) noexcept;
 				HRESULT CreateBoneMatrix(const PMD::BoneTable& bone_table) noexcept;

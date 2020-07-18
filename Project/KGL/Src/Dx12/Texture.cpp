@@ -103,16 +103,16 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	{
 		if (FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) && hr != HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)))
 			throw std::runtime_error(
-				"[" 
-				+ m_path.string() 
+				"["
+				+ m_path.string()
 				+ "] の読み込み中に原因不明のエラーが発生しました。"
 			);
+		else if (FAILED(hr)) return hr;
 	}
 	catch (std::runtime_error& exception)
 	{
 		RuntimeErrorStop(exception);
 	}
-	RCHECK(FAILED(hr), "テクスチャの読み込みに失敗", hr);
 
 	// 生データの抽出
 	auto img = scratch_img.GetImage(0, 0, 0);

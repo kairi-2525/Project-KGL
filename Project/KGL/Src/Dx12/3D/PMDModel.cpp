@@ -36,7 +36,7 @@ PMD_Model::PMD_Model(
 	RCHECK(FAILED(hr), "マテリアルバッファの作成に失敗");
 	SetName(m_idx_buff, RCAST<INT_PTR>(this), m_desc->path.wstring(), L"Material");
 
-	hr = CreateTextureBuffers(device, m_desc->materials, m_desc->path, toon_folder, mgr);
+	hr = CreateTextureBuffers(device, m_desc->materials, m_desc->path, toon_folder, m_desc->toon_tex_table, mgr);
 	RCHECK(FAILED(hr), "テクスチャバッファーの作成に失敗");
 
 	hr = CreateMaterialHeap(device);
@@ -46,20 +46,20 @@ PMD_Model::PMD_Model(
 	RCHECK(FAILED(hr), "ボーン用のMatrixの作成に失敗");
 }
 
-HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<UCHAR>& vert) noexcept
+HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Vertex>& vert) noexcept
 {
 	HRESULT hr = S_OK;
 
 	hr = device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(vert.size()),
+		&CD3DX12_RESOURCE_DESC::Buffer(vert.size() * PMD::VERTEX_SIZE),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_vert_buff.ReleaseAndGetAddressOf())
 	);
 
-	UCHAR* vert_map = nullptr;
+	PMD::Vertex* vert_map = nullptr;
 	// 第二引数がnullptrだと全範囲を指定する
 	hr = m_vert_buff->Map(0, nullptr, (void**)&vert_map);
 	RCHECK(FAILED(hr), "バーテックスバッファのMapに失敗", hr);
@@ -67,7 +67,7 @@ HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::v
 	m_vert_buff->Unmap(0, nullptr);
 
 	m_vb_view.BufferLocation = m_vert_buff->GetGPUVirtualAddress();	// バッファーの仮想アドレス。
-	m_vb_view.SizeInBytes = SCAST<UINT>(vert.size());							// 全バイト数
+	m_vb_view.SizeInBytes = SCAST<UINT>(vert.size() * PMD::VERTEX_SIZE);	// 全バイト数
 	m_vb_view.StrideInBytes = PMD::VERTEX_SIZE;						// １頂点あたりのバイト数
 
 	return hr;
@@ -149,6 +149,7 @@ HRESULT PMD_Model::CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std:
 
 HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::vector<PMD::Material>& mtr,
 	const std::filesystem::path& path, const std::filesystem::path& toon_folder,
+	const PMD::ToonTextureTable& toon_table,
 	TextureManager* mgr) noexcept
 {
 	HRESULT hr = S_OK;
@@ -189,21 +190,47 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 		auto& material = mtr[i];
 		if (has_toon_file)
 		{
-			char toon_file_name[16];
-			sprintf_s(
-				toon_file_name,
-				_countof(toon_file_name),
-				"toon%02d.bmp",
-				material.toon_idx + 1
-			);
+			std::string toon_file_name;
+			if (toon_table.empty())
+			{
+				char toon_file_namec[16];
+				sprintf_s(
+					toon_file_namec,
+					std::size(toon_file_namec),
+					"toon%02d.bmp",
+					material.toon_idx + 1
+				);
+				toon_file_name = toon_file_namec;
+			}
+			else
+			{
+				auto citr = toon_table.find(material.toon_idx);
+				if (citr != toon_table.cend())
+				{
+					toon_file_name = citr->second.string();
+				}
+			}
+			//KGLDebugOutPutString("[MTR " + std::to_string(i) + "] : " + std::to_string(material.toon_idx));
 
 			tex.toon_buff = std::make_unique<Texture>();
-			hr = tex.toon_buff->Create(device, use_toon_folder.string() + toon_file_name, mgr);
-			if (!IsFound(hr))
+			if (toon_file_name.empty())
 			{
 				*tex.toon_buff = *tex_gradation;
 			}
-			RCHECK(FAILED(hr), "トーンバッファの作成に失敗", hr);
+			else
+			{
+				hr = tex.toon_buff->Create(device, use_toon_folder.string() + toon_file_name, mgr);
+				if (!IsFound(hr))
+				{
+					hr = tex.toon_buff->Create(device, model_folder.string() + toon_file_name, mgr);
+					if (!IsFound(hr))
+					{
+						*tex.toon_buff = *tex_gradation;
+						hr = S_OK;
+					}
+				}
+				RCHECK(FAILED(hr), "トーンバッファの作成に失敗", hr);
+			}
 		}
 		else
 		{
