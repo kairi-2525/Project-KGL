@@ -36,6 +36,7 @@ namespace KGL
 		protected:
 			[[nodiscard]] std::unique_ptr<KGL::Shader> GetShaderDesc(
 				const SHADER::Desc& vs_desc, const SHADER::Desc& ps_desc,
+				const SHADER::Desc& ds_desc, const SHADER::Desc& hs_desc, const SHADER::Desc& gs_desc,
 				const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
 				D3D12_GRAPHICS_PIPELINE_STATE_DESC* out_desc
 			) noexcept;

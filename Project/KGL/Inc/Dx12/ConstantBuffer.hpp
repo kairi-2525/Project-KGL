@@ -13,11 +13,13 @@ namespace KGL
 		protected:
 			ComPtr<ID3D12Resource> m_buffer;
 			size_t m_size;
+			UINT64 m_size_in_bytes;
 		public:
 			ResourcesBase(size_t size) noexcept : m_size(size) {}
 			virtual ~ResourcesBase() = default;
 			
-			size_t Size() const noexcept { return m_size; };
+			size_t Size() const noexcept { return m_size; }
+			UINT64 SizeInBytes() const noexcept { return m_size_in_bytes; }
 		};
 
 		template <class _Ty>
@@ -31,13 +33,13 @@ namespace KGL
 				ResourcesBase(size), m_mapped_ptr(nullptr)
 			{
 				RCHECK(size == 0u, "–³Œø‚ÈƒTƒCƒY");
-				const auto buffer_size = ((sizeof(_Ty) * m_size) + 0xff) & ~0xff;
+				m_size_in_bytes = ((sizeof(_Ty) * m_size) + 0xff) & ~0xff;
 				if (prop)
 				{
 					auto hr = device->CreateCommittedResource(
 						prop,
 						D3D12_HEAP_FLAG_NONE,
-						&CD3DX12_RESOURCE_DESC::Buffer(buffer_size, flag),
+						&CD3DX12_RESOURCE_DESC::Buffer(m_size_in_bytes, flag),
 						D3D12_RESOURCE_STATE_GENERIC_READ,
 						nullptr,
 						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
@@ -49,7 +51,7 @@ namespace KGL
 					auto hr = device->CreateCommittedResource(
 						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 						D3D12_HEAP_FLAG_NONE,
-						&CD3DX12_RESOURCE_DESC::Buffer(buffer_size, flag),
+						&CD3DX12_RESOURCE_DESC::Buffer(m_size_in_bytes, flag),
 						D3D12_RESOURCE_STATE_GENERIC_READ,
 						nullptr,
 						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())

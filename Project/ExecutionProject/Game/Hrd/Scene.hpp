@@ -73,9 +73,13 @@ struct SceneBufferDx12
 	KGL::DescriptorHandle					handle;
 	KGL::ComPtr<ID3D12Resource>				buff;
 	_Ty*									mapped_data;
+private:
+	UINT64 size_in_bytes;
 public:
 	SceneBufferDx12() : mapped_data(nullptr) {}
 	HRESULT Load(const SceneDesc& desc);
+	KGL::ComPtrC<ID3D12Resource> Data() const noexcept { return buff; }
+	UINT64 SizeInBytes()  const noexcept { return size_in_bytes; }
 };
 
 class SceneManager
@@ -109,11 +113,11 @@ HRESULT SceneBufferDx12<_Ty>::Load(const SceneDesc& desc)
 	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	handle = desc_mgr->Alloc();
 
-	const auto buff_size = (sizeof(_Ty) + 0xff) & ~0xff;
+	size_in_bytes = (sizeof(_Ty) + 0xff) & ~0xff;
 	hr = device->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(buff_size),
+		&CD3DX12_RESOURCE_DESC::Buffer(size_in_bytes),
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(buff.ReleaseAndGetAddressOf())
@@ -125,7 +129,7 @@ HRESULT SceneBufferDx12<_Ty>::Load(const SceneDesc& desc)
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
 	mat_cbv_desc.BufferLocation = buff->GetGPUVirtualAddress();
-	mat_cbv_desc.SizeInBytes = buff_size;
+	mat_cbv_desc.SizeInBytes = size_in_bytes;
 	device->CreateConstantBufferView(&mat_cbv_desc, handle.Cpu());
 
 	return hr;

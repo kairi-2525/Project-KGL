@@ -2,14 +2,22 @@
 struct VSInput
 {
 	float4 pos : POSITION;
-	float4 normal : NORMAL;
-	float2 uv : TEXCOORD;
+	float4 scale : SCALE;
+	float4 velocity : VELOCITY;
+	float3 accs : ACCS;
+	float exist_time : EXIST;
+};
+
+struct GSInput
+{
+	float3 pos : POSITION;
+	float3 scale : SCALE;
+	float exist_time : EXIST;
 };
 
 struct PSInput
 {
 	float4 pos : SV_POSITION;
-	float4 normal : NORMAL;
 	float2 uv : TEXCOORD;
 };
 
@@ -20,9 +28,4 @@ cbuffer scene_buff : register(b0)
 	row_major matrix light_camera;
 	float3 eye;							// 視点
 	float3 light_vec;
-}
-cbuffer model_buff : register(b1)
-{
-	row_major matrix wvp;				// ワールドビュープロジェクション(あらかじめCPUで計算しておく)
-	float4 color;
 }

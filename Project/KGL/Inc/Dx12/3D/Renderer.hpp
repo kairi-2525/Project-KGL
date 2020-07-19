@@ -25,6 +25,18 @@ namespace KGL
 				{
 					"./HLSL/3D/Board_ps.hlsl", "PSMain", "ps_5_1"
 				};
+				static inline const SHADER::Desc DS_DESC =
+				{
+					{}, "DSMain", "ds_5_1"
+				};
+				static inline const SHADER::Desc HS_DESC =
+				{
+					{}, "HSMain", "hs_5_1"
+				};
+				static inline const SHADER::Desc GS_DESC =
+				{
+					{}, "GSMain", "gs_5_1"
+				};
 				static inline const std::vector<D3D12_INPUT_ELEMENT_DESC> INPUT_LAYOUTS =
 				{
 					{
@@ -53,7 +65,7 @@ namespace KGL
 				};
 				static inline const std::vector<D3D12_DESCRIPTOR_RANGE> DESCRIPTOR_RANGES2 =
 				{
-					{ D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 1u, 0u, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND }
+					{ D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u, 0u, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND }
 				};
 				static inline const std::vector<D3D12_ROOT_PARAMETER> ROOT_PARAMS =
 				{
@@ -62,7 +74,7 @@ namespace KGL
 					D3D12_SHADER_VISIBILITY_ALL },
 					{ D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
 					{ { SCAST<UINT>(DESCRIPTOR_RANGES1.size()), DESCRIPTOR_RANGES1.data() } },
-					D3D12_SHADER_VISIBILITY_VERTEX },
+					D3D12_SHADER_VISIBILITY_ALL },
 					{ D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
 					{ { SCAST<UINT>(DESCRIPTOR_RANGES2.size()), DESCRIPTOR_RANGES2.data() } },
 					D3D12_SHADER_VISIBILITY_PIXEL },
@@ -103,7 +115,7 @@ namespace KGL
 				static inline const Desc DEFAULT_DESC =
 				{
 					BDTYPE::DEFAULT,
-					VS_DESC, PS_DESC, {}, {}, {},
+					VS_DESC, PS_DESC, DS_DESC, HS_DESC, GS_DESC,
 					INPUT_LAYOUTS,
 					ROOT_PARAMS,
 					STATIC_SAMPLERS,

@@ -115,6 +115,7 @@ Shader::Shader(
 				&m_gs,
 				error_code.ReleaseAndGetAddressOf()
 			);
+			//std::string str = (char*)error_code->GetBufferPointer();
 			RCHECK(FAILED(hr), "GSÇÃê∂ê¨Ç…é∏îs");
 		}
 	}

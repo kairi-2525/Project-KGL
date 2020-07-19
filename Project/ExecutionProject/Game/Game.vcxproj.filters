@@ -100,6 +100,9 @@
     <FxCompile Include="HLSL\3D\Particle_cs.hlsl" />
     <FxCompile Include="HLSL\3D\Board_vs.hlsl" />
     <FxCompile Include="HLSL\3D\Board_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\Particle_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\Particle_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\Particle_gs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -109,5 +112,6 @@
     <None Include="HLSL\GrayScale.hlsli" />
     <None Include="HLSL\GaussianBlur5x5.hlsli" />
     <None Include="HLSL\3D\Board.hlsli" />
+    <None Include="HLSL\3D\Particle.hlsli" />
   </ItemGroup>
 </Project>

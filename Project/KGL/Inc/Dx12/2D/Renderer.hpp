@@ -27,6 +27,18 @@ namespace KGL
 				{
 					"./HLSL/2D/Sprite_ps.hlsl", "PSMain", "ps_5_1"
 				};
+				static inline const SHADER::Desc DS_DESC =
+				{
+					{}, "DSMain", "ds_5_1"
+				};
+				static inline const SHADER::Desc HS_DESC =
+				{
+					{}, "HSMain", "hs_5_1"
+				};
+				static inline const SHADER::Desc GS_DESC =
+				{
+					{}, "GSMain", "gs_5_1"
+				};
 				static inline const std::vector<D3D12_INPUT_ELEMENT_DESC> INPUT_LAYOUTS =
 				{
 					{
@@ -80,7 +92,7 @@ namespace KGL
 				static inline const Desc DEFAULT_DESC =
 				{
 					BDTYPE::DEFAULT,
-					VS_DESC, PS_DESC, {}, {}, {},
+					VS_DESC, PS_DESC, DS_DESC, HS_DESC, GS_DESC,
 					INPUT_LAYOUTS,
 					ROOT_PARAMS,
 					STATIC_SAMPLERS,
