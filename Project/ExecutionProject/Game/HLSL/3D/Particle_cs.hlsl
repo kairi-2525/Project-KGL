@@ -20,10 +20,8 @@ RWStructuredBuffer<Particle> particles : register(u0);
 void CSMain( uint3 dtid : SV_DispatchThreadID )
 {
 	uint id = dtid.x;
-	Particle p = particles[id];
 	if (id > 1000000) return;
-	if (p.exist_time <= 0.f) return;
-	p.pos += p.velocity * elapsed_time;
-	p.exist_time -= elapsed_time;
-	particles[id] = p;
+	if (particles[id].exist_time <= 0.f) return;
+	particles[id].pos += particles[id].velocity * elapsed_time;
+	particles[id].exist_time -= elapsed_time;
 }

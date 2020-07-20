@@ -87,7 +87,7 @@
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{5a79d52f-642a-4ada-826b-35bdcf43621a}</ProjectGuid>
     <RootNamespace>KGL</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

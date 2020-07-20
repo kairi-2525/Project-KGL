@@ -205,6 +205,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
 	}
 
+#if 1
 	{
 		particle_pipeline->SetState(cpt_cmd_list);
 
@@ -221,7 +222,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		patch.z = 1;
 
 		cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
-
 		cpt_cmd_list->Close();
 		//コマンドの実行
 		ID3D12CommandList* cmd_lists[] = {
@@ -234,6 +234,22 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
+#else
+	{
+		auto particles = particle_resource->Map();
+		const size_t i_max = particle_resource->Size();
+		for (int i = 0; i < i_max; i++)
+		{
+			if (particles[i].exist_time <= 0.f) continue;
+			XMVECTOR pos = XMLoadFloat3(&particles[i].position);
+			XMVECTOR vel = XMLoadFloat3(&particles[i].velocity);
+			pos += vel * elapsed_time;
+			XMStoreFloat3(&particles[i].position, pos);
+			particles[i].exist_time -= elapsed_time;
+		}
+		particle_resource->Unmap();
+	}
+#endif
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
 	constexpr UINT spawn_late = 10000;
@@ -246,12 +262,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		spawn_counter = std::fmodf(spawn_counter, spawn_elapsed);
 		UINT spawn_count = 0u;
 
-		while (1)
+		for (int wi = 0; wi < 5; wi++)
 		{
 			D3D12_RANGE range;
 			range.Begin = next_particle_offset;
 			range.End = range.Begin + sizeof(Particle) * (spawn_num * 2);
-			const size_t offset_max = sizeof(Particle) * (particle_resource->Size() - 1);
+			const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
 			const size_t bi = range.Begin / sizeof(Particle);
 			const float rad_360min = XMConvertToRadians(360.f - FLT_MIN);
 			if (range.End > offset_max)
