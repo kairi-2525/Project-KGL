@@ -1,12 +1,4 @@
-
-struct VSInput
-{
-	float4 pos : POSITION;
-	float4 scale : SCALE;
-	float4 velocity : VELOCITY;
-	float3 accs : ACCS;
-	float exist_time : EXIST;
-};
+#include "ParticleStruct.hlsli"
 
 struct GSInput
 {

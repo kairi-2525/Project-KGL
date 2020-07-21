@@ -24,16 +24,19 @@ class TestScene04 : public SceneBase
 {
 	struct Particle
 	{
-		DirectX::XMFLOAT3 position; float pad0;
-		DirectX::XMFLOAT3 scale; float pad1;
-		DirectX::XMFLOAT3 velocity; float pad2;
-		DirectX::XMFLOAT3 accs;
+		DirectX::XMFLOAT3	position;
+		float				mass;
+		DirectX::XMFLOAT3	scale;
+		float				scale_power;
+		DirectX::XMFLOAT3	velocity;
+		float				pad;
+		DirectX::XMFLOAT3	accs;
 		float exist_time;
 	};
 	struct SceneBuffers
 	{
-		DirectX::XMFLOAT4X4	view_proj;
-		DirectX::XMFLOAT4X4	re_view;
+		DirectX::XMFLOAT3	center_pos;
+		float				center_mass;
 		float				elapsed_time;
 	};
 	struct CbvParam
@@ -58,6 +61,7 @@ private:
 	KGL::DescriptorHandle						b_srv;
 	std::shared_ptr<KGL::Texture>				b_texture;
 	D3D12_VERTEX_BUFFER_VIEW					b_vbv;
+
 	std::shared_ptr<KGL::Resource<CbvParam>>	matrix_resource;
 
 	KGL::TextureManager							tex_mgr;
@@ -73,6 +77,7 @@ private:
 	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 
 	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
+	std::shared_ptr<KGL::Resource<UINT32>>		particle_counter_res;
 	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
 	KGL::DescriptorHandle						particle_begin_handle;

@@ -15,6 +15,7 @@
 #include "../Hrd/Scenes/TestScene02.hpp"
 #include "../Hrd/Scenes/TestScene03.hpp"
 #include "../Hrd/Scenes/TestScene04.hpp"
+#include "../Hrd/Scenes/TestScene05.hpp"
 
 #include "../Hrd/SceneGame.hpp"
 

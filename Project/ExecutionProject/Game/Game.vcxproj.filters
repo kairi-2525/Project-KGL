@@ -45,6 +45,9 @@
     <ClCompile Include="Src\Scenes\TestScene04.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Scenes\TestScene05.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Scene.hpp">
@@ -72,6 +75,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="Hrd\Scenes\TestScene04.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Hrd\Scenes\TestScene05.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -103,6 +109,7 @@
     <FxCompile Include="HLSL\3D\Particle_ps.hlsl" />
     <FxCompile Include="HLSL\3D\Particle_vs.hlsl" />
     <FxCompile Include="HLSL\3D\Particle_gs.hlsl" />
+    <FxCompile Include="HLSL\3D\ComputeShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -113,5 +120,6 @@
     <None Include="HLSL\GaussianBlur5x5.hlsli" />
     <None Include="HLSL\3D\Board.hlsli" />
     <None Include="HLSL\3D\Particle.hlsli" />
+    <None Include="HLSL\3D\ParticleStruct.hlsli" />
   </ItemGroup>
 </Project>

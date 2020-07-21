@@ -1,6 +1,6 @@
 #include "Particle.hlsli"
 
-GSInput VSMain(VSInput input, uint inst_no : SV_InstanceID)
+GSInput VSMain(Particle input, uint inst_no : SV_InstanceID)
 {
 	GSInput output = (GSInput)0;
 	output.pos = input.pos.xyz;

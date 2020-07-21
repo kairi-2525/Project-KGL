@@ -183,6 +183,7 @@
     <ClCompile Include="Src\Scenes\TestScene02.cpp" />
     <ClCompile Include="Src\Scenes\TestScene03.cpp" />
     <ClCompile Include="Src\Scenes\TestScene04.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene05.cpp" />
     <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -194,6 +195,7 @@
     <ClInclude Include="Hrd\Scenes\TestScene02.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene03.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene04.hpp" />
+    <ClInclude Include="Hrd\Scenes\TestScene05.hpp" />
     <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -577,6 +579,26 @@
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </ObjectFileOutput>
     </FxCompile>
+    <FxCompile Include="HLSL\3D\ComputeShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.1</ShaderModel>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+      </ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="HLSL\3D\Particle_cs.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>
@@ -854,6 +876,7 @@
     </None>
     <None Include="HLSL\3D\Board.hlsli" />
     <None Include="HLSL\3D\Particle.hlsli" />
+    <None Include="HLSL\3D\ParticleStruct.hlsli" />
     <None Include="HLSL\GaussianBlur5x5.hlsli" />
     <None Include="HLSL\GrayScale.hlsli" />
     <None Include="HLSL\3D\PMDGroundShadow.hlsli">

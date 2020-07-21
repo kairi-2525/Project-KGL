@@ -8,6 +8,8 @@
 #include <Math/Gaussian.hpp>
 #include <random>
 
+static constexpr float G = 6.67e-11f;
+
 HRESULT TestScene04::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
@@ -42,11 +44,19 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.gs_desc.hlsl = "./HLSL/3D/Particle_gs.hlsl";
 		renderer_desc.input_layouts.clear();
 		renderer_desc.input_layouts.push_back({
-			"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"SCALE", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			"MASS", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_POWER", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -90,7 +100,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
 	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 1000000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, particle_resource->Size());
+	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
@@ -103,9 +114,11 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(particle_resource->Size());
 	uav_desc.Buffer.StructureByteStride = sizeof(Particle);
 
-	particle_begin_handle = particle_desc_mgr->Alloc();
-	device->CreateUnorderedAccessView(particle_resource->Data().Get(), nullptr, &uav_desc, particle_begin_handle.Cpu());
+	uav_desc.Buffer.CounterOffsetInBytes = 0u;
 
+	particle_begin_handle = particle_desc_mgr->Alloc();
+	device->CreateUnorderedAccessView(particle_resource->Data().Get(), particle_counter_res->Data().Get(), &uav_desc, particle_begin_handle.Cpu());
+	
 	/*
 	{
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
@@ -157,11 +170,17 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		1.0f, 100.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
-	auto* p_particles = particle_resource->Map();
+	auto* p_particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
 	Particle particle_base = {};
 
 	std::fill(&p_particles[0], &p_particles[particle_resource->Size()], particle_base);
-	particle_resource->Unmap();
+	particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+	{
+		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+		*p_counter = 0u;
+		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
 
 	next_particle_offset = 0u;
 
@@ -189,14 +208,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	using namespace DirectX;
 
 	{
-		auto& svproj = cpt_scene_buffer.mapped_data->view_proj;
-		auto& svre_view = cpt_scene_buffer.mapped_data->re_view;
 		XMMATRIX view = KGL::CAMERA::GetView(camera);
-		XMStoreFloat4x4(&svproj, view * XMLoadFloat4x4(&proj));
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
-		viewf._41 = 0.f; viewf._42 = 0.f; viewf._43 = 0.f;
-		XMStoreFloat4x4(&svre_view, XMMatrixInverse(nullptr, XMLoadFloat4x4(&viewf)));
+
+		cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
+		cpt_scene_buffer.mapped_data->center_mass = 200000000000.f;
 		cpt_scene_buffer.mapped_data->elapsed_time = elapsed_time;
 
 		scene_buffer.mapped_data->view = view;
@@ -207,12 +224,25 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 #if 1
 	{
+		{
+			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+			*p_counter = 0u;
+			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+
+		cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
+
 		particle_pipeline->SetState(cpt_cmd_list);
+		//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
+		
+		//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
+		//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
+		cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
+		cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
 
 		cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
 		cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
-		cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
-		cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
+
 		const UINT ptcl_size = KGL::SCAST<UINT>(particle_resource->Size());
 		DirectX::XMUINT3 patch = {};
 		constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
@@ -231,23 +261,43 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		cpt_cmd_queue->Signal();
 		cpt_cmd_queue->Wait();
 
+		{
+			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+			KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
+			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
 #else
 	{
-		auto particles = particle_resource->Map();
+		auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
 		const size_t i_max = particle_resource->Size();
+		UINT ct = 0u;
+		XMVECTOR resultant;
+		const auto* cb = cpt_scene_buffer.mapped_data;
 		for (int i = 0; i < i_max; i++)
 		{
 			if (particles[i].exist_time <= 0.f) continue;
+			resultant = XMVectorSet(0.f, 0.f, 0.f, 0.f);
 			XMVECTOR pos = XMLoadFloat3(&particles[i].position);
 			XMVECTOR vel = XMLoadFloat3(&particles[i].velocity);
-			pos += vel * elapsed_time;
-			XMStoreFloat3(&particles[i].position, pos);
+			XMVECTOR vec = XMLoadFloat3(&cb->center_pos) - pos;
+			float l;
+			XMStoreFloat(&l, XMVector3LengthSq(vec));
+			float N = (G * particles[i].mass * cb->center_mass) / l;
+			resultant += XMVector3Normalize(vec) * N;
+			XMVECTOR accs = resultant / particles[i].mass;
+			XMStoreFloat3(&particles[i].accs, accs);
+			vel += accs * elapsed_time;
+			XMStoreFloat3(&particles[i].velocity, vel);
+			XMStoreFloat3(&particles[i].position, pos + vel * elapsed_time);
 			particles[i].exist_time -= elapsed_time;
+			ct++;
 		}
-		particle_resource->Unmap();
+		particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		KGLDebugOutPutStringNL("\r particle : " + std::to_string(ct) + std::string(10, ' '));
 	}
 #endif
 
@@ -287,12 +337,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					auto random_vec =
 					XMVector3Transform(
 						XMVectorSet(0.f, 0.f, 1.f, 0.f),
-						XMMatrixRotationRollPitchYaw(unorm(mt) * rad_360min, unorm(mt) * rad_360min, unorm(mt) * rad_360min)
+						XMMatrixRotationRollPitchYaw(0, unorm(mt) * rad_360min, 0)
 					);
 
 					if (particles[ti].exist_time > 0.f) continue;
 					particles[ti].exist_time = 10.f;
 					particles[ti].position = { 0.f, 0.f, 0.f };
+					particles[ti].mass = 1.f;
 					particles[ti].scale = { 0.1f, 0.1f, 0.f };
 					XMStoreFloat3(&particles[ti].velocity, random_vec);
 					spawn_count++;
