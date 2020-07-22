@@ -8,6 +8,9 @@
 #include <Math/Gaussian.hpp>
 #include <random>
 
+#define USE_GPU
+#define USE_GPU_OPTION1
+
 static constexpr float G = 6.67e-11f;
 
 HRESULT TestScene04::Load(const SceneDesc& desc)
@@ -110,6 +113,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
 	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 1000000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device);
@@ -213,6 +217,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	spawn_counter = 0.f;
 
+	frame_particles.clear();
+
 	return S_OK;
 }
 
@@ -265,7 +271,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
 	}
 
-#if 1
+	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
+	constexpr UINT spawn_late = 2500;
+#ifdef USE_GPU
 	{
 		{
 			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
@@ -302,16 +310,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		};
 		cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
 		cpt_cmd_queue->Signal();
+
+#ifndef USE_GPU_OPTION1
 		cpt_cmd_queue->Wait();
-
-		{
-			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-			KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
-			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-		}
-
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+#endif
 	}
 #else
 	{
@@ -330,9 +334,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(ct) + std::string(10, ' '));
 	}
 #endif
-
-	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-	constexpr UINT spawn_late = 2000;
+#if !defined(USE_GPU_OPTION1) || ( defined(USE_GPU_OPTION1) && !defined(USE_GPU) )
 	constexpr float spawn_elapsed = 1.f / spawn_late;
 
 	spawn_counter += elapsed_time;
@@ -373,7 +375,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 					if (particles[ti].exist_time > 0.f) continue;
 					particles[ti].exist_time = 10.f;
-					particles[ti].color = { 1.f, 1.f, 1.f, 0.1f };
+					particles[ti].color = { 1.f, 0.5f, 0.0f, 0.1f };
 					particles[ti].position = { 0.f, 0.f, 0.f };
 					particles[ti].mass = 1.f;
 					particles[ti].scale = 0.1f;
@@ -398,6 +400,85 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			break;
 		}
 	}
+#else
+	constexpr float spawn_elapsed = 1.f / spawn_late;
+	const auto* cb = cpt_scene_buffer.mapped_data;
+	spawn_counter += elapsed_time;
+	UINT spawn_num = 0u;
+	if (spawn_counter >= spawn_elapsed)
+	{
+		float spawn_timer = spawn_counter - spawn_elapsed;
+		spawn_num = KGL::SCAST<UINT>(spawn_counter / spawn_elapsed);
+		spawn_counter = std::fmodf(spawn_counter, spawn_elapsed);
+
+		std::random_device rd;
+		std::mt19937 mt(rd());
+		std::uniform_real_distribution<float> score(-10.f, 10.f);
+		std::uniform_real_distribution<float> unorm(0.f, 1.f);
+		constexpr float rad_360min = XMConvertToRadians(360.f - FLT_MIN);
+
+		for (int i = 0; i < spawn_num; i++)
+		{
+			auto random_vec =
+				XMVector3Transform(
+					XMVectorSet(0.f, 0.f, 1.f, 0.f),
+					XMMatrixRotationRollPitchYaw(0, unorm(mt) * rad_360min, 0)
+				);
+
+			auto& particle = frame_particles.emplace_back();
+			particle.exist_time = 20.f;
+			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
+			particle.position = { 0.f, 0.f, 0.f };
+			particle.mass = 1.f;
+			particle.scale = 0.1f;
+			XMStoreFloat3(&particle.velocity, random_vec * 3.1);
+			particle.Update(spawn_timer, cb);
+			spawn_timer -= spawn_elapsed;
+		}
+	}
+
+	cpt_cmd_queue->Wait();
+	cpt_cmd_allocator->Reset();
+	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+
+	if (!frame_particles.empty())
+	{
+		for (int i = 0; i < 2; i++)
+		{
+			D3D12_RANGE range;
+			range.Begin = next_particle_offset;
+			range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(spawn_num) * 2);
+			const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
+			const size_t bi = range.Begin / sizeof(Particle);
+			if (range.End > offset_max)
+				range.End = offset_max;
+			const auto j_max = (range.End - range.Begin) / sizeof(Particle);
+			auto particles = particle_resource->Map(0u, &range);
+			for (int j = 0; j < j_max; j++)
+			{
+				size_t idx = bi + j;
+				if (particles[idx].Alive()) continue;
+				particles[idx] = frame_particles.back();
+				frame_particles.pop_back();
+				if (frame_particles.empty()) break;
+			}
+			particle_resource->Unmap(0u, &range);
+			next_particle_offset = range.End;
+			if (next_particle_offset == offset_max)
+			{
+				KGLDebugOutPutString("reset");
+				next_particle_offset = 0u;
+			}
+			if (frame_particles.empty()) break;
+		}
+	}
+
+	{
+		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter + spawn_num) + std::string(10, ' '));
+		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
+#endif
 
 	{
 		static float angle = 0.f;
@@ -440,7 +521,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	cmd_list->RSSetViewports(1, &viewport);
 	cmd_list->RSSetScissorRects(1, &scissorrect);
-	constexpr auto clear_value = DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.f);
+	constexpr auto clear_value = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.f);
 	//{
 	//	const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
 	//	const UINT rtv_size = KGL::SCAST<UINT>(rbs_rt.size());

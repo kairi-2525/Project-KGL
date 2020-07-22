@@ -61,6 +61,7 @@ private:
 	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 
 	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
+	std::vector<Particle>						frame_particles;
 	std::shared_ptr<KGL::Resource<UINT32>>		particle_counter_res;
 	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
