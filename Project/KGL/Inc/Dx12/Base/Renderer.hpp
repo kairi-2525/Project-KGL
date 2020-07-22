@@ -20,7 +20,7 @@ namespace KGL
 			};
 			struct Desc
 			{
-				BDTYPE									blend_type;
+				BDTYPES									blend_types;
 				SHADER::Desc							vs_desc, ps_desc, ds_desc, hs_desc, gs_desc;
 				std::vector<D3D12_INPUT_ELEMENT_DESC>	input_layouts;
 				std::vector<D3D12_ROOT_PARAMETER>		root_params;

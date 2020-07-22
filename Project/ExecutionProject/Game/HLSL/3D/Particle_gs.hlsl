@@ -12,8 +12,8 @@ void GSMain(
 
 	// 点を面にする
 	float tex_size = 1.f;
-	float w = input[0].scale.x * 0.5f;
-	float h = input[0].scale.y * 0.5f;
+	float w = input[0].scale * 0.5f;
+	float h = input[0].scale * 0.5f;
 
 	float4 pos_lt = pos + float4(-w, h, 0.0, 0.0);
 	float4 pos_lb = pos + float4(-w, -h, 0.0, 0.0);
@@ -21,6 +21,7 @@ void GSMain(
 	float4 pos_rb = pos + float4(w, -h, 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
+	element.color = input[0].color;
 
 	// 左上の点の位置(射影座標系)
 	element.pos = mul(pos_lt, proj);

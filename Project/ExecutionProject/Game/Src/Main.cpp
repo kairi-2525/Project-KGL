@@ -7,6 +7,7 @@
 #include <Helper/Timer.hpp>
 #include <Dx12/Application.hpp>
 #include <DirectXTex/d3dx12.h>
+#include <Base/Input.hpp>
 
 #include "../Hrd/Scene.hpp"
 #include "../Hrd/Scenes/TestSceneBase.hpp"
@@ -44,6 +45,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		using KGL::ComPtr;
 
 		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::HD_WINDOWED_ADJ_DESC);
+		std::shared_ptr<KGL::Input> input = std::make_shared<KGL::Input>(window->GetHWND());
+
 		KGL::RefreshRate fps_counter;
 		window->Show();
 
@@ -58,13 +61,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				device = app->GetDevice();
 
-				SceneDesc scene_desc = { app, window };
+				SceneDesc scene_desc = { app, window, input };
 				hr = scene_mgr.Init<TestScene04>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;
 				while (window->Update())
 				{
+					input->Update();
 					fps_counter.Update();
 					window->SetTitle("FPS : [" + std::to_string(fps_counter.GetRefreshRate()) + "]");
 					scene_hr = scene_mgr.Update(scene_desc, fps_counter.GetElpasedTime());

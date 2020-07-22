@@ -9,6 +9,7 @@
 
 #include <Dx12/Application.hpp>
 #include <Base/Window.hpp>
+#include <Base/Input.hpp>
 #include <Helper/ComPtr.hpp>
 #include <Dx12/DescriptorHeap.hpp>
 #include <DirectXTex/d3dx12.h>
@@ -19,6 +20,7 @@ struct SceneDesc
 {
 	std::shared_ptr<KGL::App> app;
 	std::shared_ptr<KGL::Window> window;
+	std::shared_ptr<KGL::Input> input;
 };
 
 class SceneBase

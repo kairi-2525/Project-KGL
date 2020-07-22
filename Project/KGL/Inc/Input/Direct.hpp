@@ -6,7 +6,10 @@
 #include <list>
 #include <string>
 #include <DirectXMath.h>
+#include "../Helper/Cast.hpp"
 #include "Pad.hpp"
+#include <algorithm>
+
 
 #pragma comment(lib, "dinput8.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -436,8 +439,8 @@ namespace KGL
 			sub.bottom = sub.top + rc.bottom;
 
 			auto pos = m_pos;
-			pos.x = min(max(pos.x, sub.left), sub.right) - sub.left;
-			pos.y = min(max(pos.y, sub.top), sub.bottom) - sub.top;
+			pos.x = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.x), sub.left), sub.right) - sub.left);
+			pos.y = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.y), sub.top), sub.bottom) - sub.top);
 
 			return pos;
 		}

@@ -34,7 +34,7 @@ HRESULT BaseRenderer::Create(const ComPtr<ID3D12Device>& device, const Desc& des
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
 	const auto& shader = GetShaderDesc(desc.vs_desc, desc.ps_desc, desc.ds_desc, desc.hs_desc, desc.gs_desc, desc.input_layouts, &gpipe_desc);
-	BLEND::SetBlend(desc.blend_type, &gpipe_desc.BlendState);
+	BLEND::SetBlend(desc.blend_types, &gpipe_desc.BlendState);
 
 	gpipe_desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
 	// アンチエイリアス

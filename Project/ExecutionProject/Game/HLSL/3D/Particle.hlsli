@@ -2,13 +2,15 @@
 
 struct GSInput
 {
+	float4 color : COLOR;
 	float3 pos : POSITION;
-	float3 scale : SCALE;
+	float scale : SCALE;
 	float exist_time : EXIST;
 };
 
 struct PSInput
 {
+	float4 color : COLOR;
 	float4 pos : SV_POSITION;
 	float2 uv : TEXCOORD;
 };

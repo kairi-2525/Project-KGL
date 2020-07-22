@@ -17,28 +17,12 @@
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/Compute.hpp>
 #include <Dx12/3D/Board.hpp>
+#include "../Particle.hpp"
 
 #include "../Obj3D.hpp"
 
 class TestScene04 : public SceneBase
 {
-	struct Particle
-	{
-		DirectX::XMFLOAT3	position;
-		float				mass;
-		DirectX::XMFLOAT3	scale;
-		float				scale_power;
-		DirectX::XMFLOAT3	velocity;
-		float				pad;
-		DirectX::XMFLOAT3	accs;
-		float exist_time;
-	};
-	struct SceneBuffers
-	{
-		DirectX::XMFLOAT3	center_pos;
-		float				center_mass;
-		float				elapsed_time;
-	};
 	struct CbvParam
 	{
 		DirectX::XMFLOAT4X4 mat;
@@ -47,7 +31,7 @@ class TestScene04 : public SceneBase
 private:
 	DirectX::XMFLOAT4X4							proj;
 
-	SceneBufferDx12<SceneBuffers>				cpt_scene_buffer;
+	SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
 	KGL::VecCamera								camera;
 

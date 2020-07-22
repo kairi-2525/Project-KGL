@@ -44,7 +44,11 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.gs_desc.hlsl = "./HLSL/3D/Particle_gs.hlsl";
 		renderer_desc.input_layouts.clear();
 		renderer_desc.input_layouts.push_back({
-			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -52,11 +56,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"SCALE", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			"SCALE", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
 			"SCALE_POWER", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"ANGLE", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -72,6 +80,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
+		renderer_desc.depth_desc = {};
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -105,7 +115,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
-	b_texture = std::make_shared<KGL::Texture>(device, "./Assets/PNG.png");
+	b_texture = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/particle.png");
 	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
@@ -198,6 +208,9 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		matrix_resource->Unmap();
 	}
 
+	cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
+	cpt_scene_buffer.mapped_data->center_mass = 200000000000.f;
+
 	spawn_counter = 0.f;
 
 	return S_OK;
@@ -205,6 +218,12 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
+	auto input = desc.input;
+	if (input->IsKeyPressed(KGL::KEYS::ENTER))
+	{
+		return Init(desc);;
+	}
+
 	using namespace DirectX;
 
 	{
@@ -212,8 +231,32 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
 
-		cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
-		cpt_scene_buffer.mapped_data->center_mass = 200000000000.f;
+		constexpr float center_speed = 1.f;
+		if (input->IsKeyHold(KGL::KEYS::D))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.x += center_speed * elapsed_time;
+		}
+		if (input->IsKeyHold(KGL::KEYS::A))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.x -= center_speed * elapsed_time;
+		}
+		if (input->IsKeyHold(KGL::KEYS::W))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.z += center_speed * elapsed_time;
+		}
+		if (input->IsKeyHold(KGL::KEYS::S))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.z -= center_speed * elapsed_time;
+		}
+		if (input->IsKeyHold(KGL::KEYS::UP))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.y += center_speed * elapsed_time;
+		}
+		if (input->IsKeyHold(KGL::KEYS::DOWN))
+		{
+			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
+		}
+
 		cpt_scene_buffer.mapped_data->elapsed_time = elapsed_time;
 
 		scene_buffer.mapped_data->view = view;
@@ -279,21 +322,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		const auto* cb = cpt_scene_buffer.mapped_data;
 		for (int i = 0; i < i_max; i++)
 		{
-			if (particles[i].exist_time <= 0.f) continue;
-			resultant = XMVectorSet(0.f, 0.f, 0.f, 0.f);
-			XMVECTOR pos = XMLoadFloat3(&particles[i].position);
-			XMVECTOR vel = XMLoadFloat3(&particles[i].velocity);
-			XMVECTOR vec = XMLoadFloat3(&cb->center_pos) - pos;
-			float l;
-			XMStoreFloat(&l, XMVector3LengthSq(vec));
-			float N = (G * particles[i].mass * cb->center_mass) / l;
-			resultant += XMVector3Normalize(vec) * N;
-			XMVECTOR accs = resultant / particles[i].mass;
-			XMStoreFloat3(&particles[i].accs, accs);
-			vel += accs * elapsed_time;
-			XMStoreFloat3(&particles[i].velocity, vel);
-			XMStoreFloat3(&particles[i].position, pos + vel * elapsed_time);
-			particles[i].exist_time -= elapsed_time;
+			if (!particles[i].Alive()) continue;
+			particles[i].Update(elapsed_time, cb);
 			ct++;
 		}
 		particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
@@ -302,16 +332,17 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 #endif
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-	constexpr UINT spawn_late = 10000;
+	constexpr UINT spawn_late = 2000;
 	constexpr float spawn_elapsed = 1.f / spawn_late;
 
 	spawn_counter += elapsed_time;
 	if (spawn_counter >= spawn_elapsed)
 	{
+		float spawn_timer = spawn_counter - spawn_elapsed;
 		UINT spawn_num = KGL::SCAST<UINT>(spawn_counter / spawn_elapsed);
 		spawn_counter = std::fmodf(spawn_counter, spawn_elapsed);
 		UINT spawn_count = 0u;
-
+		const auto* cb = cpt_scene_buffer.mapped_data;
 		for (int wi = 0; wi < 5; wi++)
 		{
 			D3D12_RANGE range;
@@ -342,10 +373,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 					if (particles[ti].exist_time > 0.f) continue;
 					particles[ti].exist_time = 10.f;
+					particles[ti].color = { 1.f, 1.f, 1.f, 0.1f };
 					particles[ti].position = { 0.f, 0.f, 0.f };
 					particles[ti].mass = 1.f;
-					particles[ti].scale = { 0.1f, 0.1f, 0.f };
-					XMStoreFloat3(&particles[ti].velocity, random_vec);
+					particles[ti].scale = 0.1f;
+					XMStoreFloat3(&particles[ti].velocity, random_vec * 3.1);
+					particles[ti].Update(spawn_timer, cb);
+					spawn_timer -= spawn_elapsed;
 					spawn_count++;
 					if (spawn_count == spawn_num) break;
 				}
@@ -358,8 +392,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				next_particle_offset = 0u;
 				if (spawn_count < spawn_num)
 				{
-					spawn_num = spawn_num - spawn_count;
-					spawn_count = 0u;
 					continue;
 				}
 			}
@@ -408,7 +440,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	cmd_list->RSSetViewports(1, &viewport);
 	cmd_list->RSSetScissorRects(1, &scissorrect);
-	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+	constexpr auto clear_value = DirectX::XMFLOAT4(0.5f, 0.5f, 0.5f, 1.f);
 	//{
 	//	const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
 	//	const UINT rtv_size = KGL::SCAST<UINT>(rbs_rt.size());

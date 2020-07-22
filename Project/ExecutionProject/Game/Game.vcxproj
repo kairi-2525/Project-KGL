@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\Obj3D.cpp" />
+    <ClCompile Include="Src\particle.cpp" />
     <ClCompile Include="Src\SceneGame.cpp" />
     <ClCompile Include="Src\SceneManager.cpp" />
     <ClCompile Include="Src\Scenes\TestScene00.cpp" />
@@ -197,6 +198,7 @@
     <ClInclude Include="Hrd\Scenes\TestScene04.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene05.hpp" />
     <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
+    <ClInclude Include="Hrd\Particle.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\2D\Blur_ps.hlsl">

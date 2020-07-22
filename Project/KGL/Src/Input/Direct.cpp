@@ -1,5 +1,6 @@
 #include <Input/Direct.hpp>
 #include <Helper/ThrowAssert.hpp>
+#include <Helper/Other.hpp>
 
 #include <string>
 
@@ -261,15 +262,13 @@ Direct::Device::Device(LPDIRECTINPUTDEVICE8 lp_device, const std::string& device
 	m_desc.dwSize = sizeof(DIDEVICEINSTANCE);
 	HRESULT hr = m_lp_device->GetDeviceInfo(&m_desc);
 	RCHECK(FAILED(hr), "[Direct::Device]DESC‚ÌŽæ“¾‚ÉŽ¸”s");
-
-	OutputDebugStringA(
-		std::string(
-			"DirectInput[" + device_name + "]" +
-			"\n    Instance / Product           : " + m_desc.tszInstanceName + " / " + m_desc.tszProductName +
-			"\n    Driver UUID                  : " + TOOLS::CreateGUIDToStr(m_desc.guidFFDriver) +
-			"\n    Instance UUID / Product UUID : " + TOOLS::CreateGUIDToStr(m_desc.guidInstance) + " / " + TOOLS::CreateGUIDToStr(m_desc.guidProduct) +
-			"\n\n"
-		).c_str()
+	
+	KGLDebugOutPutString(
+		"DirectInput[" + device_name + "]" +
+		"\n    Instance / Product           : " + m_desc.tszInstanceName + " / " + m_desc.tszProductName +
+		"\n    Driver UUID                  : " + HELPER::CreateGUIDToStr(m_desc.guidFFDriver) +
+		"\n    Instance UUID / Product UUID : " + HELPER::CreateGUIDToStr(m_desc.guidInstance) + " / " + HELPER::CreateGUIDToStr(m_desc.guidProduct) +
+		"\n\n"
 	);
 }
 Direct::Device::~Device()
