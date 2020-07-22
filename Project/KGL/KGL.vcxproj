@@ -49,6 +49,8 @@
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
     <ClInclude Include="Inc\Helper\Convert.hpp" />
     <ClInclude Include="Inc\Helper\Debug.hpp" />
+    <ClInclude Include="Inc\Input\Direct.hpp" />
+    <ClInclude Include="Inc\Input\Pad.hpp" />
     <ClInclude Include="Inc\Loader\FBXLoader.hpp" />
     <ClInclude Include="Inc\Math\Gaussian.hpp" />
     <ClInclude Include="Inc\Math\Matrix.hpp" />
@@ -78,6 +80,7 @@
     <ClCompile Include="Src\Dx12\Texture.cpp" />
     <ClCompile Include="Src\Helper\Convert.cpp" />
     <ClCompile Include="Src\Helper\Timer.cpp" />
+    <ClCompile Include="Src\Input\Direct.cpp" />
     <ClCompile Include="Src\Loader\FBXLoader.cpp" />
     <ClCompile Include="Src\Loader\PMDLoader.cpp" />
     <ClCompile Include="Src\Loader\VMDLoader.cpp" />
