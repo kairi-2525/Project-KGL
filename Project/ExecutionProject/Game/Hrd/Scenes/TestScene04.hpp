@@ -18,6 +18,7 @@
 #include <Dx12/Compute.hpp>
 #include <Dx12/3D/Board.hpp>
 #include "../Particle.hpp"
+#include "../Fireworks.hpp"
 
 #include "../Obj3D.hpp"
 
@@ -68,6 +69,8 @@ private:
 	KGL::DescriptorHandle						particle_begin_handle;
 	size_t										next_particle_offset;
 	float										spawn_counter;
+
+	std::vector<Fireworks>						fireworks;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

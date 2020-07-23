@@ -110,7 +110,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
-	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 110000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 200000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -160,6 +160,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		b_vbv.SizeInBytes = particle_resource->SizeInBytes();
 		b_vbv.StrideInBytes = sizeof(Particle);
 	}
+
+	fireworks.reserve(100u);
 
 	return hr;
 }
@@ -211,7 +213,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	}
 
 	cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
-	cpt_scene_buffer.mapped_data->center_mass = 100000000000.f;
+	cpt_scene_buffer.mapped_data->center_mass = 1.f;
 	cpt_scene_buffer.mapped_data->resistivity = 0.2f;
 
 	spawn_counter = 0.f;
@@ -265,6 +267,15 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (input->IsKeyHold(KGL::KEYS::DOWN))
 		{
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
+		}
+
+		if (input->IsKeyPressed(KGL::KEYS::SPACE))
+		{
+			Fireworks::Desc desc;
+			desc.pos = { 0.f, 0.f, 0.f };
+			desc.velocity = { 0.f, 0.01f, 0.f };
+			desc.effects = FIREWORK_EFFECTS::A;
+			fireworks.emplace_back(desc);
 		}
 
 		cpt_scene_buffer.mapped_data->elapsed_time = elapsed_time;
@@ -405,8 +416,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}
 #else
-	constexpr float spawn_elapsed = 1.f / spawn_late;
 	const auto* cb = cpt_scene_buffer.mapped_data;
+	/*constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += elapsed_time;
 	UINT spawn_num = 0u;
 	if (spawn_counter >= spawn_elapsed)
@@ -439,19 +450,30 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle.Update(spawn_timer, cb);
 			spawn_timer -= spawn_elapsed;
 		}
+	}*/
+
+	for (auto i = 0; i < fireworks.size(); i++)
+	{
+		if (!fireworks[i].Update(elapsed_time, &frame_particles, cb))
+		{
+			fireworks[i] = fireworks.back();
+			fireworks.pop_back();
+			i--;
+		}
 	}
 
 	cpt_cmd_queue->Wait();
 	cpt_cmd_allocator->Reset();
 	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 
+	const size_t frame_ptc_size = frame_particles.size();
 	if (!frame_particles.empty())
 	{
 		for (int i = 0; i < 2; i++)
 		{
 			D3D12_RANGE range;
 			range.Begin = next_particle_offset;
-			range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(spawn_num) * 2);
+			range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(frame_ptc_size) * 2);
 			const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
 			const size_t bi = range.Begin / sizeof(Particle);
 			if (range.End > offset_max)
@@ -481,7 +503,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	{
 		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter += spawn_num;
+		*p_counter += frame_ptc_size;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
 		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
