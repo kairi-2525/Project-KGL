@@ -11,8 +11,6 @@
 #define USE_GPU
 #define USE_GPU_OPTION1
 
-static constexpr float G = 6.67e-11f;
-
 HRESULT TestScene04::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
@@ -112,7 +110,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
-	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 1000000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 110000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -213,7 +211,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	}
 
 	cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
-	cpt_scene_buffer.mapped_data->center_mass = 200000000000.f;
+	cpt_scene_buffer.mapped_data->center_mass = 100000000000.f;
+	cpt_scene_buffer.mapped_data->resistivity = 0.2f;
 
 	spawn_counter = 0.f;
 
@@ -277,7 +276,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-	constexpr UINT spawn_late = 2500;
+	constexpr UINT spawn_late = 5000;
 #ifdef USE_GPU
 	{
 		{
@@ -457,18 +456,20 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			const size_t bi = range.Begin / sizeof(Particle);
 			if (range.End > offset_max)
 				range.End = offset_max;
-			const auto j_max = (range.End - range.Begin) / sizeof(Particle);
+			const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
 			auto particles = particle_resource->Map(0u, &range);
-			for (int j = 0; j < j_max; j++)
+			UINT check_count = 0u;
+			for (; check_count < check_count_max;)
 			{
-				size_t idx = bi + j;
+				size_t idx = bi + check_count;
+				check_count++;
 				if (particles[idx].Alive()) continue;
 				particles[idx] = frame_particles.back();
 				frame_particles.pop_back();
 				if (frame_particles.empty()) break;
 			}
 			particle_resource->Unmap(0u, &range);
-			next_particle_offset = range.End;
+			next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
 			if (next_particle_offset == offset_max)
 			{
 				KGLDebugOutPutString("reset");
@@ -480,7 +481,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	{
 		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter + spawn_num) + std::string(10, ' '));
+		*p_counter += spawn_num;
+		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
 		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 #endif

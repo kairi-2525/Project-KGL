@@ -14,6 +14,7 @@ void Particle::Update(float time, const ParticleParent* parent)
 	XMStoreFloat(&l, XMVector3LengthSq(vec));
 	float N = (G * mass * parent->center_mass) / l;
 	resultant += XMVector3Normalize(vec) * N;
+	resultant += -vel * parent->resistivity;
 	XMVECTOR accs = resultant / mass;
 	XMStoreFloat3(&this->accs, accs);
 	vel += accs * time;

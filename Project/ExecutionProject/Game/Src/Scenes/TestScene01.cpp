@@ -89,7 +89,7 @@ HRESULT TestScene01::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
 		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
-		model.rotation.y += XMConvertToRadians(135.f) * elapsed_time;
+		model.rotation.y += XMConvertToRadians(90.f) * elapsed_time;
 		model.MotionSetup(elapsed_time, true);
 		model.MotionMatrixUpdate();
 		model.Update(elapsed_time);

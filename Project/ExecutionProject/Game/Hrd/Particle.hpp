@@ -7,6 +7,7 @@ struct ParticleParent
 	DirectX::XMFLOAT3	center_pos;
 	float				center_mass;
 	float				elapsed_time;
+	float				resistivity;
 };
 
 struct Particle
