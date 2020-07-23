@@ -1,4 +1,4 @@
-#include "../../Hrd/Scenes/TestScene04.hpp"
+#include "../../Hrd/Scenes/Scenes.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -225,6 +225,11 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
 	auto input = desc.input;
+	if (input->IsKeyPressed(KGL::KEYS::LEFT))
+		SetNextScene<TestScene03>(desc);
+	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
+		SetNextScene<TestScene05>(desc);
+
 	if (input->IsKeyPressed(KGL::KEYS::ENTER))
 	{
 		return Init(desc);;
@@ -583,7 +588,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene04::UnInit(const SceneDesc& desc)
+HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	return S_OK;
 }

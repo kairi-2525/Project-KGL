@@ -73,7 +73,7 @@ public:
 	HRESULT Init(const SceneDesc& desc) override;
 	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
 	HRESULT Render(const SceneDesc& desc);
-	HRESULT UnInit(const SceneDesc& desc) override;
+	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
 
 	TestScene04() = default;
 	~TestScene04() = default;

@@ -1,4 +1,4 @@
-#include "../../Hrd/Scenes/TestScene05.hpp"
+#include "../../Hrd/Scenes/Scenes.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -77,6 +77,12 @@ HRESULT TestScene05::Init(const SceneDesc& desc)
 
 HRESULT TestScene05::Update(const SceneDesc& desc, float elapsed_time)
 {
+	auto input = desc.input;
+	if (input->IsKeyPressed(KGL::KEYS::LEFT))
+		SetNextScene<TestScene04>(desc);
+	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
+		SetNextScene<SceneBegin>(desc);
+
 	using namespace DirectX;
 	auto rb = CD3DX12_RESOURCE_BARRIER::UAV(cpt_resource->Data().Get());
 	cpt_cmd_list->ResourceBarrier(1, &rb);
@@ -123,7 +129,7 @@ HRESULT TestScene05::Render(const SceneDesc& desc)
 	return S_OK;
 }
 
-HRESULT TestScene05::UnInit(const SceneDesc& desc)
+HRESULT TestScene05::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	return S_OK;
 }

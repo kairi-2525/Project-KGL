@@ -138,7 +138,7 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT SceneGame::UnInit(const SceneDesc& desc)
+HRESULT SceneGame::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	return S_OK;
 }

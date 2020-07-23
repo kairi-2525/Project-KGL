@@ -11,12 +11,7 @@
 
 #include "../Hrd/Scene.hpp"
 #include "../Hrd/Scenes/TestSceneBase.hpp"
-#include "../Hrd/Scenes/TestScene00.hpp"
-#include "../Hrd/Scenes/TestScene01.hpp"
-#include "../Hrd/Scenes/TestScene02.hpp"
-#include "../Hrd/Scenes/TestScene03.hpp"
-#include "../Hrd/Scenes/TestScene04.hpp"
-#include "../Hrd/Scenes/TestScene05.hpp"
+#include "../Hrd/Scenes/Scenes.hpp"
 
 #include "../Hrd/SceneGame.hpp"
 
@@ -77,7 +72,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					
 					scene_hr = scene_mgr.SceneChangeUpdate(scene_desc);
 				}
-				scene_mgr.UnInit(scene_desc);
+				scene_mgr.UnInit(scene_desc, nullptr);
 			}
 		}
 #if DEBUG_LAYER

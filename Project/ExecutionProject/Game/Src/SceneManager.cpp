@@ -1,6 +1,6 @@
 #include "../Hrd/Scene.hpp"
 
-HRESULT SceneBase::BaseLoad(const SceneDesc& desc)
+HRESULT SceneBase::BaseLoad(SceneDesc desc)
 {
 	HRESULT hr = Load(desc);
 	std::lock_guard<std::mutex> lock(m_loaded_mutex);
@@ -21,6 +21,7 @@ HRESULT SceneManager::SceneChangeUpdate(const SceneDesc& desc)
 	{
 		if (!next_scene->IsLoadStarted())
 		{
+			m_scene->UnInit(desc, next_scene);
 			hr = next_scene->Load(desc);
 			if (FAILED(hr)) return hr;
 		}
@@ -30,7 +31,6 @@ HRESULT SceneManager::SceneChangeUpdate(const SceneDesc& desc)
 		desc.app->GetQueue()->Signal();
 		desc.app->GetQueue()->Wait();
 
-		m_scene->UnInit(desc);
 		m_scene.reset();
 		m_scene = next_scene;
 		m_scene->Init(desc);

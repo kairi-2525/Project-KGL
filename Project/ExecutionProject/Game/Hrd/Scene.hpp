@@ -42,25 +42,28 @@ private:
 	bool m_load_started;
 	std::shared_ptr<SceneBase> m_next_scene;
 private:
-	HRESULT BaseLoad(const SceneDesc& desc);
+	HRESULT BaseLoad(SceneDesc desc);
 public:
 	SceneBase() : m_loaded(false), m_load_started(false), m_move_allow(true) {}
 	virtual ~SceneBase() = default;
 	HRESULT virtual Load(const SceneDesc& desc) = 0;
 	HRESULT virtual Init(const SceneDesc& desc) { return S_OK; }
 	HRESULT virtual Update(const SceneDesc& desc, float elapsed_time) = 0;
-	HRESULT virtual UnInit(const SceneDesc& desc) { return S_OK; }
+	HRESULT virtual UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) { return S_OK; }
 
 	bool IsLoaded() noexcept { std::lock_guard<std::mutex> lock(m_loaded_mutex); return m_loaded; };
 	bool IsLoadStarted() const noexcept { return m_load_started; }
 	template<class _Scene>
 	void SetNextScene(const SceneDesc& desc, bool single_thread = false) noexcept
 	{
+		if (m_next_scene) return;
 		m_next_scene = std::make_shared<_Scene>();
 		if (!single_thread)
 		{
-			m_load_started = true;
-			std::thread(m_next_scene.get(), SceneBase::BaseLoad, desc).detach();
+			m_next_scene->m_load_started = true;
+			UnInit(desc, m_next_scene);
+			std::thread th(&SceneBase::BaseLoad, m_next_scene.get(), desc);
+			th.detach();
 		}
 	}
 	void SetMoveSceneFlg(bool allow) noexcept { m_move_allow = allow; };
@@ -97,9 +100,9 @@ public:
 		if (FAILED(hr)) return hr;
 		return m_scene->Init(desc);
 	}
-	HRESULT UnInit(const SceneDesc& desc)
+	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 	{
-		if (m_scene) return m_scene->UnInit(desc);
+		if (m_scene) return m_scene->UnInit(desc, next_scene);
 		return S_OK;
 	}
 	HRESULT Update(const SceneDesc& desc, float elapsed_time);

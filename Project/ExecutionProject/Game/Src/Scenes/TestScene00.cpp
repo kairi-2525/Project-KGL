@@ -1,4 +1,4 @@
-#include "../../Hrd/Scenes/TestScene00.hpp"
+#include "../../Hrd/Scenes/Scenes.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -149,6 +149,12 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 
 HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
+	auto input = desc.input;
+	if (input->IsKeyPressed(KGL::KEYS::LEFT))
+		SetNextScene<SceneBack>(desc);
+	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
+		SetNextScene<TestScene01>(desc);
+
 	using namespace DirectX;
 
 	scene_buffer.mapped_data->eye = camera.eye;
@@ -400,7 +406,7 @@ HRESULT TestScene00::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestScene00::UnInit(const SceneDesc& desc)
+HRESULT TestScene00::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	return S_OK;
 }

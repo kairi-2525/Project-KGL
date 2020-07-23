@@ -132,7 +132,7 @@ HRESULT TestSceneBase::Render(const SceneDesc& desc)
 	return hr;
 }
 
-HRESULT TestSceneBase::UnInit(const SceneDesc& desc)
+HRESULT TestSceneBase::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	return S_OK;
 }
