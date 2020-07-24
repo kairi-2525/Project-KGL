@@ -54,6 +54,9 @@
     <ClCompile Include="Src\fireworks.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Effect.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Scene.hpp">
@@ -128,6 +131,10 @@
     <FxCompile Include="HLSL\3D\Particle_vs.hlsl" />
     <FxCompile Include="HLSL\3D\Particle_gs.hlsl" />
     <FxCompile Include="HLSL\3D\ComputeShader.hlsl" />
+    <FxCompile Include="HLSL\3D\Simple_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\Simple_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\NearAlpha_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\NearAlpha_vs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -139,5 +146,7 @@
     <None Include="HLSL\3D\Board.hlsli" />
     <None Include="HLSL\3D\Particle.hlsli" />
     <None Include="HLSL\3D\ParticleStruct.hlsli" />
+    <None Include="HLSL\3D\NearAlpha.hlsli" />
+    <None Include="HLSL\Easings.hlsli" />
   </ItemGroup>
 </Project>

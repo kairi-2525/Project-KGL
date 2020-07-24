@@ -4,15 +4,17 @@
 #include <random>
 #include <Helper/Debug.hpp>
 
-void Fireworks::Init(const Desc& desc)
+void Fireworks::Init(const FireworksDesc& desc, float time)
 {
 	std::random_device rd;
 	std::mt19937 mt(rd());
 
 	this->desc = desc;
 
+	this->time = time;
 	pos = desc.pos;
 	velocity = desc.velocity;
+	mass = desc.mass;
 
 	const auto effect_size = desc.effects.size();
 	effects.reserve(effect_size);
@@ -26,8 +28,15 @@ void Fireworks::Init(const Desc& desc)
 	}
 }
 
-bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent)
+static constexpr float G = 6.67e-11f;
+
+bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent, std::vector<Fireworks>* p_fireworks)
 {
+	if (this->time > 0.f)
+	{
+		time = this->time;
+		this->time = -1.f;
+	}
 	bool exist = false;
 	if (p_particles)
 	{
@@ -35,9 +44,21 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 		std::mt19937 mt(rd());
 
 		using namespace DirectX;
+
 		XMVECTOR xm_pos = XMLoadFloat3(&pos);
 		XMVECTOR xm_velocity = XMLoadFloat3(&velocity);
-		xm_pos += xm_velocity;
+		{
+			XMVECTOR xm_vec = XMLoadFloat3(&p_parent->center_pos) - xm_pos;
+			XMVector3LengthSq(xm_vec);
+			float l;
+			XMStoreFloat(&l, XMVector3LengthSq(xm_vec));
+			float N = (G * mass * p_parent->center_mass) / l;
+			XMVECTOR resultant = XMVector3Normalize(xm_vec) * N;
+			resultant += -xm_velocity * p_parent->resistivity;
+			xm_velocity += (resultant / mass) * time;
+		}
+		xm_pos += xm_velocity * time;
+		std::vector<Effect> add_effects;
 		for (auto& data : effects)
 		{
 			if (data.effect.start_time > 0.f || data.effect.time > 0.f)
@@ -89,9 +110,9 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 					data.late = std::uniform_real_distribution<float>(data.effect.late.x, data.effect.late.y)(mt);
 				}
 				if (XMVector3LengthSq(xm_velocity).m128_f32[0] <= FLT_EPSILON)
-					data.Update(xm_pos, XMVectorSet(0.f, 1.f, 0.f, 0.f), update_time, p_particles, p_parent);
+					data.Update(xm_pos, XMVectorSet(0.f, 1.f, 0.f, 0.f), update_time, p_particles, p_parent, p_fireworks);
 				else
-					data.Update(xm_pos, xm_velocity, update_time, p_particles, p_parent);
+					data.Update(xm_pos, xm_velocity, update_time, p_particles, p_parent, p_fireworks);
 			}
 		}
 		XMStoreFloat3(&pos, xm_pos);
@@ -154,63 +175,4 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 		}*/
 	}
 	return exist;
-}
-
-void Fireworks::EffectData::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
-	float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent)
-{
-	using namespace DirectX;
-	std::random_device rd;
-	std::mt19937 mt(rd());
-
-	float spawn_elapsed = 1.0f / late;
-
-	update_timer -= time;
-	if (update_timer <= 0.f)
-	{
-		uint16_t spawn_num = KGL::SCAST<uint16_t>(-update_timer / spawn_elapsed) + 1u;
-		float spawn_time_counter = -update_timer;
-		update_timer = fmodf(-update_timer, spawn_elapsed);
-		XMVECTOR axis = XMVector3Normalize(velocity);
-		XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
-		XMVECTOR side_axis;
-		if (XMVector3Length(XMVectorSubtract(right_axis, axis)).m128_f32[0] <= FLT_EPSILON)
-			side_axis = XMVector3Normalize(XMVector3Cross(axis, XMVectorSet(0.f, 1.f, 0.f, 0.f)));
-		else
-			side_axis = XMVector3Normalize(XMVector3Cross(axis, right_axis));
-
-		// angleを比率に変換し、０度と180度方向に密集しないよう調整して計算する
-		// https://techblog.kayac.com/how-to-distribute-points-randomly-using-high-school-math
-		XMFLOAT2 nmangle;
-		nmangle.x = effect.angle.x / XM_PI;
-		nmangle.y = effect.angle.y / XM_PI;
-		std::uniform_real_distribution<float> rmdangle(nmangle.x, nmangle.y);
-
-		std::uniform_real_distribution<float> rmdangle360(0.f, XM_2PI);
-		std::uniform_real_distribution<float> rmdspace(effect.spawn_space.x, effect.spawn_space.y);
-		std::uniform_real_distribution<float> rmdspeed(effect.speed.x, effect.speed.y);
-		std::uniform_real_distribution<float> rmdalivetime(effect.alive_time.x, effect.alive_time.y);
-		std::uniform_real_distribution<float> rmdscale(effect.scale.x, effect.scale.y);
-		constexpr float radian90f = XMConvertToRadians(90.f);
-		XMMATRIX R;
-		for (uint16_t i = 0u; i < spawn_num; i++)
-		{
-			auto& p = p_particles->emplace_back();
-
-			float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
-			//KGLDebugOutPutString(std::to_string(XMConvertToDegrees(side_angle)));
-			R = XMMatrixRotationAxis(side_axis, side_angle);
-			R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
-			XMVECTOR spawn_v = XMVector3Transform(axis, R);
-			XMStoreFloat3(&p.position, pos + spawn_v * rmdspace(mt));
-			XMStoreFloat3(&p.velocity, spawn_v * rmdspeed(mt));
-			p.color = effect.color;
-			p.accs = { 0.f, 0.f, 0.f };
-			p.exist_time = rmdalivetime(mt);
-			p.scale = rmdscale(mt);
-			p.mass = 1.f;
-			p.Update(spawn_time_counter, p_parent);
-			spawn_time_counter -= spawn_elapsed;
-		}
-	}
 }

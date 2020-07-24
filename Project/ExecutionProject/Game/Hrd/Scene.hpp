@@ -21,6 +21,7 @@ struct SceneDesc
 	std::shared_ptr<KGL::App> app;
 	std::shared_ptr<KGL::Window> window;
 	std::shared_ptr<KGL::Input> input;
+	KGL::DescriptorHandle		imgui_handle;
 };
 
 class SceneBase

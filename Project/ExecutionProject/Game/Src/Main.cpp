@@ -15,6 +15,11 @@
 
 #include "../Hrd/SceneGame.hpp"
 
+#include <imgui.h>
+#include <imgui_impl_win32.h>
+#include <imgui_impl_dx12.h>
+#include <Dx12/DescriptorHeap.hpp>
+
 #ifdef _DEBUG
 #define DEBUG_LAYER (true)
 #define _CRTDBG_MAP_ALLOC
@@ -23,6 +28,13 @@
 #else
 #define DEBUG_LAYER (false)
 #endif
+
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+
+LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, KGL::Window* window)
+{
+	return ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp);
+}
 
 #ifdef _CONSOLE
 int main()
@@ -48,14 +60,39 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{
 			HRESULT hr = S_OK;
 			std::shared_ptr<KGL::App> app = std::make_shared<KGL::App>(window->GetHWND(), DEBUG_LAYER, false);
+			device = app->GetDevice();
 			{
+				std::shared_ptr<KGL::DescriptorManager> imgui_heap;
+				KGL::DescriptorHandle imgui_handle;
+				{
+					imgui_heap = std::make_shared<KGL::DescriptorManager>(device, 1u);
+					imgui_handle = imgui_heap->Alloc();
+
+					ImGuiContext* context_result = ImGui::CreateContext();
+					RCHECK(context_result == nullptr, "ImGui::CreateContext‚ÉŽ¸”s", -1);
+
+					bool bln_result = ImGui_ImplWin32_Init(window->GetHWND());
+					RCHECK(!bln_result, "ImGui_ImplWin32_Init‚ÉŽ¸”s", -1);
+
+					bln_result = ImGui_ImplDX12_Init(
+						app->GetDevice().Get(), 3,
+						DXGI_FORMAT_R8G8B8A8_UNORM,
+						imgui_handle.Heap().Get(),
+						imgui_handle.Cpu(), imgui_handle.Gpu()
+					);
+					RCHECK(!bln_result, "ImGui_ImplDX12_Init‚ÉŽ¸”s", -1);
+
+					window->SetUserProc(&WindowProc);
+
+					//auto& style = ImGui::GetStyle();
+					//style.Colors[ImGuiCol_WindowBg] = { 1.f, 1.f, 1.f, 1.f };
+				}
+
 				SceneManager scene_mgr;
 
 				RCHECK(FAILED(hr), "ƒV[ƒ“‚Ì‰Šú‰»‚ÉŽ¸”s", -1);
 
-				device = app->GetDevice();
-
-				SceneDesc scene_desc = { app, window, input };
+				SceneDesc scene_desc = { app, window, input, imgui_handle };
 				hr = scene_mgr.Init<TestScene04>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
@@ -74,6 +111,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				}
 				scene_mgr.UnInit(scene_desc, nullptr);
 			}
+			ImGui_ImplDX12_Shutdown();
+			ImGui_ImplWin32_Shutdown();
+			ImGui::DestroyContext();
 		}
 #if DEBUG_LAYER
 		ComPtr<ID3D12DebugDevice> debug_interface;

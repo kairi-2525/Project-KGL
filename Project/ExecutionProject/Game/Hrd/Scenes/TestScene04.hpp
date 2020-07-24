@@ -71,6 +71,21 @@ private:
 	float										spawn_counter;
 
 	std::vector<Fireworks>						fireworks;
+
+	struct AlphaBuffer
+	{
+		DirectX::XMFLOAT4X4 wvp;
+		DirectX::XMFLOAT4X4 world;
+		DirectX::XMFLOAT3	eye_pos;
+		float				length_max;
+	};
+	DirectX::XMFLOAT3									grid_pos;
+	std::shared_ptr<KGL::Resource<DirectX::XMFLOAT4>>	grid_vertex_resource;
+	D3D12_VERTEX_BUFFER_VIEW							grid_vbv;
+	std::shared_ptr<KGL::Resource<UINT16>>				grid_idx_resource;
+	D3D12_INDEX_BUFFER_VIEW								grid_ibv;
+	std::shared_ptr<KGL::BaseRenderer>					grid_renderer;
+	SceneBufferDx12<AlphaBuffer>						grid_buffer;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

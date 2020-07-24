@@ -1,0 +1,96 @@
+#include "../Hrd/Effects.hpp"
+#include "../Hrd/Particle.hpp"
+#include "../Hrd/Fireworks.hpp"
+#include <Helper/Cast.hpp>
+#include <random>
+
+void Effect::Init(const EffectDesc& desc)
+{
+	effect = desc;
+	update_timer = 0.f;
+	late_counter = 0.f;
+	late = 0.f;
+}
+
+void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
+	float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent,
+	std::vector<Fireworks>* p_fireworks)
+{
+	using namespace DirectX;
+	std::random_device rd;
+	std::mt19937 mt(rd());
+
+	float spawn_elapsed = 1.0f / late;
+	update_timer -= time;
+	if (update_timer <= 0.f)
+	{
+		uint16_t spawn_num = KGL::SCAST<uint16_t>(-update_timer / spawn_elapsed) + 1u;
+		float spawn_time_counter = -update_timer;
+		float spawn_time_counter_max = spawn_time_counter;
+		update_timer = fmodf(-update_timer, spawn_elapsed);
+		XMVECTOR axis = XMVector3Normalize(velocity);
+		XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
+		XMVECTOR side_axis;
+		XMVECTOR old_pos = pos - axis * time;
+		if (XMVector3Length(XMVectorSubtract(right_axis, axis)).m128_f32[0] <= FLT_EPSILON)
+			side_axis = XMVector3Normalize(XMVector3Cross(axis, XMVectorSet(0.f, 1.f, 0.f, 0.f)));
+		else
+			side_axis = XMVector3Normalize(XMVector3Cross(axis, right_axis));
+
+		// angleを比率に変換し、０度と180度方向に密集しないよう調整して計算する
+		// https://techblog.kayac.com/how-to-distribute-points-randomly-using-high-school-math
+		XMFLOAT2 nmangle;
+		nmangle.x = effect.angle.x / XM_PI;
+		nmangle.y = effect.angle.y / XM_PI;
+		std::uniform_real_distribution<float> rmdangle(nmangle.x, nmangle.y);
+
+		std::uniform_real_distribution<float> rmdangle360(0.f, XM_2PI);
+		std::uniform_real_distribution<float> rmdspace(effect.spawn_space.x, effect.spawn_space.y);
+		std::uniform_real_distribution<float> rmdspeed(effect.speed.x, effect.speed.y);
+		std::uniform_real_distribution<float> rmdalivetime(effect.alive_time.x, effect.alive_time.y);
+		std::uniform_real_distribution<float> rmdscale(effect.scale.x, effect.scale.y);
+		constexpr float radian90f = XMConvertToRadians(90.f);
+		XMMATRIX R;
+		if (p_fireworks && effect.has_child)
+		{
+			for (uint16_t i = 0u; i < spawn_num; i++)
+			{
+				float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
+				//KGLDebugOutPutString(std::to_string(XMConvertToDegrees(side_angle)));
+				R = XMMatrixRotationAxis(side_axis, side_angle);
+				R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
+				XMVECTOR spawn_v = XMVector3Transform(axis, R);
+
+				auto& desc = effect.child;
+
+				XMStoreFloat3(&desc.pos, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				XMStoreFloat3(&desc.velocity, velocity + spawn_v * rmdspeed(mt));
+
+				auto& fw = p_fireworks->emplace_back(desc, spawn_time_counter_max - spawn_time_counter);
+				spawn_time_counter -= spawn_elapsed;
+			}
+		}
+		else
+		{
+			for (uint16_t i = 0u; i < spawn_num; i++)
+			{
+				auto& p = p_particles->emplace_back();
+
+				float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
+				//KGLDebugOutPutString(std::to_string(XMConvertToDegrees(side_angle)));
+				R = XMMatrixRotationAxis(side_axis, side_angle);
+				R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
+				XMVECTOR spawn_v = XMVector3Transform(axis, R);
+				XMStoreFloat3(&p.position, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				XMStoreFloat3(&p.velocity, velocity + spawn_v * rmdspeed(mt));
+				p.color = effect.color;
+				p.accs = { 0.f, 0.f, 0.f };
+				p.exist_time = rmdalivetime(mt);
+				p.scale = rmdscale(mt);
+				p.mass = 1.f;
+				p.Update((spawn_time_counter_max - spawn_time_counter), p_parent);
+				spawn_time_counter -= spawn_elapsed;
+			}
+		}
+	}
+}

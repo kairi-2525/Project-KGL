@@ -3,43 +3,22 @@
 #include "Effects.hpp"
 #include <memory>
 
-struct Particle;
-struct ParticleParent;
-
 class Fireworks
 {
-public:
-	struct Desc
-	{
-		DirectX::XMFLOAT3	pos;
-		DirectX::XMFLOAT3	velocity;
-
-		std::vector<Effect>	effects;
-	};
 private:
-	struct EffectData
-	{
-		Effect effect;
-		float update_timer;
-		float late_counter;
-		float late;
-
-		void Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
-			float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent);
-	};
-private:
-
-	std::vector<EffectData>					effects;
-	Desc									desc;
+	std::vector<Effect>						effects;
+	FireworksDesc							desc;
 public:
+	float									time;
 	DirectX::XMFLOAT3						pos;
 	DirectX::XMFLOAT3						velocity;
+	float									mass;
 private:
-	void Init(const Desc& desc);
+	void Init(const FireworksDesc& desc, float time = -1.f);
 public:
-	Fireworks(const Desc& desc) { Init(desc); }
-	Fireworks(const Fireworks& fw) { Init(fw.GetDesc()); }
+	Fireworks(const FireworksDesc& desc, float time = -1.f) { Init(desc, time); }
+	Fireworks(const Fireworks& fw) { Init(fw.GetDesc(), -1.f); }
 
-	const Desc& GetDesc() const { return desc; }
-	bool Update(float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent);
+	const FireworksDesc& GetDesc() const { return desc; }
+	bool Update(float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent, std::vector<Fireworks>* p_fireworks);
 };

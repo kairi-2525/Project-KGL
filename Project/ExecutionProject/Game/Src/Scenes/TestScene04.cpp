@@ -8,6 +8,10 @@
 #include <Math/Gaussian.hpp>
 #include <random>
 
+#include <imgui.h>
+#include <imgui_impl_win32.h>
+#include <imgui_impl_dx12.h>
+
 #define USE_GPU
 #define USE_GPU_OPTION1
 
@@ -110,7 +114,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
-	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 200000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 500000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -131,21 +135,66 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	particle_begin_handle = particle_desc_mgr->Alloc();
 	device->CreateUnorderedAccessView(particle_resource->Data().Get(), particle_counter_res->Data().Get(), &uav_desc, particle_begin_handle.Cpu());
 	
-	/*
 	{
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-		cbv_desc.BufferLocation = particle_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = particle_resource->SizeInBytes();
-		b_cbv = b_cbv_descmgr->Alloc();
-		device->CreateConstantBufferView(&cbv_desc, b_cbv.Cpu());
+		constexpr UINT grid_size = 100u;
+		std::vector<DirectX::XMFLOAT4> grid_vertices(grid_size * grid_size);
+		using KGL::SCAST;
+		float base_pos = -SCAST<float>(grid_size - 1) / 2;
+		for (UINT z = 0u; z < grid_size; z++)
+		{
+			for (UINT x = 0u; x < grid_size; x++)
+			{
+				UINT idx = (z * grid_size) + x;
+				grid_vertices[idx] = { base_pos + SCAST<float>(x), 0.f, base_pos + SCAST<float>(z), 1.f };
+			}
+		}
+		constexpr UINT grid_idx_size = (grid_size - 1u) * 2u;
+		std::vector<UINT16> grid_indices(grid_idx_size * grid_size * 2);
+		for (UINT z = 0u; z < grid_size; z++)
+		{
+			for (UINT x = 0u; x < grid_idx_size; x++)
+			{
+				UINT idxw = (z * grid_idx_size) + x;
+				grid_indices[idxw] = (z * grid_size) + (x / 2) + (x % 2);
+				UINT idxh = grid_idx_size * grid_size + (z * grid_idx_size) + x;
+				grid_indices[idxh] = z + (((x / 2) + (x % 2)) * grid_size);
+			}
+		}
+		grid_vertex_resource = std::make_shared<KGL::Resource<DirectX::XMFLOAT4>>(device, grid_vertices.size());
+		grid_idx_resource = std::make_shared<KGL::Resource<UINT16>>(device, grid_indices.size());
+
+		auto* mapped_vertices = grid_vertex_resource->Map(0, &CD3DX12_RANGE(0, 0));
+		std::copy(grid_vertices.cbegin(), grid_vertices.cend(), mapped_vertices);
+		grid_vertex_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+		auto* mapped_indices = grid_idx_resource->Map(0, &CD3DX12_RANGE(0, 0));
+		std::copy(grid_indices.cbegin(), grid_indices.cend(), mapped_indices);
+		grid_idx_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+		grid_vbv.BufferLocation = grid_vertex_resource->Data()->GetGPUVirtualAddress();
+		grid_vbv.SizeInBytes = sizeof(grid_vertices[0]) * grid_vertices.size();
+		grid_vbv.StrideInBytes = sizeof(grid_vertices[0]);
+
+		grid_ibv.BufferLocation = grid_idx_resource->Data()->GetGPUVirtualAddress();
+		grid_ibv.SizeInBytes = sizeof(grid_indices[0]) * grid_indices.size();
+		grid_ibv.Format = DXGI_FORMAT_R16_UINT;
+
+		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
+		renderer_desc.input_layouts.pop_back();
+		renderer_desc.input_layouts.pop_back();
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/NearAlpha_ps.hlsl";
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/NearAlpha_vs.hlsl";
+		renderer_desc.root_params.pop_back();
+		renderer_desc.root_params.pop_back();
+		renderer_desc.static_samplers.clear();
+		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ALPHA;
+
+		grid_renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
+
+		grid_buffer.Load(desc);
 	}
-	/*{
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-		cbv_desc.BufferLocation = matrix_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = matrix_resource->SizeInBytes();
-		b_cbv = b_cbv_descmgr->Alloc();
-		device->CreateConstantBufferView(&cbv_desc, b_cbv.Cpu());
-	}*/
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -172,7 +221,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	auto window_size = desc.window->GetClientSize();
 
-	camera.eye = { 0.f, 0.f, -15.f };
+	camera.eye = { 0.f, 10.f, -50.f };
 	camera.focus_vec = { 0.f, 0.f, 1.f };
 	camera.up = { 0.f, 1.f, 0.f };
 
@@ -198,6 +247,20 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	next_particle_offset = 0u;
 
+	XMMATRIX view = KGL::CAMERA::GetView(camera);
+	{
+		grid_pos = { 0.f, 0.f, 0.f };
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(1.f, 1.f, 1.f);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(grid_pos.x, grid_pos.y, grid_pos.z);
+		W = S * R * T;
+		XMMATRIX WVP = W * view * proj_mat;
+		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
+		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
+		grid_buffer.mapped_data->length_max = 10.f;
+		grid_buffer.mapped_data->eye_pos = camera.eye;
+	}
 	{
 		XMMATRIX W, S, R, T;
 		S = XMMatrixScaling(1.f, 1.f, 1.f);
@@ -205,16 +268,16 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		T = XMMatrixTranslation(0.f, 0.f, -1.f);
 		W = S * R * T;
 
-		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * proj_mat;
+		XMMATRIX WVP = W * view * proj_mat;
 		CbvParam* param = matrix_resource->Map();
 		XMStoreFloat4x4(&param->mat, WVP);
 		param->color = { 1.f, 1.f, 1.f, 1.f };
 		matrix_resource->Unmap();
 	}
 
-	cpt_scene_buffer.mapped_data->center_pos = { 0.f, 2.f, 0.f };
-	cpt_scene_buffer.mapped_data->center_mass = 1.f;
-	cpt_scene_buffer.mapped_data->resistivity = 0.2f;
+	cpt_scene_buffer.mapped_data->center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	cpt_scene_buffer.mapped_data->center_mass = 5.9724e24f;
+	cpt_scene_buffer.mapped_data->resistivity = 0.1f;
 
 	spawn_counter = 0.f;
 
@@ -225,6 +288,28 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	ImGui::Begin("Camera");
+	ImGui::SliderFloat3("pos", (float*)&camera.eye, -50.f, 50.f);
+	ImGui::End();
+	ImGui::Begin("Grid");
+	ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
+	{
+		using namespace DirectX;
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(1.f, 1.f, 1.f);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(grid_pos.x, grid_pos.y, grid_pos.z);
+		W = S * R * T;
+		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
+		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
+	}
+	ImGui::SliderFloat("length", (float*)&grid_buffer.mapped_data->length_max, 1.f, 100.f);
+	ImGui::End();
+
 	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<TestScene03>(desc);
@@ -271,10 +356,15 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		if (input->IsKeyPressed(KGL::KEYS::SPACE))
 		{
-			Fireworks::Desc desc;
+			FireworksDesc desc;
 			desc.pos = { 0.f, 0.f, 0.f };
-			desc.velocity = { 0.f, 0.01f, 0.f };
+			desc.velocity = { 0.f, 50.f, 0.f };
 			desc.effects = FIREWORK_EFFECTS::A;
+			desc.mass = 1.f;
+			desc.effects[2].child = desc;
+			desc.effects[2].has_child = true;
+			desc.effects[2].child.effects[1].late = { 10000.f, 10000.f };
+			desc.effects[2].child.effects[1].start_accel = 1.f;
 			fireworks.emplace_back(desc);
 		}
 
@@ -284,6 +374,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		scene_buffer.mapped_data->proj = XMLoadFloat4x4(&proj);
 		scene_buffer.mapped_data->eye = camera.eye;
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
+		grid_buffer.mapped_data->eye_pos = camera.eye;
 	}
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
@@ -454,7 +545,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(elapsed_time, &frame_particles, cb))
+		if (!fireworks[i].Update(elapsed_time, &frame_particles, cb, &fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
@@ -591,6 +682,18 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
 		cmd_list->DrawInstanced(SCAST<UINT>(particle_resource->Size()), 1, 0, 0);
+		
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+		grid_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
+		cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
+		cmd_list->IASetIndexBuffer(&grid_ibv);
+		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
+
+		ImGui::Render();
+		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
 
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
