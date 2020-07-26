@@ -212,6 +212,114 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fireworks.reserve(100u);
 
+	{
+		std::string name = "Cold Sunset";
+		sky_tex[CUBE::FRONT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_0_Front+Z.png");
+		sky_tex[CUBE::BACK] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_1_Back-Z.png");
+		sky_tex[CUBE::RIGHT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_2_Left+X.png");
+		sky_tex[CUBE::LEFT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_3_Right-X.png");
+		sky_tex[CUBE::TOP] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_4_Up+Y.png");
+		sky_tex[CUBE::BOTTOM] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_5_Down-Y.png");
+	
+		std::vector<SkyVertex> sky_vertices(4 * CUBE::NUM);
+		enum { TL, TR, BL, BR };
+		std::vector<DirectX::XMFLOAT2> uv(4);
+		uv[TL] = { 0.f, 0.f };
+		uv[TR] = { 1.f, 0.f };
+		uv[BL] = { 0.f, 1.f };
+		uv[BR] = { 1.f, 1.f };
+
+		float inner = FLT_EPSILON * 1000;
+
+		sky_vertices[CUBE::FRONT * 4 + TL] = { { -0.5f, +0.5f, +0.5f - inner }, uv[TL] };
+		sky_vertices[CUBE::FRONT * 4 + TR] = { { +0.5f, +0.5f, +0.5f - inner }, uv[TR] };
+		sky_vertices[CUBE::FRONT * 4 + BL] = { { -0.5f, -0.5f, +0.5f - inner }, uv[BL] };
+		sky_vertices[CUBE::FRONT * 4 + BR] = { { +0.5f, -0.5f, +0.5f - inner }, uv[BR] };
+
+		sky_vertices[CUBE::BACK * 4 + TL] = { { +0.5f, +0.5f, -0.5f + inner }, uv[TL] };
+		sky_vertices[CUBE::BACK * 4 + TR] = { { -0.5f, +0.5f, -0.5f + inner }, uv[TR] };
+		sky_vertices[CUBE::BACK * 4 + BL] = { { +0.5f, -0.5f, -0.5f + inner }, uv[BL] };
+		sky_vertices[CUBE::BACK * 4 + BR] = { { -0.5f, -0.5f, -0.5f + inner }, uv[BR] };
+
+		sky_vertices[CUBE::RIGHT * 4 + TL] = { { +0.5f - inner, +0.5f, +0.5f }, uv[TL] };
+		sky_vertices[CUBE::RIGHT * 4 + TR] = { { +0.5f - inner, +0.5f, -0.5f }, uv[TR] };
+		sky_vertices[CUBE::RIGHT * 4 + BL] = { { +0.5f - inner, -0.5f, +0.5f }, uv[BL] };
+		sky_vertices[CUBE::RIGHT * 4 + BR] = { { +0.5f - inner, -0.5f, -0.5f }, uv[BR] };
+
+		sky_vertices[CUBE::LEFT * 4 + TL] = { { -0.5f + inner, +0.5f, -0.5f }, uv[TL] };
+		sky_vertices[CUBE::LEFT * 4 + TR] = { { -0.5f + inner, +0.5f, +0.5f }, uv[TR] };
+		sky_vertices[CUBE::LEFT * 4 + BL] = { { -0.5f + inner, -0.5f, -0.5f }, uv[BL] };
+		sky_vertices[CUBE::LEFT * 4 + BR] = { { -0.5f + inner, -0.5f, +0.5f }, uv[BR] };
+
+		sky_vertices[CUBE::TOP * 4 + TL] = { { -0.5f, +0.5f - inner, -0.5f }, uv[TL] };
+		sky_vertices[CUBE::TOP * 4 + TR] = { { +0.5f, +0.5f - inner, -0.5f }, uv[TR] };
+		sky_vertices[CUBE::TOP * 4 + BL] = { { -0.5f, +0.5f - inner, +0.5f }, uv[BL] };
+		sky_vertices[CUBE::TOP * 4 + BR] = { { +0.5f, +0.5f - inner, +0.5f }, uv[BR] };
+
+		sky_vertices[CUBE::BOTTOM * 4 + TL] = { { -0.5f, -0.5f + inner, +0.5f }, uv[TL] };
+		sky_vertices[CUBE::BOTTOM * 4 + TR] = { { +0.5f, -0.5f + inner, +0.5f }, uv[TR] };
+		sky_vertices[CUBE::BOTTOM * 4 + BL] = { { -0.5f, -0.5f + inner, -0.5f }, uv[BL] };
+		sky_vertices[CUBE::BOTTOM * 4 + BR] = { { +0.5f, -0.5f + inner, -0.5f }, uv[BR] };
+
+		sky_vbr = std::make_shared<KGL::Resource<SkyVertex>>(device, sky_vertices.size());
+		auto* mapped_vertices = sky_vbr->Map(0, &CD3DX12_RANGE(0, 0));
+		std::copy(sky_vertices.cbegin(), sky_vertices.cend(), mapped_vertices);
+		sky_vbr->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+		auto buffer_location = sky_vbr->Data()->GetGPUVirtualAddress();
+		for (auto& vbv : sky_vbv)
+		{
+			vbv.BufferLocation = buffer_location;
+			vbv.SizeInBytes = sizeof(sky_vertices[0]) * 4;
+			vbv.StrideInBytes = sizeof(sky_vertices[0]);
+			buffer_location += vbv.SizeInBytes;
+		}
+
+		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
+		renderer_desc.input_layouts.pop_back();
+		renderer_desc.input_layouts.pop_back();
+		renderer_desc.input_layouts.push_back(KGL::_3D::Renderer::INPUT_LAYOUTS[2]);
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/UnNormal_ps.hlsl";
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/UnNormal_vs.hlsl";
+		renderer_desc.root_params.clear();
+		D3D12_ROOT_PARAMETER param0 = { D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+			{ { KGL::SCAST<UINT>(KGL::_3D::Renderer::DESCRIPTOR_RANGES0.size()), KGL::_3D::Renderer::DESCRIPTOR_RANGES0.data() } },
+			D3D12_SHADER_VISIBILITY_VERTEX
+		};
+		D3D12_ROOT_PARAMETER param1 = { D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
+			{ { KGL::SCAST<UINT>(KGL::_3D::Renderer::DESCRIPTOR_RANGES2.size()), KGL::_3D::Renderer::DESCRIPTOR_RANGES2.data() } },
+			D3D12_SHADER_VISIBILITY_PIXEL
+		};
+		renderer_desc.root_params.push_back(param0);
+		renderer_desc.root_params.push_back(param1);
+
+		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ALPHA;
+		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
+
+		sky_renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
+
+		sky_buffer.Load(desc);
+
+		
+		sky_tex_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, CUBE::NUM);
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		for (int i = 0; i < CUBE::NUM; i++)
+		{
+			sky_tex_handles[i] = sky_tex_desc_mgr->Alloc();
+			srv_desc.Format = sky_tex[i]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(
+				sky_tex[i]->Data().Get(),
+				&srv_desc,
+				sky_tex_handles[i].Cpu()
+			);
+		}
+	}
+
+
+
 	return hr;
 }
 
@@ -230,7 +338,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
 		static_cast<float>(window_size.x) / static_cast<float>(window_size.y),	// アスペクト比
-		1.0f, 100.0f // near, far
+		1.0f, 1000.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
 	auto* p_particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
@@ -262,6 +370,16 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		grid_buffer.mapped_data->eye_pos = camera.eye;
 	}
 	{
+		sky_scale = 1000.f;
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(camera.eye.x, camera.eye.y, camera.eye.z);
+		W = S * R * T;
+		XMMATRIX WVP = W * view * proj_mat;
+		XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
+	}
+	{
 		XMMATRIX W, S, R, T;
 		S = XMMatrixScaling(1.f, 1.f, 1.f);
 		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
@@ -283,6 +401,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	frame_particles.clear();
 
+	camera_angle = { 0.f, 0.f };
+
 	return S_OK;
 }
 
@@ -293,6 +413,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui::NewFrame();
 	ImGui::Begin("Camera");
 	ImGui::SliderFloat3("pos", (float*)&camera.eye, -50.f, 50.f);
+	{
+		using namespace DirectX;
+		DirectX::XMFLOAT2 degree = { XMConvertToDegrees(camera_angle.x), XMConvertToDegrees(camera_angle.y) };
+		ImGui::SliderFloat2("angle", (float*)&degree, -180.f, 180.f);
+		camera_angle = { XMConvertToRadians(degree.x), XMConvertToRadians(degree.y) };
+		XMVECTOR z_v = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+		XMStoreFloat3(&camera.focus_vec, XMVector3Transform(z_v, XMMatrixRotationX(camera_angle.y) * XMMatrixRotationY(camera_angle.x)));
+	}
 	ImGui::End();
 	ImGui::Begin("Grid");
 	ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
@@ -301,13 +429,26 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMMATRIX W, S, R, T;
 		S = XMMatrixScaling(1.f, 1.f, 1.f);
 		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-		T = XMMatrixTranslation(grid_pos.x, grid_pos.y, grid_pos.z);
+		T = XMMatrixTranslation(camera.eye.x - fmodf(camera.eye.x, 1.f), grid_pos.y, camera.eye.z - fmodf(camera.eye.z, 1.f));
 		W = S * R * T;
 		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
 		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
 		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
 	}
 	ImGui::SliderFloat("length", (float*)&grid_buffer.mapped_data->length_max, 1.f, 100.f);
+	ImGui::End();
+	ImGui::Begin("Sky");
+	ImGui::SliderFloat("Scale", &sky_scale, 1.f, 100.f);
+	{
+		using namespace DirectX;
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(0.f, 0.f, 0.f);
+		W = S * R * T;
+		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+		XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
+	}
 	ImGui::End();
 
 	auto input = desc.input;
@@ -671,6 +812,29 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		desc.app->ClearRtvDsv(cmd_list, clear_value);
 
+		// SKY描画
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		sky_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, sky_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, sky_buffer.handle.Gpu());
+		for (int i = 0; i < CUBE::NUM; i++)
+		{
+			cmd_list->IASetVertexBuffers(0, 1, &sky_vbv[i]);
+			cmd_list->SetDescriptorHeaps(1, sky_tex_handles[i].Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, sky_tex_handles[i].Gpu());
+			cmd_list->DrawInstanced(4, 1, 0, 0);
+		}
+
+		// グリッド描画
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+		grid_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
+		cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
+		cmd_list->IASetIndexBuffer(&grid_ibv);
+		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
+
+		// パーティクル描画
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 		board_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
@@ -682,14 +846,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
 		cmd_list->DrawInstanced(SCAST<UINT>(particle_resource->Size()), 1, 0, 0);
-		
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-		grid_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
-		cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
-		cmd_list->IASetIndexBuffer(&grid_ibv);
-		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
 
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());

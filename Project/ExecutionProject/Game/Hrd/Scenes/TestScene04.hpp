@@ -35,6 +35,7 @@ private:
 	SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
 	KGL::VecCamera								camera;
+	DirectX::XMFLOAT2							camera_angle;
 
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
@@ -86,6 +87,32 @@ private:
 	D3D12_INDEX_BUFFER_VIEW								grid_ibv;
 	std::shared_ptr<KGL::BaseRenderer>					grid_renderer;
 	SceneBufferDx12<AlphaBuffer>						grid_buffer;
+
+	enum CUBE
+	{
+		FRONT,
+		BACK,
+		RIGHT,
+		LEFT,
+		TOP,
+		BOTTOM,
+		NUM
+	};
+	struct SkyVertex
+	{
+		DirectX::XMFLOAT3 pos;
+		DirectX::XMFLOAT2 uv;
+	};
+
+	float														sky_scale;
+	std::array<D3D12_VERTEX_BUFFER_VIEW, CUBE::NUM>				sky_vbv;
+	std::array<KGL::DescriptorHandle, CUBE::NUM>				sky_tex_handles;
+	std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>		sky_tex;
+	std::shared_ptr<KGL::Resource<SkyVertex>>					sky_vbr;
+	std::shared_ptr<KGL::BaseRenderer>							sky_renderer;
+	SceneBufferDx12<DirectX::XMFLOAT4X4>						sky_buffer;
+	std::shared_ptr<KGL::DescriptorManager>						sky_tex_desc_mgr;
+
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

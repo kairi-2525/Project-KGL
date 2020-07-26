@@ -50,11 +50,16 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		std::uniform_real_distribution<float> rmdalivetime(effect.alive_time.x, effect.alive_time.y);
 		std::uniform_real_distribution<float> rmdscale(effect.scale.x, effect.scale.y);
 		constexpr float radian90f = XMConvertToRadians(90.f);
+
 		XMMATRIX R;
 		if (p_fireworks && effect.has_child)
 		{
+			const size_t fw_max_size = p_fireworks->max_size();
 			for (uint16_t i = 0u; i < spawn_num; i++)
 			{
+				if (p_fireworks->size() >= fw_max_size)
+					break;
+
 				float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
 				//KGLDebugOutPutString(std::to_string(XMConvertToDegrees(side_angle)));
 				R = XMMatrixRotationAxis(side_axis, side_angle);
@@ -63,8 +68,8 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 
 				auto& desc = effect.child;
 
-				XMStoreFloat3(&desc.pos, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
-				XMStoreFloat3(&desc.velocity, velocity + spawn_v * rmdspeed(mt));
+				DirectX::XMStoreFloat3(&desc.pos, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				DirectX::XMStoreFloat3(&desc.velocity, velocity + spawn_v * rmdspeed(mt));
 
 				auto& fw = p_fireworks->emplace_back(desc, spawn_time_counter_max - spawn_time_counter);
 				spawn_time_counter -= spawn_elapsed;
@@ -72,8 +77,11 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		}
 		else
 		{
+			const size_t ptc_max_size = p_particles->max_size();
 			for (uint16_t i = 0u; i < spawn_num; i++)
 			{
+				if (p_particles->size() >= ptc_max_size)
+					break;
 				auto& p = p_particles->emplace_back();
 
 				float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
@@ -81,8 +89,8 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				R = XMMatrixRotationAxis(side_axis, side_angle);
 				R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
 				XMVECTOR spawn_v = XMVector3Transform(axis, R);
-				XMStoreFloat3(&p.position, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
-				XMStoreFloat3(&p.velocity, velocity + spawn_v * rmdspeed(mt));
+				DirectX::XMStoreFloat3(&p.position, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				DirectX::XMStoreFloat3(&p.velocity, spawn_v * rmdspeed(mt));
 				p.color = effect.color;
 				p.accs = { 0.f, 0.f, 0.f };
 				p.exist_time = rmdalivetime(mt);

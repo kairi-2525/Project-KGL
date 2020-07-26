@@ -7,6 +7,8 @@ float4 PSMain(PSInput input) : SV_TARGET
 	float lsq = dot(vec, vec);
 	float lmaxsq = alpha_length_max * alpha_length_max;
 	float norm_length = saturate(lsq / lmaxsq);
-
-	return float4(1.0f, 1.0f, 1.0f, 1.0f - EaseOutQuart(norm_length));
+	float alpha = 1.0f - EaseOutQuart(norm_length);
+	if (alpha <= 0.f)
+		discard;
+	return float4(1.0f, 1.0f, 1.0f, alpha);
 }

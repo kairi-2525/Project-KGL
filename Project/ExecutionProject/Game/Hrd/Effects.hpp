@@ -66,7 +66,7 @@ namespace FIREWORK_EFFECTS
 			{ 2.f, 3.f },	// alive_time
 			{ 100.f, 100.f },	// late
 			0.2f,			// late_update_time
-			{ 50.1f, 50.1f },	// speed
+			{ 0.f, 0.f },	// speed
 			{ 0.1f, 0.2f },	// scale
 			{ DirectX::XMConvertToRadians(177.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.2f },	// spawn_space

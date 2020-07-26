@@ -135,6 +135,8 @@
     <FxCompile Include="HLSL\3D\Simple_ps.hlsl" />
     <FxCompile Include="HLSL\3D\NearAlpha_ps.hlsl" />
     <FxCompile Include="HLSL\3D\NearAlpha_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\UnNormal_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\UnNormal_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -148,5 +150,6 @@
     <None Include="HLSL\3D\ParticleStruct.hlsli" />
     <None Include="HLSL\3D\NearAlpha.hlsli" />
     <None Include="HLSL\Easings.hlsli" />
+    <None Include="HLSL\3D\UnNormal.hlsli" />
   </ItemGroup>
 </Project>
