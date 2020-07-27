@@ -58,7 +58,6 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 			xm_velocity += (resultant / mass) * time;
 		}
 		xm_pos += xm_velocity * time;
-		std::vector<Effect> add_effects;
 		for (auto& data : effects)
 		{
 			if (data.effect.start_time > 0.f || data.effect.time > 0.f)

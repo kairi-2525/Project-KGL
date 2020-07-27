@@ -54,7 +54,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		XMMATRIX R;
 		if (p_fireworks && effect.has_child)
 		{
-			const size_t fw_max_size = p_fireworks->max_size();
+			const size_t fw_max_size = std::min(p_fireworks->max_size(), p_fireworks->capacity());
 			for (uint16_t i = 0u; i < spawn_num; i++)
 			{
 				if (p_fireworks->size() >= fw_max_size)
@@ -77,7 +77,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		}
 		else
 		{
-			const size_t ptc_max_size = p_particles->max_size();
+			const size_t ptc_max_size = std::min(p_particles->max_size(), p_particles->capacity());
 			for (uint16_t i = 0u; i < spawn_num; i++)
 			{
 				if (p_particles->size() >= ptc_max_size)

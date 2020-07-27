@@ -58,6 +58,7 @@ namespace KGL
 			[[nodiscard]] DescriptorHandle Alloc() noexcept;
 			// ハンドルを再利用可能に
 			void Free(const DescriptorHandle& handle) noexcept;
+			ComPtrC<ID3D12DescriptorHeap> Heap(UINT num = 0u) const noexcept { return m_descs[num].heap; }
 		};
 	}
 }

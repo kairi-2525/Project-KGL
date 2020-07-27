@@ -3,11 +3,13 @@
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	float3 vec = input.pos.xyz - eye_pos;
+	float3 vec = input.pos.xyz - float3(eye_pos.x, input.pos.y, eye_pos.z);
 	float lsq = dot(vec, vec);
 	float lmaxsq = alpha_length_max * alpha_length_max;
-	float norm_length = saturate(lsq / lmaxsq);
-	float alpha = 1.0f - EaseOutQuart(norm_length);
+	float lminsq = alpha_length_min * alpha_length_min;
+	float norm_max_length = saturate((lsq - lminsq) / (lmaxsq - lminsq));
+	//float norm_min_length = saturate(lminsq / lmaxsq);
+	float alpha = 1.0f - EaseOutQuart(norm_max_length);
 	if (alpha <= 0.f)
 		discard;
 	return float4(1.0f, 1.0f, 1.0f, alpha);

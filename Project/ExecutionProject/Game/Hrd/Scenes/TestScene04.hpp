@@ -30,12 +30,15 @@ class TestScene04 : public SceneBase
 		DirectX::XMFLOAT4 color;
 	};
 private:
+	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
+
 	DirectX::XMFLOAT4X4							proj;
 
 	SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
 	KGL::VecCamera								camera;
 	DirectX::XMFLOAT2							camera_angle;
+	bool										use_gui;
 
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
@@ -78,6 +81,7 @@ private:
 		DirectX::XMFLOAT4X4 wvp;
 		DirectX::XMFLOAT4X4 world;
 		DirectX::XMFLOAT3	eye_pos;
+		float				length_min;
 		float				length_max;
 	};
 	DirectX::XMFLOAT3									grid_pos;
@@ -103,11 +107,16 @@ private:
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT2 uv;
 	};
+	struct SkyTex
+	{
+		std::array<KGL::DescriptorHandle, CUBE::NUM>			handle;
+		std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>	tex;
+	};
 
 	float														sky_scale;
 	std::array<D3D12_VERTEX_BUFFER_VIEW, CUBE::NUM>				sky_vbv;
-	std::array<KGL::DescriptorHandle, CUBE::NUM>				sky_tex_handles;
-	std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>		sky_tex;
+	std::shared_ptr<SkyTex>										select_sky;
+	std::map<std::string, std::shared_ptr<SkyTex>>				sky_tex_data;
 	std::shared_ptr<KGL::Resource<SkyVertex>>					sky_vbr;
 	std::shared_ptr<KGL::BaseRenderer>							sky_renderer;
 	SceneBufferDx12<DirectX::XMFLOAT4X4>						sky_buffer;

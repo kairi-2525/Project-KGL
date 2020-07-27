@@ -3,11 +3,15 @@
 #include <chrono>
 #include <deque>
 
+#define NOMINMAX
+#include <Windows.h>
+#undef NOMINMAX
+
 #include "Cast.hpp"
 
 namespace KGL
 {
-	inline namespace Timer
+	inline namespace TIMER
 	{
 		class RefreshRate
 		{
@@ -35,4 +39,38 @@ namespace KGL
 			T GetRefreshRate() const noexcept { return SCAST<T>(m_refresh_rate); }
 		};
 	}
+
+	class Timer
+	{
+	public:
+		enum class SEC
+		{
+			MILLI,
+			MICRO,
+			NANO
+		};
+	private:
+		std::chrono::system_clock::time_point time_point;
+	public:
+		explicit Timer() noexcept { Restart(); };
+		void Restart() noexcept { time_point = std::chrono::system_clock::now(); }
+		UINT64 GetTime(SEC sec_type = SEC::MILLI) const noexcept
+		{
+			switch (sec_type)
+			{
+			case SEC::MICRO:
+				return std::chrono::duration_cast<std::chrono::microseconds>(
+					std::chrono::system_clock::now() - time_point
+					).count();
+			case SEC::NANO:
+				return std::chrono::duration_cast<std::chrono::nanoseconds>(
+					std::chrono::system_clock::now() - time_point
+					).count();
+			default:
+				return std::chrono::duration_cast<std::chrono::milliseconds>(
+					std::chrono::system_clock::now() - time_point
+					).count();
+			}
+		}
+	};
 }

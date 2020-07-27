@@ -3,6 +3,7 @@
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
+#include <Helper/Timer.hpp>
 #include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
@@ -11,6 +12,8 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
+
+#include <algorithm>
 
 #define USE_GPU
 #define USE_GPU_OPTION1
@@ -114,7 +117,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
-	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 500000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 1000000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -210,17 +213,58 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		b_vbv.StrideInBytes = sizeof(Particle);
 	}
 
-	fireworks.reserve(100u);
+	fireworks.reserve(10000u);
 
-	{
-		std::string name = "Cold Sunset";
-		sky_tex[CUBE::FRONT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_0_Front+Z.png");
-		sky_tex[CUBE::BACK] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_1_Back-Z.png");
-		sky_tex[CUBE::RIGHT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_2_Left+X.png");
-		sky_tex[CUBE::LEFT] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_3_Right-X.png");
-		sky_tex[CUBE::TOP] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_4_Up+Y.png");
-		sky_tex[CUBE::BOTTOM] =	std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name + "/" + name + "__Cam_5_Down-Y.png");
 	
+	{
+		auto LoadSkyTex = [&](std::shared_ptr<SkyTex> data, std::string name0, std::string name1, std::string extension)
+		{
+			data->tex[CUBE::FRONT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_0_Front+Z" + extension);
+			data->tex[CUBE::BACK] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_1_Back-Z" + extension);
+			data->tex[CUBE::RIGHT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_2_Left+X" + extension);
+			data->tex[CUBE::LEFT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_3_Right-X" + extension);
+			data->tex[CUBE::TOP] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_4_Up+Y" + extension);
+			data->tex[CUBE::BOTTOM] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_5_Down-Y" + extension);
+		};
+		static const std::vector<std::pair<std::string, std::string>> TEXTURES =
+		{
+			{ "Cartoon Base BlueSky",		"Sky_Day_BlueSky_Nothing_" },
+			{ "Cartoon Base NightSky",		"Cartoon Base NightSky_" },
+			{ "Cold Night",					"Cold Night__" },
+			{ "Cold Sunset",				"Cold Sunset__" },
+			{ "Deep Dusk",					"Deep Dusk__" },
+			{ "Epic_BlueSunset",			"Epic_BlueSunset_" },
+			{ "Epic_GloriousPink",			"Epic_GloriousPink_" },
+			{ "Night MoonBurst",			"Night Moon Burst_" },
+			{ "Overcast Low",				"Sky_AllSky_Overcast4_Low_" },
+			{ "Space_AnotherPlanet",		"AllSky_Space_AnotherPlanet_" },
+		};
+
+		std::string extension = ".DDS";
+		const size_t tex_num = TEXTURES.size();
+		for (size_t i = 0u; i < tex_num; i++)
+		{
+			auto& data = sky_tex_data[TEXTURES[i].first];
+			data = std::make_shared<SkyTex>();
+			LoadSkyTex(data, TEXTURES[i].first, TEXTURES[i].second, extension);
+		}
+		
+		/*for (int i = 0; i < 100; i++)
+		{
+			bool ping = i % 2 == 0;
+			extension = ping ? ".png" : ".DDS";
+			std::chrono::system_clock::time_point  start;
+			start = std::chrono::system_clock::now();
+			sky_tex[CUBE::FRONT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_0_Front+Z" + extension);
+			sky_tex[CUBE::BACK] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_1_Back-Z" + extension);
+			sky_tex[CUBE::RIGHT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_2_Left+X" + extension);
+			sky_tex[CUBE::LEFT] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_3_Right-X" + extension);
+			sky_tex[CUBE::TOP] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_4_Up+Y" + extension);
+			sky_tex[CUBE::BOTTOM] = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Sky/" + name0 + "/" + name1 + "Cam_5_Down-Y" + extension);
+			double elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now() - start).count();
+			KGLDebugOutPutString((ping ? "[PNG]" : "[DDS]") + std::to_string(elapsed));
+		}*/
+
 		std::vector<SkyVertex> sky_vertices(4 * CUBE::NUM);
 		enum { TL, TR, BL, BR };
 		std::vector<DirectX::XMFLOAT2> uv(4);
@@ -229,7 +273,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		uv[BL] = { 0.f, 1.f };
 		uv[BR] = { 1.f, 1.f };
 
-		float inner = FLT_EPSILON * 1000;
+		const auto sky_tex_size = sky_tex_data.begin()->second->tex[0]->Data()->GetDesc().Width;
+		float inner = 1.f / sky_tex_size;
 
 		sky_vertices[CUBE::FRONT * 4 + TL] = { { -0.5f, +0.5f, +0.5f - inner }, uv[TL] };
 		sky_vertices[CUBE::FRONT * 4 + TR] = { { +0.5f, +0.5f, +0.5f - inner }, uv[TR] };
@@ -301,20 +346,23 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		sky_buffer.Load(desc);
 
 		
-		sky_tex_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, CUBE::NUM);
+		sky_tex_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, CUBE::NUM * sky_tex_data.size());
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		for (int i = 0; i < CUBE::NUM; i++)
+		for (auto& data : sky_tex_data)
 		{
-			sky_tex_handles[i] = sky_tex_desc_mgr->Alloc();
-			srv_desc.Format = sky_tex[i]->Data()->GetDesc().Format;
-			device->CreateShaderResourceView(
-				sky_tex[i]->Data().Get(),
-				&srv_desc,
-				sky_tex_handles[i].Cpu()
-			);
+			for (int i = 0; i < CUBE::NUM; i++)
+			{
+				data.second->handle[i] = sky_tex_desc_mgr->Alloc();
+				srv_desc.Format = data.second->tex[i]->Data()->GetDesc().Format;
+				device->CreateShaderResourceView(
+					data.second->tex[i]->Data().Get(),
+					&srv_desc,
+					data.second->handle[i].Cpu()
+				);
+			}
 		}
 	}
 
@@ -366,7 +414,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		XMMATRIX WVP = W * view * proj_mat;
 		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
 		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
-		grid_buffer.mapped_data->length_max = 10.f;
+		grid_buffer.mapped_data->length_min = 10.f;
+		grid_buffer.mapped_data->length_max = 50.f;
 		grid_buffer.mapped_data->eye_pos = camera.eye;
 	}
 	{
@@ -403,6 +452,11 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	camera_angle = { 0.f, 0.f };
 
+	select_sky = sky_tex_data.begin()->second;
+	use_gui = true;
+
+	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
+
 	return S_OK;
 }
 
@@ -411,45 +465,75 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-	ImGui::Begin("Camera");
-	ImGui::SliderFloat3("pos", (float*)&camera.eye, -50.f, 50.f);
+
+	if (desc.input->IsKeyPressed(KGL::KEYS::F1))
+		use_gui = !use_gui;
+
+	if (use_gui)
 	{
-		using namespace DirectX;
-		DirectX::XMFLOAT2 degree = { XMConvertToDegrees(camera_angle.x), XMConvertToDegrees(camera_angle.y) };
-		ImGui::SliderFloat2("angle", (float*)&degree, -180.f, 180.f);
-		camera_angle = { XMConvertToRadians(degree.x), XMConvertToRadians(degree.y) };
-		XMVECTOR z_v = XMVectorSet(0.f, 0.f, 1.f, 0.f);
-		XMStoreFloat3(&camera.focus_vec, XMVector3Transform(z_v, XMMatrixRotationX(camera_angle.y) * XMMatrixRotationY(camera_angle.x)));
+		ImGui::Begin("Camera");
+		ImGui::SliderFloat3("pos", (float*)&camera.eye, -50.f, 50.f);
+		{
+			using namespace DirectX;
+			DirectX::XMFLOAT2 degree = { XMConvertToDegrees(camera_angle.x), XMConvertToDegrees(camera_angle.y) };
+			ImGui::SliderFloat2("angle", (float*)&degree, -180.f, 180.f);
+			degree.y = std::clamp(degree.y, -90.f + 0.01f, +90.f - 0.01f);
+			camera_angle = { XMConvertToRadians(degree.x), XMConvertToRadians(degree.y) };
+			XMVECTOR z_v = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+			XMStoreFloat3(&camera.focus_vec, XMVector3Transform(z_v, XMMatrixRotationX(camera_angle.y) * XMMatrixRotationY(camera_angle.x)));
+		}
+		ImGui::End();
+		ImGui::Begin("Grid");
+		ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
+		{
+			using namespace DirectX;
+			XMMATRIX W, S, R, T;
+			S = XMMatrixScaling(1.f, 1.f, 1.f);
+			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+			T = XMMatrixTranslation(camera.eye.x - fmodf(camera.eye.x, 1.f), grid_pos.y, camera.eye.z - fmodf(camera.eye.z, 1.f));
+			W = S * R * T;
+			XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+			XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
+			XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
+		}
+		if (ImGui::SliderFloat("length_min", (float*)&grid_buffer.mapped_data->length_min, 1.f, grid_buffer.mapped_data->length_max - 0.01f))
+		{
+			grid_buffer.mapped_data->length_max = std::max(grid_buffer.mapped_data->length_min + 0.01f, grid_buffer.mapped_data->length_max);
+		}
+		if (ImGui::SliderFloat("length_max", (float*)&grid_buffer.mapped_data->length_max, grid_buffer.mapped_data->length_min + 0.01f, 100.f))
+		{
+			grid_buffer.mapped_data->length_min = std::min(grid_buffer.mapped_data->length_min, grid_buffer.mapped_data->length_max - 0.01f);
+		}
+		ImGui::End();
+		ImGui::Begin("Sky");
+		const auto window_size = desc.window->GetClientSize();
+		ImGui::BeginChild("scrolling", ImVec2(250.f, 100.f), ImGuiWindowFlags_NoTitleBar);
+		for (auto& it : sky_tex_data)
+		{
+			if (it.second == select_sky)
+			{
+				ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
+			}
+			else if (ImGui::Button(it.first.c_str()))
+			{
+				select_sky = it.second;
+			}
+			//ImGui::Image((ImTextureID)it.second->handle[CUBE::FRONT].Gpu().ptr, ImVec2(100, 100));
+		}
+		ImGui::EndChild();
+		ImGui::SliderFloat("Scale", &sky_scale, 1.f, 1000.f);
+		{
+			using namespace DirectX;
+			XMMATRIX W, S, R, T;
+			S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
+			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+			T = XMMatrixTranslation(0.f, 0.f, 0.f);
+			W = S * R * T;
+			XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+			XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
+		}
+		ImGui::End();
 	}
-	ImGui::End();
-	ImGui::Begin("Grid");
-	ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
-	{
-		using namespace DirectX;
-		XMMATRIX W, S, R, T;
-		S = XMMatrixScaling(1.f, 1.f, 1.f);
-		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-		T = XMMatrixTranslation(camera.eye.x - fmodf(camera.eye.x, 1.f), grid_pos.y, camera.eye.z - fmodf(camera.eye.z, 1.f));
-		W = S * R * T;
-		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
-		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
-		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
-	}
-	ImGui::SliderFloat("length", (float*)&grid_buffer.mapped_data->length_max, 1.f, 100.f);
-	ImGui::End();
-	ImGui::Begin("Sky");
-	ImGui::SliderFloat("Scale", &sky_scale, 1.f, 100.f);
-	{
-		using namespace DirectX;
-		XMMATRIX W, S, R, T;
-		S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
-		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-		T = XMMatrixTranslation(0.f, 0.f, 0.f);
-		W = S * R * T;
-		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
-		XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
-	}
-	ImGui::End();
 
 	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
@@ -495,16 +579,45 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
 		}
 
-		if (input->IsKeyPressed(KGL::KEYS::SPACE))
+		if (input->IsKeyPressed(KGL::KEYS::SPACE) || input->IsKeyHold(KGL::KEYS::NUMPADPLUS))
 		{
 			FireworksDesc desc;
 			desc.pos = { 0.f, 0.f, 0.f };
 			desc.velocity = { 0.f, 50.f, 0.f };
+
+			std::random_device rd;
+			std::mt19937 mt(rd());
+
+			std::uniform_real_distribution<float> rmdpos(-10.f, +10.f);
+			desc.pos.x += rmdpos(mt);
+			desc.pos.z += rmdpos(mt);
+
+			XMFLOAT2 nmangle;
+			nmangle.x = XMConvertToRadians(0.f) / XM_PI;
+			nmangle.y = XMConvertToRadians(10.f) / XM_PI;
+			std::uniform_real_distribution<float> rmdangle(nmangle.x, nmangle.y);
+			std::uniform_real_distribution<float> rmdangle360(0.f, XM_2PI);
+			constexpr float radian90f = XMConvertToRadians(90.f);
+			XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
+			float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
+			XMVECTOR side_axis;
+			XMVECTOR velocity = XMLoadFloat3(&desc.velocity);
+			XMVECTOR axis = XMVector3Normalize(velocity);
+			if (XMVector3Length(XMVectorSubtract(right_axis, axis)).m128_f32[0] <= FLT_EPSILON)
+				side_axis = XMVector3Normalize(XMVector3Cross(axis, XMVectorSet(0.f, 1.f, 0.f, 0.f)));
+			else
+				side_axis = XMVector3Normalize(XMVector3Cross(axis, right_axis));
+			XMMATRIX R = XMMatrixRotationAxis(side_axis, side_angle);
+			R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
+			XMVECTOR spawn_v = XMVector3Transform(axis, R);
+			XMStoreFloat3(&desc.velocity, spawn_v * XMVector3Length(velocity));
+
 			desc.effects = FIREWORK_EFFECTS::A;
 			desc.mass = 1.f;
 			desc.effects[2].child = desc;
 			desc.effects[2].has_child = true;
-			desc.effects[2].child.effects[1].late = { 10000.f, 10000.f };
+			desc.effects[2].child.effects[0].late = { 10.f, 10.f };
+			desc.effects[2].child.effects[1].late = { 100.f, 100.f };
 			desc.effects[2].child.effects[1].start_accel = 1.f;
 			fireworks.emplace_back(desc);
 		}
@@ -520,6 +633,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
 	constexpr UINT spawn_late = 5000;
+	KGL::Timer timer;
 #ifdef USE_GPU
 	{
 		{
@@ -555,6 +669,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ID3D12CommandList* cmd_lists[] = {
 		   cpt_cmd_list.Get(),
 		};
+		timer.Restart();
 		cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
 		cpt_cmd_queue->Signal();
 
@@ -684,6 +799,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}*/
 
+	cpt_cmd_queue->Wait();
+	UINT64 gputime = timer.GetTime(KGL::Timer::SEC::MICRO);
+	cpt_cmd_allocator->Reset();
+	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+
+	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
 		if (!fireworks[i].Update(elapsed_time, &frame_particles, cb, &fireworks))
@@ -693,10 +814,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			i--;
 		}
 	}
-
-	cpt_cmd_queue->Wait();
+	UINT64 firework_update = timer.GetTime(KGL::Timer::SEC::MICRO);
+	timer.Restart();
+	/*cpt_cmd_queue->Wait();
 	cpt_cmd_allocator->Reset();
-	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);*/
 
 	const size_t frame_ptc_size = frame_particles.size();
 	if (!frame_particles.empty())
@@ -732,11 +854,30 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			if (frame_particles.empty()) break;
 		}
 	}
+	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
+	timer.Restart();
+	UINT64 cputime = firework_update + map_update;
 
 	{
 		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
 		*p_counter += frame_ptc_size;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
+		ImGui::Begin("Particle");
+		ct_particle = std::max<UINT64>(ct_particle, *p_counter);
+		ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
+		ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
+		ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
+		ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
+		ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
+		ct_gpu = std::max<UINT64>(ct_gpu, gputime);
+		ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
+		ct_cpu = std::max<UINT64>(ct_cpu, cputime);
+		ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
+		ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
+		ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
+		ct_map_update = std::max<UINT64>(ct_map_update, map_update);
+		ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+		ImGui::End();
 		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 #endif
@@ -820,8 +961,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		for (int i = 0; i < CUBE::NUM; i++)
 		{
 			cmd_list->IASetVertexBuffers(0, 1, &sky_vbv[i]);
-			cmd_list->SetDescriptorHeaps(1, sky_tex_handles[i].Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(1, sky_tex_handles[i].Gpu());
+			cmd_list->SetDescriptorHeaps(1, select_sky->handle[i].Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, select_sky->handle[i].Gpu());
 			cmd_list->DrawInstanced(4, 1, 0, 0);
 		}
 
