@@ -1,13 +1,5 @@
 #include "ParticleStruct.hlsli"
 
-struct GSInput
-{
-	float4 color : COLOR;
-	float3 pos : POSITION;
-	float scale : SCALE;
-	float exist_time : EXIST;
-};
-
 struct PSInput
 {
 	float4 color : COLOR;

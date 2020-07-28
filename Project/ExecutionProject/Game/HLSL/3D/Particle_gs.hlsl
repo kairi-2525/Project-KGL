@@ -2,23 +2,35 @@
 
 [maxvertexcount(4)]
 void GSMain(
-	point GSInput input[1],
+	point Particle input[1],
 	inout TriangleStream<PSInput> output
 )
 {
 	if (input[0].exist_time <= 0.f) return;
 	// 座標変換 (ワールド座標系 → ビュー座標系)
-	float4 pos = mul(float4(input[0].pos, 1.0), view);
+	float4 pos = mul(float4(input[0].pos.xyz, 1.0), view);
+	float4 vel = mul(float4(normalize(input[0].velocity.xyz), 1.0), view);
+	float speed = length(input[0].velocity.xyz);
 
+	float angle = sqrt(dot(vel.xy, float2(1.f, 0.f)));
 	// 点を面にする
-	float tex_size = 1.f;
 	float w = input[0].scale * 0.5f;
-	float h = input[0].scale * 0.5f;
+	float h = input[0].scale * 0.5f * speed;
 
-	float4 pos_lt = pos + float4(-w, h, 0.0, 0.0);
-	float4 pos_lb = pos + float4(-w, -h, 0.0, 0.0);
-	float4 pos_rt = pos + float4(w, h, 0.0, 0.0);
-	float4 pos_rb = pos + float4(w, -h, 0.0, 0.0);
+	row_major float2x2 Rotation2D =
+	{	1, 0,
+		0, 1
+	};
+
+	/*row_major float2x2 Rotation2D =
+	{ cos(angle), sin(angle),
+		-sin(angle), cos(angle)
+	};*/
+
+	float4 pos_lt = pos + float4(mul(float2(-w, h), Rotation2D), 0.0, 0.0);
+	float4 pos_lb = pos + float4(mul(float2(-w, -h), Rotation2D), 0.0, 0.0);
+	float4 pos_rt = pos + float4(mul(float2(w, h), Rotation2D), 0.0, 0.0);
+	float4 pos_rb = pos + float4(mul(float2(w, -h), Rotation2D), 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;

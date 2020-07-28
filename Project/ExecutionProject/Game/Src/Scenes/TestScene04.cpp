@@ -464,13 +464,28 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	select_sky = sky_tex_data.begin()->second;
 	use_gui = true;
 
-	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
+	ResetCounterMax();
+	time_scale = 1.f;
 
 	return S_OK;
 }
 
+void TestScene04::ResetCounterMax()
+{
+	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
+}
+
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
+	const float ptc_update_time = elapsed_time * time_scale;
+
+	auto input = desc.input;
+
+	if (input->IsKeyPressed(KGL::KEYS::ENTER))
+	{
+		return Init(desc);;
+	}
+
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
@@ -546,15 +561,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ImGui::End();
 	}
 
-	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<TestScene03>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
 		SetNextScene<TestScene05>(desc);
 
-	if (input->IsKeyPressed(KGL::KEYS::ENTER))
+	if (input->IsKeyPressed(KGL::KEYS::BACKSPACE))
 	{
-		return Init(desc);;
+		ResetCounterMax();
 	}
 
 	using namespace DirectX;
@@ -593,7 +607,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		float key_spawn_late = 10.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
 		if (input->IsKeyHold(KGL::KEYS::NUMPADPLUS))
-			ptc_key_spawn_counter += elapsed_time;
+			ptc_key_spawn_counter += ptc_update_time;
 		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
 			ptc_key_spawn_counter += key_spawn_time;
 
@@ -641,7 +655,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_key_spawn_counter -= key_spawn_time;
 		}
 
-		cpt_scene_buffer.mapped_data->elapsed_time = elapsed_time;
+		cpt_scene_buffer.mapped_data->elapsed_time = ptc_update_time;
 
 		scene_buffer.mapped_data->view = view;
 		scene_buffer.mapped_data->proj = XMLoadFloat4x4(&proj);
@@ -786,8 +800,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 #else
 	const auto* cb = cpt_scene_buffer.mapped_data;
-	/*constexpr float spawn_elapsed = 1.f / spawn_late;
-	spawn_counter += elapsed_time;
+	constexpr float spawn_elapsed = 1.f / spawn_late;
+	spawn_counter += ptc_update_time;
 	UINT spawn_num = 0u;
 	if (spawn_counter >= spawn_elapsed)
 	{
@@ -819,12 +833,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle.Update(spawn_timer, cb);
 			spawn_timer -= spawn_elapsed;
 		}
-	}*/
+	}
 
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(elapsed_time, &frame_particles, cb, &fireworks))
+		if (!fireworks[i].Update(ptc_update_time, &frame_particles, cb, &fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
@@ -903,6 +917,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		particle_total_num = *p_counter;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
 		ImGui::Begin("Particle");
+		ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
+		ImGui::InputFloat("", &time_scale);
 		ct_particle = std::max<UINT64>(ct_particle, *p_counter);
 		ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
 		ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);

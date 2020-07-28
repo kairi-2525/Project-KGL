@@ -33,6 +33,7 @@ private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
 	float ptc_key_spawn_counter;
 	UINT64 particle_total_num;
+	float time_scale;
 
 	DirectX::XMFLOAT4X4							proj;
 
@@ -131,6 +132,7 @@ public:
 	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
+	void ResetCounterMax();
 
 	TestScene04() = default;
 	~TestScene04() = default;
