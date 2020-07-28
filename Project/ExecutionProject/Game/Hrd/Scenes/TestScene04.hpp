@@ -31,6 +31,8 @@ class TestScene04 : public SceneBase
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
+	float ptc_key_spawn_counter;
+	UINT64 particle_total_num;
 
 	DirectX::XMFLOAT4X4							proj;
 
@@ -111,6 +113,7 @@ private:
 	{
 		std::array<KGL::DescriptorHandle, CUBE::NUM>			handle;
 		std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>	tex;
+		std::array<KGL::DescriptorHandle, CUBE::NUM>			imgui_handle;
 	};
 
 	float														sky_scale;

@@ -351,16 +351,23 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		
 		for (auto& data : sky_tex_data)
 		{
 			for (int i = 0; i < CUBE::NUM; i++)
 			{
 				data.second->handle[i] = sky_tex_desc_mgr->Alloc();
+				data.second->imgui_handle[i] = desc.imgui_heap_mgr->Alloc();
 				srv_desc.Format = data.second->tex[i]->Data()->GetDesc().Format;
 				device->CreateShaderResourceView(
 					data.second->tex[i]->Data().Get(),
 					&srv_desc,
 					data.second->handle[i].Cpu()
+				);
+				device->CreateShaderResourceView(
+					data.second->tex[i]->Data().Get(),
+					&srv_desc,
+					data.second->imgui_handle[i].Cpu()
 				);
 			}
 		}
@@ -447,6 +454,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	cpt_scene_buffer.mapped_data->resistivity = 0.1f;
 
 	spawn_counter = 0.f;
+	ptc_key_spawn_counter = 0.f;
+	particle_total_num = 0u;
 
 	frame_particles.clear();
 
@@ -507,9 +516,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ImGui::End();
 		ImGui::Begin("Sky");
 		const auto window_size = desc.window->GetClientSize();
-		ImGui::BeginChild("scrolling", ImVec2(250.f, 100.f), ImGuiWindowFlags_NoTitleBar);
+		const auto imgui_window_size = ImGui::GetWindowSize();
+		ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
 		for (auto& it : sky_tex_data)
 		{
+			ImGui::Image((ImTextureID)it.second->imgui_handle[CUBE::FRONT].Gpu().ptr, ImVec2(90, 90));
+			ImGui::SameLine();
 			if (it.second == select_sky)
 			{
 				ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
@@ -518,7 +530,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			{
 				select_sky = it.second;
 			}
-			//ImGui::Image((ImTextureID)it.second->handle[CUBE::FRONT].Gpu().ptr, ImVec2(100, 100));
 		}
 		ImGui::EndChild();
 		ImGui::SliderFloat("Scale", &sky_scale, 1.f, 1000.f);
@@ -579,7 +590,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
 		}
 
-		if (input->IsKeyPressed(KGL::KEYS::SPACE) || input->IsKeyHold(KGL::KEYS::NUMPADPLUS))
+		float key_spawn_late = 10.f;
+		const float key_spawn_time = 1.f / key_spawn_late;
+		if (input->IsKeyHold(KGL::KEYS::NUMPADPLUS))
+			ptc_key_spawn_counter += elapsed_time;
+		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
+			ptc_key_spawn_counter += key_spawn_time;
+
+		while (ptc_key_spawn_counter >= key_spawn_time)
 		{
 			FireworksDesc desc;
 			desc.pos = { 0.f, 0.f, 0.f };
@@ -620,6 +638,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			desc.effects[2].child.effects[1].late = { 100.f, 100.f };
 			desc.effects[2].child.effects[1].start_accel = 1.f;
 			fireworks.emplace_back(desc);
+			ptc_key_spawn_counter -= key_spawn_time;
 		}
 
 		cpt_scene_buffer.mapped_data->elapsed_time = elapsed_time;
@@ -642,36 +661,39 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
 
-		cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
+		if (particle_total_num > 0)
+		{
+			cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
 
-		particle_pipeline->SetState(cpt_cmd_list);
-		//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
-		
-		//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
-		//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
-		cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
-		cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
+			particle_pipeline->SetState(cpt_cmd_list);
+			//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
 
-		cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
-		cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
+			//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
+			//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
+			cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
+			cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
 
-		const UINT ptcl_size = KGL::SCAST<UINT>(particle_resource->Size());
-		DirectX::XMUINT3 patch = {};
-		constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-		patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
-		patch.x = std::min(patch.x, patch_max);
-		patch.y = 1;
-		patch.z = 1;
+			cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
+			cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
 
-		cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
-		cpt_cmd_list->Close();
-		//コマンドの実行
-		ID3D12CommandList* cmd_lists[] = {
-		   cpt_cmd_list.Get(),
-		};
-		timer.Restart();
-		cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-		cpt_cmd_queue->Signal();
+			const UINT ptcl_size = particle_total_num;
+			DirectX::XMUINT3 patch = {};
+			constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+			patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
+			patch.x = std::min(patch.x, patch_max);
+			patch.y = 1;
+			patch.z = 1;
+
+			cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
+			cpt_cmd_list->Close();
+			//コマンドの実行
+			ID3D12CommandList* cmd_lists[] = {
+			   cpt_cmd_list.Get(),
+			};
+
+			cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
+			cpt_cmd_queue->Signal();
+		}
 
 #ifndef USE_GPU_OPTION1
 		cpt_cmd_queue->Wait();
@@ -799,11 +821,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}*/
 
-	cpt_cmd_queue->Wait();
-	UINT64 gputime = timer.GetTime(KGL::Timer::SEC::MICRO);
-	cpt_cmd_allocator->Reset();
-	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
-
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
@@ -815,44 +832,66 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}
 	UINT64 firework_update = timer.GetTime(KGL::Timer::SEC::MICRO);
+
 	timer.Restart();
-	/*cpt_cmd_queue->Wait();
-	cpt_cmd_allocator->Reset();
-	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);*/
+	if (particle_total_num > 0)
+	{
+		cpt_cmd_queue->Wait();
+		cpt_cmd_allocator->Reset();
+		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+	}
+	UINT64 gputime = timer.GetTime(KGL::Timer::SEC::MICRO);
+	timer.Restart();
+
+	if (particle_total_num > 0)
+	{
+		next_particle_offset = particle_total_num * sizeof(Particle);
+		auto particles = particle_resource->Map(0u, &CD3DX12_RANGE(0, next_particle_offset));
+		const auto size = next_particle_offset / sizeof(Particle);
+		UINT64 alive_count = 0;
+		constexpr Particle clear_ptc_value = {};
+		for (auto idx = 0; idx < size; idx++)
+		{
+			if (particles[idx].Alive())
+			{
+				if (idx > alive_count)
+				{
+					particles[alive_count] = particles[idx];
+					particles[idx] = clear_ptc_value;
+				}
+				alive_count++;
+			}
+		}
+		particle_resource->Unmap(0u, &CD3DX12_RANGE(0, next_particle_offset));
+		next_particle_offset = sizeof(Particle) * alive_count;
+	}
 
 	const size_t frame_ptc_size = frame_particles.size();
+	size_t frame_add_ptc_num = 0u;
 	if (!frame_particles.empty())
 	{
-		for (int i = 0; i < 2; i++)
+		D3D12_RANGE range;
+		range.Begin = next_particle_offset;
+		range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(frame_ptc_size));
+		const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
+		const size_t bi = range.Begin / sizeof(Particle);
+		if (range.End > offset_max)
+			range.End = offset_max;
+		const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
+		auto particles = particle_resource->Map(0u, &range);
+		UINT check_count = 0u;
+		for (; check_count < check_count_max;)
 		{
-			D3D12_RANGE range;
-			range.Begin = next_particle_offset;
-			range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(frame_ptc_size) * 2);
-			const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
-			const size_t bi = range.Begin / sizeof(Particle);
-			if (range.End > offset_max)
-				range.End = offset_max;
-			const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
-			auto particles = particle_resource->Map(0u, &range);
-			UINT check_count = 0u;
-			for (; check_count < check_count_max;)
-			{
-				size_t idx = bi + check_count;
-				check_count++;
-				if (particles[idx].Alive()) continue;
-				particles[idx] = frame_particles.back();
-				frame_particles.pop_back();
-				if (frame_particles.empty()) break;
-			}
-			particle_resource->Unmap(0u, &range);
-			next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
-			if (next_particle_offset == offset_max)
-			{
-				KGLDebugOutPutString("reset");
-				next_particle_offset = 0u;
-			}
+			size_t idx = bi + check_count;
+			check_count++;
+			if (particles[idx].Alive()) continue;
+			particles[idx] = frame_particles.back();
+			frame_particles.pop_back();
+			frame_add_ptc_num++;
 			if (frame_particles.empty()) break;
 		}
+		particle_resource->Unmap(0u, &range);
+		next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
 	}
 	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
@@ -860,7 +899,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	{
 		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter += frame_ptc_size;
+		*p_counter += frame_add_ptc_num;
+		particle_total_num = *p_counter;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
 		ImGui::Begin("Particle");
 		ct_particle = std::max<UINT64>(ct_particle, *p_counter);
@@ -976,17 +1016,20 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
 
 		// パーティクル描画
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-		board_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-		//cmd_list->SetDescriptorHeaps(1, b_cbv.Heap().GetAddressOf());
-		//cmd_list->SetGraphicsRootDescriptorTable(1, b_cbv.Gpu());
-		cmd_list->SetDescriptorHeaps(1, b_srv.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(2, b_srv.Gpu());
+		if (particle_total_num > 0)
+		{
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+			board_renderer->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+			//cmd_list->SetDescriptorHeaps(1, b_cbv.Heap().GetAddressOf());
+			//cmd_list->SetGraphicsRootDescriptorTable(1, b_cbv.Gpu());
+			cmd_list->SetDescriptorHeaps(1, b_srv.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(2, b_srv.Gpu());
 
-		cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
-		cmd_list->DrawInstanced(SCAST<UINT>(particle_resource->Size()), 1, 0, 0);
+			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
+			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
+		}
 
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
@@ -1014,5 +1057,15 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
+	for (auto& it : sky_tex_data)
+	{
+		for (int i = 0; i < CUBE::NUM; i++)
+		{
+			if (it.second)
+			{
+				desc.imgui_heap_mgr->Free(it.second->imgui_handle[i]);
+			}
+		}
+	}
 	return S_OK;
 }

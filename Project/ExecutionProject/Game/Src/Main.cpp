@@ -65,7 +65,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				std::shared_ptr<KGL::DescriptorManager> imgui_heap;
 				KGL::DescriptorHandle imgui_handle;
 				{
-					imgui_heap = std::make_shared<KGL::DescriptorManager>(device, 1u);
+					imgui_heap = std::make_shared<KGL::DescriptorManager>(device, 1000u);
 					imgui_handle = imgui_heap->Alloc();
 
 					ImGuiContext* context_result = ImGui::CreateContext();
@@ -92,7 +92,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
-				SceneDesc scene_desc = { app, window, input, imgui_handle };
+				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle };
 				hr = scene_mgr.Init<TestScene04>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };

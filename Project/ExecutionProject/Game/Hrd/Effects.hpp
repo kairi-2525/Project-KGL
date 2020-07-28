@@ -82,7 +82,7 @@ namespace FIREWORK_EFFECTS
 			{ 1000.f, 1000.f },	// late
 			1.0f,			// late_update_time
 			{ 5.f, 5.f },	// speed
-			{ 2.f, 2.f },	// scale
+			{ 0.5f, 1.f },	// scale
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.1f },	// spawn_space
 			{ 1.f, 0.5f, 0.f, 0.1 },	// color
@@ -97,7 +97,7 @@ namespace FIREWORK_EFFECTS
 			{ 100.f, 200.f },	// late
 			1.0f,			// late_update_time
 			{ 5.f, 5.f },	// speed
-			{ 1.5f, 2.f },	// scale
+			{ 0.2f, 0.8f },	// scale
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.5f, 0.5f },	// spawn_space
 			{ 1.f, 0.f, 0.5f, 0.1 },	// color
