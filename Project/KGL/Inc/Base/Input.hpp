@@ -36,7 +36,7 @@ namespace KGL
 			void AnyStateUpdate();
 		public:
 			Input(HWND hwnd);
-			HRESULT Update();
+			HRESULT Update(bool key_update = true, bool mouse_update = true, bool pad_update = true);
 
 			//---------------
 			//     É}ÉEÉX

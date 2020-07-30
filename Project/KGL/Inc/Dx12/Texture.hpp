@@ -106,6 +106,7 @@ namespace KGL
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept;
 			
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
+			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
 		};
 		
 		namespace TEXTURE

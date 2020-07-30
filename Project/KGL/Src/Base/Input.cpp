@@ -61,10 +61,10 @@ void Input::AnyStateUpdate()
 	}
 }
 
-HRESULT Input::Update()
+HRESULT Input::Update(bool key_update, bool mouse_update, bool pad_update)
 {
 	HRESULT hr;
-	hr = m_direct_input.UpdateMouse();
+	hr = m_direct_input.UpdateMouse(!mouse_update);
 	//ウィンドウが選択されていない時非表示状態から復帰する
 	if (FAILED(hr))
 	{
@@ -81,13 +81,13 @@ HRESULT Input::Update()
 		m_mouse_state.visible_out_side = false;
 	}
 
-	hr = m_direct_input.UpdateKeyBoard();
+	hr = m_direct_input.UpdateKeyBoard(!key_update);
 	AnyStateUpdate();
 	if (FAILED(hr) && hr != DIERR_OTHERAPPHASPRIO) return hr;
 
-	hr = m_direct_input.UpdateGamePads();
+	hr = m_direct_input.UpdateGamePads(!pad_update);
 	if (FAILED(hr)) return hr;
-	m_x_input.Update();
+	m_x_input.Update(pad_update);
 
 	return hr;
 }

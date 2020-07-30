@@ -59,7 +59,7 @@ namespace KGL
 				void StickNormalize();
 			public:
 				Pad(const int id);
-				HRESULT UpdatePad() override;
+				HRESULT UpdatePad(bool clear) override;
 				bool IsConnected() const;
 				const XINPUT_STATE& GetState() const;
 			};
@@ -67,7 +67,7 @@ namespace KGL
 			std::array<Pad, XUSER_MAX_COUNT> m_pads;
 		public:
 			X();
-			void Update();
+			void Update(bool clear);
 		};
 
 		inline bool X::Pad::IsConnected() const

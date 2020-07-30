@@ -38,28 +38,28 @@ Direct::~Direct()
 }
 
 //更新
-HRESULT Direct::UpdateMouse()
+HRESULT Direct::UpdateMouse(bool clear)
 {
 	if (m_mouse)
 	{
-		return m_mouse->Update();
+		return m_mouse->Update(clear);
 	}
 	return S_FALSE;
 }
-HRESULT Direct::UpdateKeyBoard()
+HRESULT Direct::UpdateKeyBoard(bool clear)
 {
 	if (m_keyboard)
 	{
-		return m_keyboard->Update();
+		return m_keyboard->Update(clear);
 	}
 	return S_FALSE;
 }
-HRESULT Direct::UpdateGamePads()
+HRESULT Direct::UpdateGamePads(bool clear)
 {
 	HRESULT hr = S_FALSE;
 	for (auto& gamepad : m_gamepads)
 	{
-		hr = gamepad.Update();
+		hr = gamepad.Update(clear);
 		if (FAILED(hr)) return hr;
 	}
 	return hr;
@@ -290,12 +290,14 @@ Direct::Mouse::Mouse(
 {
 	m_lp_device->Acquire();
 }
-HRESULT Direct::Mouse::Update()
+HRESULT Direct::Mouse::Update(bool clear)
 {
 	m_previous_state = m_current_state;
+	HRESULT	hr = S_OK;
 	const size_t size = sizeof(DIMOUSESTATE);
 	ZeroMemory(&m_current_state.state, size);
-	HRESULT	hr = m_lp_device->GetDeviceState(size, &m_current_state.state);
+	if (clear) return hr;
+	hr = m_lp_device->GetDeviceState(size, &m_current_state.state);
 	if (hr == DIERR_NOTACQUIRED || hr == DIERR_INPUTLOST)
 	{
 		// 失敗なら再開させてもう一度取得
@@ -330,14 +332,15 @@ Direct::KeyBoard::KeyBoard(
 {
 	m_lp_device->Acquire();
 }
-HRESULT Direct::KeyBoard::Update()
+HRESULT Direct::KeyBoard::Update(bool clear)
 {
 	m_previous_state = m_current_state;
-
+	HRESULT hr = S_OK;
 	const size_t size = sizeof(m_current_state.key);
 
 	ZeroMemory(m_current_state.key, size);
-	HRESULT hr = m_lp_device->GetDeviceState(size, m_current_state.key);
+	if (clear) return hr;
+	hr = m_lp_device->GetDeviceState(size, m_current_state.key);
 	if (hr == DIERR_NOTACQUIRED || hr == DIERR_INPUTLOST)
 	{
 		// 失敗なら再開させてもう一度取得
@@ -351,7 +354,6 @@ HRESULT Direct::KeyBoard::Update()
 			return hr;
 		}
 	}
-
 #ifdef RETURN_DEBUG
 	m_current_state.key[static_cast<int>(KEYS::RETURN)];
 	std::stringstream ss;
@@ -374,18 +376,20 @@ Direct::GamePad::GamePad(
 {
 	m_lp_device->Acquire();
 }
-HRESULT Direct::GamePad::UpdatePad()
+HRESULT Direct::GamePad::UpdatePad(bool clear)
 {
-	return Update();
+	return Update(clear);
 }
-HRESULT Direct::GamePad::Update()
+HRESULT Direct::GamePad::Update(bool clear)
 {
 	m_previous_state = m_current_state;
+	HRESULT hr = S_OK;
 
 	const size_t size = sizeof(DIJOYSTATE);
 
 	ZeroMemory(&m_current_state.state, size);
-	HRESULT hr = m_lp_device->GetDeviceState(size, &m_current_state.state);
+	if (clear) return hr;
+	hr = m_lp_device->GetDeviceState(size, &m_current_state.state);
 	if (hr == DIERR_NOTACQUIRED || hr == DIERR_INPUTLOST)
 	{
 		// 失敗なら再開させてもう一度取得

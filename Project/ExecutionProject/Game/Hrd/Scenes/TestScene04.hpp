@@ -31,9 +31,10 @@ class TestScene04 : public SceneBase
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
-	float ptc_key_spawn_counter;
-	UINT64 particle_total_num;
-	float time_scale;
+	float										ptc_key_spawn_counter;
+	UINT64										particle_total_num;
+	float										time_scale;
+	bool										use_gpu;
 
 	DirectX::XMFLOAT4X4							proj;
 
@@ -50,9 +51,16 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>		b_cbv_descmgr;
 	KGL::DescriptorHandle						b_cbv;
 	std::shared_ptr<KGL::DescriptorManager>		b_srv_descmgr;
-	KGL::DescriptorHandle						b_srv;
-	std::shared_ptr<KGL::Texture>				b_texture;
+	struct BoardTex
+	{
+		std::shared_ptr<KGL::DescriptorHandle>	handle;
+		KGL::DescriptorHandle					imgui_handle;
+		std::shared_ptr<KGL::Texture>			tex;
+	};
+	BoardTex									b_tex_data[2];
+
 	D3D12_VERTEX_BUFFER_VIEW					b_vbv;
+	std::shared_ptr<KGL::DescriptorHandle>		b_select_srv_handle;
 
 	std::shared_ptr<KGL::Resource<CbvParam>>	matrix_resource;
 

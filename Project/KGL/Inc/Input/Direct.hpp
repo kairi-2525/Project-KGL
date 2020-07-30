@@ -219,7 +219,7 @@ namespace KGL
 				Device(LPDIRECTINPUTDEVICE8 lp_device, const std::string& device_name = "不明のデバイス");
 				virtual ~Device();
 			public:
-				virtual HRESULT Update() = 0;
+				virtual HRESULT Update(bool clear) = 0;
 				const DIDEVICEINSTANCE& GetInstanceDesc() const;
 			};
 
@@ -265,7 +265,7 @@ namespace KGL
 				Mouse(
 					LPDIRECTINPUTDEVICE8 lp_device
 				);
-				HRESULT Update() override;
+				HRESULT Update(bool clear) override;
 				LONG GetWheel() const;
 				DirectX::XMINT2 GetMove() const;
 				DirectX::XMINT2 GetPos() const;
@@ -291,7 +291,7 @@ namespace KGL
 				KeyBoard(
 					LPDIRECTINPUTDEVICE8 lp_device
 				);
-				HRESULT Update() override;
+				HRESULT Update(bool clear) override;
 			};
 
 			//-----------------
@@ -328,8 +328,8 @@ namespace KGL
 					LPDIRECTINPUTDEVICE8 lp_device,
 					const int id
 				);
-				HRESULT Update() override;
-				HRESULT UpdatePad() override;
+				HRESULT Update(bool clear) override;
+				HRESULT UpdatePad(bool clear) override;
 			};
 
 
@@ -350,9 +350,9 @@ namespace KGL
 			HRESULT ReloadMouse(HWND hwnd);
 			HRESULT ReloadKeyBoard(HWND hwnd);
 			HRESULT ReloadGamePads();
-			HRESULT UpdateMouse();
-			HRESULT UpdateKeyBoard();
-			HRESULT UpdateGamePads();
+			HRESULT UpdateMouse(bool clear);
+			HRESULT UpdateKeyBoard(bool clear);
+			HRESULT UpdateGamePads(bool clear);
 			const KeyBoard* GetKeyBoard() const;
 			const Mouse* GetMouse() const;
 		};

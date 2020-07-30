@@ -12,7 +12,7 @@ X::X() :
 {
 	for (auto& pad : m_pads)
 	{
-		if (SUCCEEDED(pad.UpdatePad()))
+		if (SUCCEEDED(pad.UpdatePad(false)))
 		{
 			const auto& state = pad.GetState();
 			XINPUT_CAPABILITIES capabilities;
@@ -27,11 +27,11 @@ X::X() :
 	}
 }
 
-void X::Update()
+void X::Update(bool clear)
 {
 	for (auto& pad : m_pads)
 	{
-		pad.UpdatePad();
+		pad.UpdatePad(clear);
 	}
 }
 
@@ -87,11 +87,12 @@ void X::Pad::StickNormalize()
 	}
 }
 
-HRESULT X::Pad::UpdatePad()
+HRESULT X::Pad::UpdatePad(bool clear)
 {
 	DWORD dw_result;
 	m_previous_state = m_current_state;
 	std::memset(&m_current_state.state, 0, sizeof(XINPUT_STATE));
+	if (clear) return S_OK;
 	dw_result = XInputGetState(static_cast<DWORD>(m_id), &m_current_state.state);
 	if (dw_result == ERROR_SUCCESS)
 	{

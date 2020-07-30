@@ -13,7 +13,7 @@ namespace KGL
 			virtual ~Pad() = default;
 		public:
 			int GetNum() const;
-			virtual long UpdatePad() = 0;
+			virtual long UpdatePad(bool clear) = 0;
 		};
 
 		inline int Pad::GetNum() const

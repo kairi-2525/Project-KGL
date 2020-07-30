@@ -124,8 +124,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
-	b_texture = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/particle.png");
-	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	b_tex_data[0].tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/particle.png");
+	b_tex_data[1].tex = std::make_shared<KGL::Texture>(device);
+
+	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
 	
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
 	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -201,11 +203,19 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Format = b_texture->Data()->GetDesc().Format;
+		srv_desc.Format = b_tex_data[0].tex->Data()->GetDesc().Format;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		b_srv = b_srv_descmgr->Alloc();
-		device->CreateShaderResourceView(b_texture->Data().Get(), &srv_desc, b_srv.Cpu());
+		b_tex_data[0].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
+		b_tex_data[0].imgui_handle = desc.imgui_heap_mgr->Alloc();
+		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].handle->Cpu());
+		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].imgui_handle.Cpu());
+		srv_desc.Format = b_tex_data[1].tex->Data()->GetDesc().Format;
+		b_tex_data[1].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
+		b_tex_data[1].imgui_handle = desc.imgui_heap_mgr->Alloc();
+		device->CreateShaderResourceView(b_tex_data[1].tex->Data().Get(), &srv_desc, b_tex_data[1].handle->Cpu());
+		device->CreateShaderResourceView(b_tex_data[1].tex->Data().Get(), &srv_desc, b_tex_data[1].imgui_handle.Cpu());
+		b_select_srv_handle = b_tex_data[0].handle;
 	}
 	{
 		b_vbv.BufferLocation = particle_resource->Data()->GetGPUVirtualAddress();
@@ -466,6 +476,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	ResetCounterMax();
 	time_scale = 1.f;
+	use_gpu = true;
 
 	return S_OK;
 }
@@ -529,34 +540,36 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			grid_buffer.mapped_data->length_min = std::min(grid_buffer.mapped_data->length_min, grid_buffer.mapped_data->length_max - 0.01f);
 		}
 		ImGui::End();
-		ImGui::Begin("Sky");
-		const auto window_size = desc.window->GetClientSize();
-		const auto imgui_window_size = ImGui::GetWindowSize();
-		ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
-		for (auto& it : sky_tex_data)
+		if (ImGui::Begin("Sky"))
 		{
-			ImGui::Image((ImTextureID)it.second->imgui_handle[CUBE::FRONT].Gpu().ptr, ImVec2(90, 90));
-			ImGui::SameLine();
-			if (it.second == select_sky)
+			const auto window_size = desc.window->GetClientSize();
+			const auto imgui_window_size = ImGui::GetWindowSize();
+			ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
+			for (auto& it : sky_tex_data)
 			{
-				ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
+				ImGui::Image((ImTextureID)it.second->imgui_handle[CUBE::FRONT].Gpu().ptr, ImVec2(90, 90));
+				ImGui::SameLine();
+				if (it.second == select_sky)
+				{
+					ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
+				}
+				else if (ImGui::Button(it.first.c_str()))
+				{
+					select_sky = it.second;
+				}
 			}
-			else if (ImGui::Button(it.first.c_str()))
+			ImGui::EndChild();
+			ImGui::SliderFloat("Scale", &sky_scale, 1.f, 1000.f);
 			{
-				select_sky = it.second;
+				using namespace DirectX;
+				XMMATRIX W, S, R, T;
+				S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
+				R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+				T = XMMatrixTranslation(0.f, 0.f, 0.f);
+				W = S * R * T;
+				XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+				XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
 			}
-		}
-		ImGui::EndChild();
-		ImGui::SliderFloat("Scale", &sky_scale, 1.f, 1000.f);
-		{
-			using namespace DirectX;
-			XMMATRIX W, S, R, T;
-			S = XMMatrixScaling(sky_scale, sky_scale, sky_scale);
-			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-			T = XMMatrixTranslation(0.f, 0.f, 0.f);
-			W = S * R * T;
-			XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
-			XMStoreFloat4x4(sky_buffer.mapped_data, WVP);
 		}
 		ImGui::End();
 	}
@@ -565,11 +578,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		SetNextScene<TestScene03>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
 		SetNextScene<TestScene05>(desc);
-
-	if (input->IsKeyPressed(KGL::KEYS::BACKSPACE))
-	{
-		ResetCounterMax();
-	}
 
 	using namespace DirectX;
 
@@ -665,17 +673,17 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-	constexpr UINT spawn_late = 5000;
+	constexpr UINT spawn_late = 2500;
 	KGL::Timer timer;
-#ifdef USE_GPU
-	{
-		{
-			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-			*p_counter = 0u;
-			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-		}
 
-		if (particle_total_num > 0)
+	{
+		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+		*p_counter = 0u;
+		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
+	if (particle_total_num > 0)
+	{
+		if (use_gpu)
 		{
 			cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
 
@@ -708,97 +716,24 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
 			cpt_cmd_queue->Signal();
 		}
-
-#ifndef USE_GPU_OPTION1
-		cpt_cmd_queue->Wait();
-		cpt_cmd_allocator->Reset();
-		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
-#endif
-	}
-#else
-	{
-		auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-		const size_t i_max = particle_resource->Size();
-		UINT ct = 0u;
-		XMVECTOR resultant;
-		const auto* cb = cpt_scene_buffer.mapped_data;
-		for (int i = 0; i < i_max; i++)
+		else
 		{
-			if (!particles[i].Alive()) continue;
-			particles[i].Update(elapsed_time, cb);
-			ct++;
-		}
-		particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-		KGLDebugOutPutStringNL("\r particle : " + std::to_string(ct) + std::string(10, ' '));
-	}
-#endif
-#if !defined(USE_GPU_OPTION1) || ( defined(USE_GPU_OPTION1) && !defined(USE_GPU) )
-	constexpr float spawn_elapsed = 1.f / spawn_late;
-
-	spawn_counter += elapsed_time;
-	if (spawn_counter >= spawn_elapsed)
-	{
-		float spawn_timer = spawn_counter - spawn_elapsed;
-		UINT spawn_num = KGL::SCAST<UINT>(spawn_counter / spawn_elapsed);
-		spawn_counter = std::fmodf(spawn_counter, spawn_elapsed);
-		UINT spawn_count = 0u;
-		const auto* cb = cpt_scene_buffer.mapped_data;
-		for (int wi = 0; wi < 5; wi++)
-		{
-			D3D12_RANGE range;
-			range.Begin = next_particle_offset;
-			range.End = range.Begin + sizeof(Particle) * (spawn_num * 2);
-			const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
-			const size_t bi = range.Begin / sizeof(Particle);
-			const float rad_360min = XMConvertToRadians(360.f - FLT_MIN);
-			if (range.End > offset_max)
-				range.End = offset_max;
-
+			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+			auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
+			const size_t i_max = particle_total_num;
+			XMVECTOR resultant;
+			const auto* cb = cpt_scene_buffer.mapped_data;
+			for (int i = 0; i < i_max; i++)
 			{
-				std::random_device rd;
-				std::mt19937 mt(rd());
-				std::uniform_real_distribution<float> score(-10.f, 10.f);
-				std::uniform_real_distribution<float> unorm(0.f, 1.f);
-				const auto i_max = (range.End - range.Begin) / sizeof(Particle);
-				auto particles = particle_resource->Map(0u, &range);
-				
-				for (int i = 0; i < i_max; i++)
-				{
-					const size_t ti = bi + i;
-					auto random_vec =
-					XMVector3Transform(
-						XMVectorSet(0.f, 0.f, 1.f, 0.f),
-						XMMatrixRotationRollPitchYaw(0, unorm(mt) * rad_360min, 0)
-					);
-
-					if (particles[ti].exist_time > 0.f) continue;
-					particles[ti].exist_time = 10.f;
-					particles[ti].color = { 1.f, 0.5f, 0.0f, 0.1f };
-					particles[ti].position = { 0.f, 0.f, 0.f };
-					particles[ti].mass = 1.f;
-					particles[ti].scale = 0.1f;
-					XMStoreFloat3(&particles[ti].velocity, random_vec * 3.1);
-					particles[ti].Update(spawn_timer, cb);
-					spawn_timer -= spawn_elapsed;
-					spawn_count++;
-					if (spawn_count == spawn_num) break;
-				}
-				particle_resource->Unmap(0u, &range);
+				if (!particles[i].Alive()) continue;
+				particles[i].Update(cpt_scene_buffer.mapped_data->elapsed_time, cb);
+				(*p_counter)++;
 			}
-			next_particle_offset = range.End;
-			if (next_particle_offset == offset_max)
-			{
-				KGLDebugOutPutString("reset");
-				next_particle_offset = 0u;
-				if (spawn_count < spawn_num)
-				{
-					continue;
-				}
-			}
-			break;
+			particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
 	}
-#else
+
 	const auto* cb = cpt_scene_buffer.mapped_data;
 	constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += ptc_update_time;
@@ -834,7 +769,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			spawn_timer -= spawn_elapsed;
 		}
 	}
-
+	UINT64 cputime = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
@@ -848,7 +783,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	UINT64 firework_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 
 	timer.Restart();
-	if (particle_total_num > 0)
+	if (particle_total_num > 0 && use_gpu)
 	{
 		cpt_cmd_queue->Wait();
 		cpt_cmd_allocator->Reset();
@@ -909,34 +844,68 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
-	UINT64 cputime = firework_update + map_update;
+	cputime += firework_update + map_update;
 
 	{
 		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
 		*p_counter += frame_add_ptc_num;
 		particle_total_num = *p_counter;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
-		ImGui::Begin("Particle");
-		ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
-		ImGui::InputFloat("", &time_scale);
-		ct_particle = std::max<UINT64>(ct_particle, *p_counter);
-		ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
-		ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
-		ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
-		ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
-		ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
-		ct_gpu = std::max<UINT64>(ct_gpu, gputime);
-		ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
-		ct_cpu = std::max<UINT64>(ct_cpu, cputime);
-		ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
-		ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
-		ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
-		ct_map_update = std::max<UINT64>(ct_map_update, map_update);
-		ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+		if (ImGui::Begin("Particle"))
+		{
+			const bool reset_max_counter0 = ImGui::Checkbox("GPU", &use_gpu);
+			const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
+			ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
+			ImGui::InputFloat("", &time_scale);
+			ct_particle = std::max<UINT64>(ct_particle, *p_counter);
+			ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
+			ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
+			ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
+			ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
+			ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
+			ct_gpu = std::max<UINT64>(ct_gpu, gputime);
+			ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
+			ct_cpu = std::max<UINT64>(ct_cpu, cputime);
+			ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
+			ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
+			ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
+			ct_map_update = std::max<UINT64>(ct_map_update, map_update);
+			ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+
+			if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
+			{
+				const auto imgui_window_size = ImGui::GetWindowSize();
+				ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
+				for (auto& it : b_tex_data)
+				{
+					const ImVec2 image_size = { 90, 90 };
+					ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr, image_size);
+					ImGui::SameLine();
+					const auto imgui_window_child_size = ImGui::GetWindowSize();
+					std::string path = it.tex->GetPath().string();
+					auto path_size = ImGui::CalcTextSize(path.c_str());
+					const float string_draw_width = std::max(0.f, (imgui_window_child_size.x - image_size.x) - 20);
+					UINT str_line_count = KGL::SCAST<UINT>(path_size.x / string_draw_width);
+					UINT line_size = KGL::SCAST<UINT>(string_draw_width / (path_size.x / path.length()));
+					for (UINT i = 0u; i < str_line_count; i++)
+					{
+						path.insert(i + ((i + 1) * line_size), "\n");
+					}
+					if (it.handle == b_select_srv_handle)
+					{
+						ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, path.c_str());
+					}
+					else if (ImGui::Button(path.c_str()))
+					{
+						b_select_srv_handle = it.handle;
+					}
+				}
+				ImGui::EndChild();
+			}
+		}
 		ImGui::End();
 		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
-#endif
 
 	{
 		static float angle = 0.f;
@@ -1040,8 +1009,11 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 			//cmd_list->SetDescriptorHeaps(1, b_cbv.Heap().GetAddressOf());
 			//cmd_list->SetGraphicsRootDescriptorTable(1, b_cbv.Gpu());
-			cmd_list->SetDescriptorHeaps(1, b_srv.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(2, b_srv.Gpu());
+			if (b_select_srv_handle)
+			{
+				cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
+				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
+			}
 
 			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);

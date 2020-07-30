@@ -12,25 +12,32 @@ void GSMain(
 	float4 vel = mul(float4(normalize(input[0].velocity.xyz), 1.0), view);
 	float speed = length(input[0].velocity.xyz);
 
-	float angle = sqrt(dot(vel.xy, float2(1.f, 0.f)));
+	float angle = radians(90);
 	// “_‚ð–Ê‚É‚·‚é
 	float w = input[0].scale * 0.5f;
-	float h = input[0].scale * 0.5f * speed;
-
-	row_major float2x2 Rotation2D =
-	{	1, 0,
-		0, 1
-	};
+	float h = input[0].scale * 0.5f;
 
 	/*row_major float2x2 Rotation2D =
-	{ cos(angle), sin(angle),
-		-sin(angle), cos(angle)
+	{	1, 0,
+		0, 1
 	};*/
 
-	float4 pos_lt = pos + float4(mul(float2(-w, h), Rotation2D), 0.0, 0.0);
-	float4 pos_lb = pos + float4(mul(float2(-w, -h), Rotation2D), 0.0, 0.0);
-	float4 pos_rt = pos + float4(mul(float2(w, h), Rotation2D), 0.0, 0.0);
-	float4 pos_rb = pos + float4(mul(float2(w, -h), Rotation2D), 0.0, 0.0);
+	/*row_major float2x2 Rotation90plus =
+	{ 
+		cos(angle), sin(angle),
+		-sin(angle), cos(angle)
+	};
+	float2 width_vel = mul(vel.xy, Rotation90plus);
+
+	float4 pos_lt = pos + vel * speed * h;
+	float4 pos_rb = pos - vel * speed * h;
+	float4 pos_rt = pos + float4(width_vel, 0.0, 0.0) * w;
+	float4 pos_lb = pos - float4(width_vel, 0.0, 0.0) * w;*/
+
+	float4 pos_lt = pos + float4(-w, h, 0.0, 0.0);
+	float4 pos_rt = pos + float4(w, h, 0.0, 0.0);
+	float4 pos_lb = pos + float4(-w, -h, 0.0, 0.0);
+	float4 pos_rb = pos + float4(w, -h, 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;
