@@ -19,7 +19,7 @@ namespace KGL
 		public:
 			ResourcesBase(size_t size) noexcept : m_size(size) {}
 			virtual ~ResourcesBase() = default;
-			
+
 			size_t Size() const noexcept { return m_size; }
 			UINT64 SizeInBytes() const noexcept { return m_size_in_bytes; }
 		};
@@ -36,12 +36,24 @@ namespace KGL
 			{
 				RCHECK(size == 0u, "–³Œø‚ÈƒTƒCƒY");
 				m_size_in_bytes = ((sizeof(_Ty) * m_size) + 0xff) & ~0xff;
+				D3D12_RESOURCE_DESC res_desc = {};
+				res_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+				res_desc.Alignment = 0u;
+				res_desc.Width = m_size_in_bytes;
+				res_desc.Height = 1u;
+				res_desc.DepthOrArraySize = 1u;
+				res_desc.MipLevels = 1u;
+				res_desc.Format = DXGI_FORMAT_UNKNOWN;
+				res_desc.SampleDesc.Count = 1;
+				res_desc.SampleDesc.Quality = 0;
+				res_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+				res_desc.Flags = flag;
 				if (prop)
 				{
 					auto hr = device->CreateCommittedResource(
 						prop,
 						D3D12_HEAP_FLAG_NONE,
-						&CD3DX12_RESOURCE_DESC::Buffer(m_size_in_bytes, flag),
+						&res_desc,
 						D3D12_RESOURCE_STATE_GENERIC_READ,
 						nullptr,
 						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
@@ -50,10 +62,16 @@ namespace KGL
 				}
 				else
 				{
+					D3D12_HEAP_PROPERTIES propeties = {};
+					propeties.Type = D3D12_HEAP_TYPE_UPLOAD;
+					propeties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+					propeties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+					propeties.CreationNodeMask = 1;
+					propeties.VisibleNodeMask = 1;
 					auto hr = device->CreateCommittedResource(
-						&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+						&propeties,
 						D3D12_HEAP_FLAG_NONE,
-						&CD3DX12_RESOURCE_DESC::Buffer(m_size_in_bytes, flag),
+						&res_desc,
 						D3D12_RESOURCE_STATE_GENERIC_READ,
 						nullptr,
 						IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
