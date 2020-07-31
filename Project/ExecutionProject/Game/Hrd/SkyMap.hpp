@@ -32,6 +32,20 @@ public:
 		std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>	tex;
 		std::array<KGL::DescriptorHandle, CUBE::NUM>			imgui_handle;
 	};
+public:
+	static inline const std::vector<std::pair<std::string, std::string>> TEXTURES =
+	{
+		{ "Cartoon Base BlueSky",		"Sky_Day_BlueSky_Nothing_" },
+		{ "Cartoon Base NightSky",		"Cartoon Base NightSky_" },
+		{ "Cold Night",					"Cold Night__" },
+		{ "Cold Sunset",				"Cold Sunset__" },
+		{ "Deep Dusk",					"Deep Dusk__" },
+		{ "Epic_BlueSunset",			"Epic_BlueSunset_" },
+		{ "Epic_GloriousPink",			"Epic_GloriousPink_" },
+		{ "Night MoonBurst",			"Night Moon Burst_" },
+		{ "Overcast Low",				"Sky_AllSky_Overcast4_Low_" },
+		{ "Space_AnotherPlanet",		"AllSky_Space_AnotherPlanet_" },
+	};
 private:
 	float														scale;
 	std::array<D3D12_VERTEX_BUFFER_VIEW, CUBE::NUM>				vbv;
@@ -39,11 +53,19 @@ private:
 	std::shared_ptr<KGL::Resource<Vertex>>						vbr;
 	std::shared_ptr<KGL::BaseRenderer>							renderer;
 	std::shared_ptr<KGL::Resource<DirectX::XMFLOAT4X4>>			buffer;
-	std::shared_ptr<KGL::DescriptorManager>						tex_desc_mgr;
+	std::shared_ptr<KGL::DescriptorManager>						desc_mgr;
+	KGL::DescriptorHandle										buffer_handle;
 
 	std::shared_ptr<Tex>										select;
 
-	SkyManager(std::string folder, std::string name1, std::string name2);
-	void Update();
+public:
+	SkyManager(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
+		std::string folder = "./Assets/Textures/Sky/",
+		const std::vector<std::pair<std::string, std::string>>& textures = TEXTURES,
+		std::string extension = ".DDS");
+	void Init(DirectX::CXMMATRIX viewproj);
+	void ImGuiUpdate(DirectX::CXMMATRIX viewproj);
+	void SetWVP(DirectX::CXMMATRIX wvp);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
+	void Uninit(std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr);
 };

@@ -19,6 +19,7 @@
 #include <Dx12/3D/Board.hpp>
 #include "../Particle.hpp"
 #include "../Fireworks.hpp"
+#include "../SkyMap.hpp"
 
 #include "../Obj3D.hpp"
 
@@ -103,36 +104,7 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>					grid_renderer;
 	SceneBufferDx12<AlphaBuffer>						grid_buffer;
 
-	enum CUBE
-	{
-		FRONT,
-		BACK,
-		RIGHT,
-		LEFT,
-		TOP,
-		BOTTOM,
-		NUM
-	};
-	struct SkyVertex
-	{
-		DirectX::XMFLOAT3 pos;
-		DirectX::XMFLOAT2 uv;
-	};
-	struct SkyTex
-	{
-		std::array<KGL::DescriptorHandle, CUBE::NUM>			handle;
-		std::array<std::shared_ptr<KGL::Texture>, CUBE::NUM>	tex;
-		std::array<KGL::DescriptorHandle, CUBE::NUM>			imgui_handle;
-	};
-
-	float														sky_scale;
-	std::array<D3D12_VERTEX_BUFFER_VIEW, CUBE::NUM>				sky_vbv;
-	std::shared_ptr<SkyTex>										select_sky;
-	std::map<std::string, std::shared_ptr<SkyTex>>				sky_tex_data;
-	std::shared_ptr<KGL::Resource<SkyVertex>>					sky_vbr;
-	std::shared_ptr<KGL::BaseRenderer>							sky_renderer;
-	SceneBufferDx12<DirectX::XMFLOAT4X4>						sky_buffer;
-	std::shared_ptr<KGL::DescriptorManager>						sky_tex_desc_mgr;
+	std::shared_ptr<SkyManager>							sky_mgr;
 
 public:
 	HRESULT Load(const SceneDesc& desc) override;
