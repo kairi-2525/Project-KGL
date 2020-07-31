@@ -56,7 +56,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -64,11 +64,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"SCALE", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			"SCALE_WIDTH", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"SCALE_POWER", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			"SCALE_FRONT", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_BACK", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -76,7 +80,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"VELOCITY", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			"VELOCITY", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -766,7 +770,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
 			particle.position = { 0.f, 0.f, 0.f };
 			particle.mass = 1.f;
-			particle.scale = 0.1f;
+			particle.scale_width = 0.1f;
+			particle.scale_front = 0.1f;
+			particle.scale_back = 0.1f;
 			XMStoreFloat3(&particle.velocity, random_vec * 3.1);
 			particle.Update(spawn_timer, cb);
 			spawn_timer -= spawn_elapsed;

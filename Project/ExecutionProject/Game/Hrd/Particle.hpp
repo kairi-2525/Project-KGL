@@ -14,10 +14,10 @@ struct Particle
 {
 	DirectX::XMFLOAT4	color;
 	DirectX::XMFLOAT3	position;
-	float				pad0;
 	float				mass;
-	float				scale;
-	float				scale_power;
+	float				scale_width;
+	float				scale_front;
+	float				scale_back;
 	float				angle;
 	DirectX::XMFLOAT3	velocity;
 	float				pad1;

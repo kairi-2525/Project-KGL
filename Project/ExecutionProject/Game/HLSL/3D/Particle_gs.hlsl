@@ -13,24 +13,24 @@ void GSMain(
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
 
 	float speed = length(vel);
-	float angle = radians(90);
-	row_major float2x2 Rotation2D =
+	static const float angle = radians(90);
+	static const row_major float2x2 Rotation2D =
 	{
 		cos(angle), -sin(angle),
 		sin(angle), cos(angle)
 	};
 
 	// “_‚ð–Ê‚É‚·‚é
-	float scale = input[0].scale * 0.5f;
+	float scale_width = input[0].scale_width * 0.5f;
 	/*float w = input[0].scale * 0.5f;
 	float h = input[0].scale * 0.5f;*/
 	float2 view_vec = view_front_pos.xy - view_pos.xy;
 	float2 view_vec_norm = normalize(view_vec);
 	float2 view_down_norm = mul(view_vec_norm, Rotation2D);
-	float4 pos_lt = view_pos + float4(float2(view_vec) * scale, 0.0, 0.0);
-	float4 pos_rb = view_pos - float4(float2(view_vec) * scale, 0.0, 0.0);
-	float4 pos_rt = view_pos + float4(view_down_norm * scale, 0.0, 0.0);
-	float4 pos_lb = view_pos + float4(-view_down_norm * scale, 0.0, 0.0);
+	float4 pos_lt = view_pos + float4(float2(view_vec) * input[0].scale_front, 0.0, 0.0);
+	float4 pos_rb = view_pos - float4(float2(view_vec) * input[0].scale_back, 0.0, 0.0);
+	float4 pos_rt = view_pos + float4(view_down_norm * scale_width, 0.0, 0.0);
+	float4 pos_lb = view_pos + float4(-view_down_norm * scale_width, 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;
