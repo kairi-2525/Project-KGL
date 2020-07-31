@@ -18,6 +18,10 @@ struct Particle
 	float				scale_width;
 	float				scale_front;
 	float				scale_back;
+	float				scale_speed_width;
+	float				scale_speed_front;
+	float				scale_speed_back;
+	float				center_propotion;
 	float				angle;
 	DirectX::XMFLOAT3	velocity;
 	float				pad1;

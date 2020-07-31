@@ -76,6 +76,22 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
+			"SCALE_SPEED_WIDTH", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_SPEED_FRONT", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_SPEED_BACK", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"CENTER_PROPOTION", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
 			"ANGLE", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
@@ -770,7 +786,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
 			particle.position = { 0.f, 0.f, 0.f };
 			particle.mass = 1.f;
-			particle.scale_width = 0.1f;
+			particle.scale_width = 0.2f;
 			particle.scale_front = 0.1f;
 			particle.scale_back = 0.1f;
 			XMStoreFloat3(&particle.velocity, random_vec * 3.1);

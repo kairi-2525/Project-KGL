@@ -22,15 +22,17 @@ void GSMain(
 
 	// “_‚ð–Ê‚É‚·‚é
 	float scale_width = input[0].scale_width * 0.5f;
+	float scale_speed_width = input[0].scale_speed_width * 0.5f;
+	
 	/*float w = input[0].scale * 0.5f;
 	float h = input[0].scale * 0.5f;*/
 	float2 view_vec = view_front_pos.xy - view_pos.xy;
 	float2 view_vec_norm = normalize(view_vec);
 	float2 view_down_norm = mul(view_vec_norm, Rotation2D);
-	float4 pos_lt = view_pos + float4(float2(view_vec) * input[0].scale_front, 0.0, 0.0);
-	float4 pos_rb = view_pos - float4(float2(view_vec) * input[0].scale_back, 0.0, 0.0);
-	float4 pos_rt = view_pos + float4(view_down_norm * scale_width, 0.0, 0.0);
-	float4 pos_lb = view_pos + float4(-view_down_norm * scale_width, 0.0, 0.0);
+	float4 pos_lt = view_pos + float4(view_vec_norm * input[0].scale_front + view_vec * input[0].scale_speed_front, 0.0, 0.0);
+	float4 pos_rb = view_pos - float4(view_vec_norm * input[0].scale_back + view_vec * input[0].scale_speed_back, 0.0, 0.0);
+	float4 pos_rt = view_pos + float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
+	float4 pos_lb = view_pos - float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;
