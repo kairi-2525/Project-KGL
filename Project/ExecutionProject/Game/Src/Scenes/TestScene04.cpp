@@ -277,11 +277,12 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 		std::vector<SkyVertex> sky_vertices(4 * CUBE::NUM);
 		enum { TL, TR, BL, BR };
+		const float one_texcel_size = 1.f / sky_tex_data.cbegin()->second->tex[0]->Data()->GetDesc().Width;
 		std::vector<DirectX::XMFLOAT2> uv(4);
-		uv[TL] = { 0.f, 0.f };
-		uv[TR] = { 1.f, 0.f };
-		uv[BL] = { 0.f, 1.f };
-		uv[BR] = { 1.f, 1.f };
+		uv[TL] = { 0.f - one_texcel_size, 0.f - one_texcel_size };
+		uv[TR] = { 1.f + one_texcel_size, 0.f - one_texcel_size };
+		uv[BL] = { 0.f - one_texcel_size, 1.f + one_texcel_size };
+		uv[BR] = { 1.f + one_texcel_size, 1.f + one_texcel_size };
 
 		const auto sky_tex_size = sky_tex_data.begin()->second->tex[0]->Data()->GetDesc().Width;
 		float inner = 1.f / sky_tex_size;
@@ -351,6 +352,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ALPHA;
 		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
 
+		auto& sampler = renderer_desc.static_samplers[0];
+		sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
 		sky_renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
 
 		sky_buffer.Load(desc);

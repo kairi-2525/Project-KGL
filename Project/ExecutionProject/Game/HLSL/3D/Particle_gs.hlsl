@@ -6,38 +6,31 @@ void GSMain(
 	inout TriangleStream<PSInput> output
 )
 {
-	if (input[0].exist_time <= 0.f) return;
-	// 座標変換 (ワールド座標系 → ビュー座標系)
-	float4 pos = mul(float4(input[0].pos.xyz, 1.0), view);
-	float4 vel = mul(float4(normalize(input[0].velocity.xyz), 1.0), view);
-	float speed = length(input[0].velocity.xyz);
+	float3 pos = input[0].pos.xyz;
+	float3 vel = input[0].velocity.xyz;
+	float3 front_pos = pos + (vel * 1.1f);
+	float4 view_pos = mul(float4(pos, 1.0), view);
+	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
 
+	float speed = length(vel);
 	float angle = radians(90);
-	// 点を面にする
-	float w = input[0].scale * 0.5f;
-	float h = input[0].scale * 0.5f;
-
-	/*row_major float2x2 Rotation2D =
-	{	1, 0,
-		0, 1
-	};*/
-
-	/*row_major float2x2 Rotation90plus =
-	{ 
-		cos(angle), sin(angle),
-		-sin(angle), cos(angle)
+	row_major float2x2 Rotation2D =
+	{
+		cos(angle), -sin(angle),
+		sin(angle), cos(angle)
 	};
-	float2 width_vel = mul(vel.xy, Rotation90plus);
 
-	float4 pos_lt = pos + vel * speed * h;
-	float4 pos_rb = pos - vel * speed * h;
-	float4 pos_rt = pos + float4(width_vel, 0.0, 0.0) * w;
-	float4 pos_lb = pos - float4(width_vel, 0.0, 0.0) * w;*/
-
-	float4 pos_lt = pos + float4(-w, h, 0.0, 0.0);
-	float4 pos_rt = pos + float4(w, h, 0.0, 0.0);
-	float4 pos_lb = pos + float4(-w, -h, 0.0, 0.0);
-	float4 pos_rb = pos + float4(w, -h, 0.0, 0.0);
+	// 点を面にする
+	float scale = input[0].scale * 0.5f;
+	/*float w = input[0].scale * 0.5f;
+	float h = input[0].scale * 0.5f;*/
+	float2 view_vec = view_front_pos.xy - view_pos.xy;
+	float2 view_vec_norm = normalize(view_vec);
+	float2 view_down_norm = mul(view_vec_norm, Rotation2D);
+	float4 pos_lt = view_pos + float4(float2(view_vec) * scale, 0.0, 0.0);
+	float4 pos_rb = view_pos - float4(float2(view_vec) * scale, 0.0, 0.0);
+	float4 pos_rt = view_pos + float4(view_down_norm * scale, 0.0, 0.0);
+	float4 pos_lb = view_pos + float4(-view_down_norm * scale, 0.0, 0.0);
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;

@@ -115,6 +115,7 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 		};
 		ComPtr<IDXGIAdapter1> top_adapter;
 		UINT8 top_lv = 0u;
+		SIZE_T max_memory_size = 0u;
 		constexpr UINT8 max_lv = SCAST<UINT8>(std::size(levels));
 
 		while (DXGI_ERROR_NOT_FOUND != (hr = factory->EnumAdapters1(adapter_index++, &set_adapter)))
@@ -130,21 +131,21 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 				hr = D3D12CreateDevice(set_adapter.Get(), lv, __uuidof(ID3D12Device), nullptr);
 				if (SUCCEEDED(hr))
 				{
-					if (top_lv < lv_count)
+					if (top_lv <= lv_count && max_memory_size < desc.DedicatedVideoMemory)
 					{
 						top_lv = lv_count;
 						use_lv = lv;
+						max_memory_size = desc.DedicatedVideoMemory;
 						set_adapter.As(&top_adapter);
 						break;
 					}
 				}
 				lv_count--;
 			}
-			if (top_lv == max_lv) break;
 		}
 		try
 		{
-			if (FAILED(hr)) throw std::runtime_error("DirectX12に対応するハードウェアアダプターが見つかりませんでした。\nこの環境ではDirectX12を実行できません。");
+			if (FAILED(hr) && !top_adapter) throw std::runtime_error("DirectX12に対応するハードウェアアダプターが見つかりませんでした。\nこの環境ではDirectX12を実行できません。");
 		}
 		catch (std::runtime_error& exception)
 		{
