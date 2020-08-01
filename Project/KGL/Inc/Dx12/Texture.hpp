@@ -35,8 +35,17 @@ namespace KGL
 		private:
 			std::filesystem::path m_path;
 			ComPtr<ID3D12Resource> m_buffer;
+			std::unique_ptr<DirectX::XMFLOAT4> m_clear_value;
 		public:
 			Texture() = default;
+			const Texture& operator=(const Texture& tex) noexcept
+			{
+				m_path = tex.m_path;
+				m_buffer = tex.m_buffer;
+				if (tex.m_clear_value) m_clear_value = std::make_unique<DirectX::XMFLOAT4>(*tex.m_clear_value);
+				return *this;
+			}
+			Texture(const Texture& tex) noexcept { *this = tex; }
 			// 画像テクスチャ
 			explicit Texture(const ComPtr<ID3D12Device>& device,
 				const std::filesystem::path& path, TextureManager* mgr = nullptr) noexcept
@@ -107,6 +116,7 @@ namespace KGL
 			
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
 			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
+			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }
 		};
 		
 		namespace TEXTURE

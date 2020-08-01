@@ -11,6 +11,7 @@
 
 #include "../Helper/ComPtr.hpp"
 #include "CommandQueue.hpp"
+#include "DescriptorHeap.hpp"
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
@@ -24,7 +25,8 @@ namespace KGL
 		protected:
 			ComPtr<ID3D12Device>					m_dev;
 			ComPtr<IDXGISwapChain4>					m_swapchain;
-			ComPtr<ID3D12DescriptorHeap>			m_rtv_heap;
+			std::shared_ptr<DescriptorManager>		m_rtv_heap;
+			std::vector<DescriptorHandle>			m_rtv_handles;
 			ComPtr<ID3D12DescriptorHeap>			m_dsv_heap;
 			std::vector<ComPtr<ID3D12Resource>>		m_rtv_buffers;
 			ComPtr<ID3D12Resource>					m_depth_buff;
@@ -59,7 +61,6 @@ namespace KGL
 			void ClearRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 				const DirectX::XMFLOAT4& clear_color) const noexcept;
 			void ClearDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
-			void SetViewPort(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target) const noexcept;
 
 			const ComPtr<ID3D12Device>& GetDevice() const noexcept { return  m_dev; }
@@ -67,11 +68,16 @@ namespace KGL
 			const std::shared_ptr<CommandQueue>& GetQueue() const noexcept { return  m_cmd_queue; }
 			const std::vector<ComPtr<ID3D12Resource>>& GetRtvBuffers() const noexcept { return  m_rtv_buffers; }
 			const ComPtr<ID3D12Resource>& GetDsvBuffer() const noexcept { return  m_depth_buff; }
-			const ComPtr<ID3D12DescriptorHeap>& GetRtvHeap() const noexcept { return  m_rtv_heap; }
+			const ComPtr<ID3D12DescriptorHeap>& GetRtvHeap() const noexcept { return  m_rtv_heap->Heap(); }
+			const std::shared_ptr<DescriptorManager>& GetRtvHeapMgr() const noexcept { return  m_rtv_heap; }
 			const ComPtr<ID3D12DescriptorHeap>& GetDsvHeap() const noexcept { return  m_dsv_heap; }
 			bool IsTearingSupport() const noexcept { return m_tearing_support; }
 			UINT GetMaxQualityLevel() const noexcept { return m_max_quality_level; }
 			UINT GetMaxSampleCount() const noexcept { return m_max_sample_count; }
+			DescriptorHandle GetBackBufferCPUHandle() const noexcept
+			{
+				return m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()];
+			}
 		};
 
 		using App = Application;

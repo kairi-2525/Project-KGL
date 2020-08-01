@@ -5,23 +5,32 @@ using namespace KGL;
 
 RenderTargetView::RenderTargetView(
 	ComPtr<ID3D12Device> device,
-	const std::vector<ComPtr<ID3D12Resource>>& resources
+	const std::vector<ComPtr<ID3D12Resource>>& resources,
+	const std::shared_ptr<KGL::DescriptorManager>& rtv_desc_mgr
 ) noexcept
 {
 	m_buffers = resources;
 	HRESULT hr = S_OK;
 	const auto size = m_buffers.size();
+	if (rtv_desc_mgr)
 	{
-		// RTVópÉqÅ[ÉvçÏê¨
-		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
-		heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		heap_desc.NumDescriptors = SCAST<UINT>(size);
-		hr = device->CreateDescriptorHeap(
-			&heap_desc,
-			IID_PPV_ARGS(m_rtv_heap.GetAddressOf())
-		);
-		RCHECK(FAILED(hr), "CreateDescriptorHeapÇ…é∏îs");
+		m_rtv_mgr = rtv_desc_mgr;
+		m_rtv_handles.resize(size);
+	}
+	else
+	{
+		{
+			// RTVópÉqÅ[ÉvçÏê¨
+			D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
+			heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+			heap_desc.NumDescriptors = SCAST<UINT>(size);
+			hr = device->CreateDescriptorHeap(
+				&heap_desc,
+				IID_PPV_ARGS(m_rtv_heap.GetAddressOf())
+			);
+			RCHECK(FAILED(hr), "CreateDescriptorHeapÇ…é∏îs");
 
+		}
 	}
 
 	{
@@ -47,32 +56,79 @@ RenderTargetView::RenderTargetView(
 	srv_desc.Texture2D.MipLevels = 1;
 	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	// äeÉnÉìÉhÉã
-	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
 	auto srv_handle = m_srv_heap->GetCPUDescriptorHandleForHeapStart();
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	for (auto i = 0; i < size; i++)
+	if (m_rtv_mgr)
 	{
-		if (!m_buffers[i]) continue;
+		for (auto i = 0; i < size; i++)
+		{
+			if (!m_buffers[i]) continue;
+			m_rtv_handles[i] = m_rtv_mgr->Alloc();
+			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+			device->CreateRenderTargetView(
+				m_buffers[i].Get(),
+				&rtv_desc,
+				m_rtv_handles[i].Cpu()
+			);
 
-		rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
-		device->CreateRenderTargetView(
-			m_buffers[i].Get(),
-			&rtv_desc,
-			rtv_handle
-		);
+			srv_desc.Format = m_buffers[i]->GetDesc().Format;
+			device->CreateShaderResourceView(
+				m_buffers[i].Get(),
+				&srv_desc,
+				srv_handle
+			);
 
-		srv_desc.Format = m_buffers[i]->GetDesc().Format;
-		device->CreateShaderResourceView(
-			m_buffers[i].Get(),
-			&srv_desc,
-			srv_handle
-		);
-
-		rtv_handle.ptr += icmt_rtv;
-		srv_handle.ptr += icmt_srv;
+			srv_handle.ptr += icmt_srv;
+		}
 	}
+	else
+	{
+		// äeÉnÉìÉhÉã
+		auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+		const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		for (auto i = 0; i < size; i++)
+		{
+			if (!m_buffers[i]) continue;
+
+			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+			device->CreateRenderTargetView(
+				m_buffers[i].Get(),
+				&rtv_desc,
+				rtv_handle
+			);
+
+			srv_desc.Format = m_buffers[i]->GetDesc().Format;
+			device->CreateShaderResourceView(
+				m_buffers[i].Get(),
+				&srv_desc,
+				srv_handle
+			);
+
+			rtv_handle.ptr += icmt_rtv;
+			srv_handle.ptr += icmt_srv;
+		}
+	}
+}
+
+RenderTargetView::~RenderTargetView()
+{
+	if (m_rtv_mgr)
+	{
+		for (const auto& handle : m_rtv_handles)
+		{
+			m_rtv_mgr->Free(handle);
+		}
+	}
+}
+
+HRESULT RenderTargetView::GetDevice(ComPtr<ID3D12Device>* p_device) const noexcept
+{
+	RCHECK(!p_device, "p_device Ç™ nullptr", E_FAIL);
+	if (m_rtv_mgr)
+	{
+		return m_rtv_mgr->Heap()->GetDevice(IID_PPV_ARGS(p_device->GetAddressOf()));
+	}
+	return m_rtv_heap->GetDevice(IID_PPV_ARGS(p_device->GetAddressOf()));
 }
 
 HRESULT RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
@@ -81,63 +137,61 @@ HRESULT RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 	RCHECK(!cmd_list, "cmd_list Ç™ nullptr", E_FAIL);
 	RCHECK(num >= m_buffers.size(), "num ÇÃílÇ™ëÂÇ´Ç∑Ç¨Ç‹Ç∑", E_FAIL);
 
-	ComPtr<ID3D12Device> device;
-	auto hr = m_rtv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", hr);
-
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
 	cmd_list->OMSetRenderTargets(
-		1, &handle, false,
+		1, &GetRTVCPUHandle(num), false,
 		p_dsv_handle
 	);
 
-	return hr;
+	return S_OK;
 }
 
 HRESULT RenderTargetView::SetAll(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list Ç™ nullptr", E_FAIL);
-
-	ComPtr<ID3D12Device> device;
-	auto hr = m_rtv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", hr);
-
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+	
 	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(m_buffers.size());
-	for (auto& it : handles)
+	if (m_rtv_mgr)
 	{
-		it = handle;
-		handle.ptr += icmt_rtv;
+		UINT i = 0u;
+		for (auto& it : handles)
+		{
+			it = m_rtv_handles[i].Cpu();
+			i++;
+		}
 	}
+	else
+	{
+		ComPtr<ID3D12Device> device;
+		auto hr = GetDevice(&device);
+		RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", hr);
+		const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+		for (auto& it : handles)
+		{
+			it = handle;
+			handle.ptr += icmt_rtv;
+		}
+	}
+	
 	cmd_list->OMSetRenderTargets(
 		SCAST<UINT>(handles.size()), handles.data(), false,
 		p_dsv_handle
 	);
 
-	return hr;
+	return S_OK;
 }
 
 HRESULT RenderTargetView::Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-	const DirectX::XMFLOAT4& clear_color, UINT num) const noexcept
+	const float* clear_color, UINT num) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list Ç™ nullptr", E_FAIL);
 	RCHECK(num >= m_buffers.size(), "num ÇÃílÇ™ëÂÇ´Ç∑Ç¨Ç‹Ç∑", E_FAIL);
+	RCHECK(!clear_color, "clear_color Ç™ nullptr", E_FAIL);
 
-	ComPtr<ID3D12Device> device;
-	auto hr = m_rtv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", hr);
+	cmd_list->ClearRenderTargetView(GetRTVCPUHandle(num), clear_color, 0, nullptr);
 
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
-
-	cmd_list->ClearRenderTargetView(handle, (float*)&clear_color, 0, nullptr);
-
-	return hr;
+	return S_OK;
 }
 
 D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_target, UINT num) noexcept
@@ -171,27 +225,41 @@ std::vector<D3D12_RESOURCE_BARRIER> RenderTargetView::GetRtvResourceBarriers(boo
 D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView::GetRTVCPUHandle(UINT num) const noexcept
 {
 	RCHECK(num >= m_buffers.size(), "num ÇÃílÇ™ëÂÇ´Ç∑Ç¨Ç‹Ç∑", {});
-	ComPtr<ID3D12Device> device;
-	auto hr = m_rtv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", {});
+	if (m_rtv_mgr)
+	{
+		return m_rtv_handles[num].Cpu();
+	}
+	else
+	{
+		ComPtr<ID3D12Device> device;
+		auto hr = GetDevice(&device);
+		RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", {});
 
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
-	return handle;
+		const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		auto handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
+		handle.ptr += SCAST<UINT64>(num * icmt_rtv);
+		return handle;
+	}
 }
 
 D3D12_GPU_DESCRIPTOR_HANDLE RenderTargetView::GetRTVGPUHandle(UINT num) const noexcept
 {
 	RCHECK(num >= m_buffers.size(), "num ÇÃílÇ™ëÂÇ´Ç∑Ç¨Ç‹Ç∑", {});
-	ComPtr<ID3D12Device> device;
-	auto hr = m_rtv_heap->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
-	RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", {});
+	if (m_rtv_mgr)
+	{
+		return m_rtv_handles[num].Gpu();
+	}
+	else
+	{
+		ComPtr<ID3D12Device> device;
+		auto hr = GetDevice(&device);
+		RCHECK(FAILED(hr), "GetDeviceÇ…é∏îs", {});
 
-	const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	auto handle = m_rtv_heap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += SCAST<UINT64>(num * icmt_rtv);
-	return handle;
+		const auto icmt_rtv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		auto handle = m_rtv_heap->GetGPUDescriptorHandleForHeapStart();
+		handle.ptr += SCAST<UINT64>(num * icmt_rtv);
+		return handle;
+	}
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetView::GetSRVCPUHandle(UINT num) const noexcept

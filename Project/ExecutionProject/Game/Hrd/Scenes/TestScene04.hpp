@@ -20,7 +20,7 @@
 #include "../Particle.hpp"
 #include "../Fireworks.hpp"
 #include "../SkyMap.hpp"
-
+#include "../Bloom.hpp"
 #include "../Obj3D.hpp"
 
 class TestScene04 : public SceneBase
@@ -46,6 +46,8 @@ private:
 	bool										use_gui;
 
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			high_sprite_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer;
 	std::shared_ptr<KGL::Board>					board;
@@ -76,6 +78,9 @@ private:
 
 	std::shared_ptr<KGL::RenderTargetView>		rtvs;
 	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
+	std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
+	std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_textures;
+	std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
 
 	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
 	std::vector<Particle>						frame_particles;
@@ -105,7 +110,8 @@ private:
 	SceneBufferDx12<AlphaBuffer>						grid_buffer;
 
 	std::shared_ptr<SkyManager>							sky_mgr;
-
+	std::shared_ptr<BloomGenerator>						bloom_generator;
+	KGL::DescriptorHandle								bloom_imgui_handle;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

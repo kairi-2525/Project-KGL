@@ -41,8 +41,20 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		RCHECK(FAILED(hr), "コマンドキューの生成に失敗！", hr);
 	}
 
-	sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device);
-	sprite = std::make_shared<KGL::Sprite>(device);
+
+	{
+		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
+		add_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+
+		renderer_desc.ps_desc.hlsl = "./HLSL/2D/SpriteAdd_ps.hlsl";
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		sprite = std::make_shared<KGL::Sprite>(device);
+	}
 
 	{
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
@@ -110,6 +122,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.depth_desc = {};
+		renderer_desc.render_targets.push_back(renderer_desc.render_targets[0]);
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -120,15 +133,35 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
 	{
-		constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-		/*rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-			device, desc.app->GetRtvBuffers().at(0), clear_value));
-		rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-			device, desc.app->GetRtvBuffers().at(0), clear_value));*/
-		rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-			device, desc.app->GetRtvBuffers().at(0), clear_value));
-		const auto& resources = KGL::TEXTURE::GetResources(rtv_textures);
-		rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
+		{
+			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+			rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, desc.app->GetRtvBuffers().at(0), clear_value));
+			const auto& resources = KGL::TEXTURE::GetResources(rtv_textures);
+			rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
+		}
+		{
+			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, desc.app->GetRtvBuffers().at(0), clear_value));
+			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, desc.app->GetRtvBuffers().at(0), clear_value));
+			const auto& resources = KGL::TEXTURE::GetResources(ptc_rtv_textures);
+			ptc_rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+			srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srv_desc.Texture2D.MipLevels = 1;
+			srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			for (auto& tex : ptc_rtv_textures)
+			{
+				auto& imgui_handle = ptc_srv_gui_handles.emplace_back();
+				imgui_handle = desc.imgui_heap_mgr->Alloc();
+
+				srv_desc.Format = tex->Data()->GetDesc().Format;
+				device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			}
+		}
 	}
 
 	D3D12_HEAP_PROPERTIES prop = {};
@@ -248,7 +281,18 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	
 	sky_mgr = std::make_shared<SkyManager>(device, desc.imgui_heap_mgr);
 
+	{
+		bloom_generator = std::make_shared<BloomGenerator>(device, desc.app->GetRtvBuffers().at(0));
+		bloom_imgui_handle = desc.imgui_heap_mgr->Alloc();
+		const auto& tex = bloom_generator->GetTexture();
 
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Format = tex->Data()->GetDesc().Format;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, bloom_imgui_handle.Cpu());
+	}
 
 	return hr;
 }
@@ -362,8 +406,16 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gui)
 	{
+		if (ImGui::Begin("RenderTargets"))
+		{
+			auto gui_size = ImGui::GetWindowSize();
+			for (const auto& handle : ptc_srv_gui_handles)
+				ImGui::Image((ImTextureID)handle.Gpu().ptr, { gui_size.x * 0.8f, gui_size.y * 0.8f });
+			ImGui::Image((ImTextureID)bloom_imgui_handle.Gpu().ptr, { gui_size.x * 0.8f, gui_size.y * 0.8f });
+		}
+		ImGui::End();
 		ImGui::Begin("Camera");
-		ImGui::SliderFloat3("pos", (float*)&camera.eye, -50.f, 50.f);
+		ImGui::SliderFloat3("pos", (float*)&camera.eye, -500.f, 500.f);
 		{
 			using namespace DirectX;
 			DirectX::XMFLOAT2 degree = { XMConvertToDegrees(camera_angle.x), XMConvertToDegrees(camera_angle.y) };
@@ -585,7 +637,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				);
 
 			auto& particle = frame_particles.emplace_back();
-			particle.exist_time = 20.f;
+			particle.exist_time = 5.f;
 			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
 			particle.position = { 0.f, 0.f, 0.f };
 			particle.mass = 1.f;
@@ -679,63 +731,68 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		*p_counter += frame_add_ptc_num;
 		particle_total_num = *p_counter;
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
-		if (ImGui::Begin("Particle"))
+		if (use_gui)
 		{
-			bool use_gpu_log = use_gpu;
-			if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
-			ImGui::SameLine();
-			if (ImGui::RadioButton("CPU", !use_gpu)) use_gpu = false;
-			const bool reset_max_counter0 = use_gpu_log != use_gpu;
-			const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
-			ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
-			ImGui::InputFloat("", &time_scale);
-			ct_particle = std::max<UINT64>(ct_particle, *p_counter);
-			ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
-			ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
-			ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
-			ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
-			ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
-			ct_gpu = std::max<UINT64>(ct_gpu, gputime);
-			ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
-			ct_cpu = std::max<UINT64>(ct_cpu, cputime);
-			ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
-			ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
-			ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
-			ct_map_update = std::max<UINT64>(ct_map_update, map_update);
-			ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
-
-			if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
+			if (ImGui::Begin("Particle"))
 			{
-				const auto imgui_window_size = ImGui::GetWindowSize();
-				ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
-				for (auto& it : b_tex_data)
+				bool use_gpu_log = use_gpu;
+				if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
+				ImGui::SameLine();
+				if (ImGui::RadioButton("CPU", !use_gpu)) use_gpu = false;
+				const bool reset_max_counter0 = use_gpu_log != use_gpu;
+				const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
+				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
+				ImGui::InputFloat("", &time_scale);
+				ct_particle = std::max<UINT64>(ct_particle, *p_counter);
+				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
+				ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
+				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
+				ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
+				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
+				ct_gpu = std::max<UINT64>(ct_gpu, gputime);
+				ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
+				ct_cpu = std::max<UINT64>(ct_cpu, cputime);
+				ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
+				ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
+				ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
+				ct_map_update = std::max<UINT64>(ct_map_update, map_update);
+				ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+
+				if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
 				{
-					const ImVec2 image_size = { 90, 90 };
-					ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr, image_size);
-					ImGui::SameLine();
-					const auto imgui_window_child_size = ImGui::GetWindowSize();
-					std::string path = it.tex->GetPath().string();
-					auto path_size = ImGui::CalcTextSize(path.c_str());
-					const float string_draw_width = std::max(0.f, (imgui_window_child_size.x - image_size.x) - 20);
-					UINT str_line_count = KGL::SCAST<UINT>(path_size.x / string_draw_width);
-					UINT line_size = KGL::SCAST<UINT>(string_draw_width / (path_size.x / path.length()));
-					for (UINT i = 0u; i < str_line_count; i++)
+					const auto imgui_window_size = ImGui::GetWindowSize();
+					ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar);
+					for (auto& it : b_tex_data)
 					{
-						path.insert(i + ((i + 1) * line_size), "\n");
+						const ImVec2 image_size = { 90, 90 };
+						ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr, image_size);
+						ImGui::SameLine();
+						const auto imgui_window_child_size = ImGui::GetWindowSize();
+						std::string path = it.tex->GetPath().string();
+						auto path_size = ImGui::CalcTextSize(path.c_str());
+						const float string_draw_width = std::max(0.f, (imgui_window_child_size.x - image_size.x) - 20);
+						UINT str_line_count = KGL::SCAST<UINT>(path_size.x / string_draw_width);
+						UINT line_size = KGL::SCAST<UINT>(string_draw_width / (path_size.x / path.length()));
+						for (UINT i = 0u; i < str_line_count; i++)
+						{
+							path.insert(i + ((i + 1) * line_size), "\n");
+						}
+						if (it.handle == b_select_srv_handle)
+						{
+							ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, path.c_str());
+						}
+						else if (ImGui::Button(path.c_str()))
+						{
+							b_select_srv_handle = it.handle;
+						}
 					}
-					if (it.handle == b_select_srv_handle)
-					{
-						ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, path.c_str());
-					}
-					else if (ImGui::Button(path.c_str()))
-					{
-						b_select_srv_handle = it.handle;
-					}
+					ImGui::EndChild();
 				}
-				ImGui::EndChild();
+				ImGui::NewLine();
+				//ImGui::
 			}
+			ImGui::End();
 		}
-		ImGui::End();
 		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 
@@ -781,34 +838,14 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	cmd_list->RSSetViewports(1, &viewport);
 	cmd_list->RSSetScissorRects(1, &scissorrect);
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.f);
-	//{
-	//	const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
-	//	const UINT rtv_size = KGL::SCAST<UINT>(rbs_rt.size());
-	//	cmd_list->ResourceBarrier(rtv_size, rbs_rt.data());
-	//	rtvs->SetAll(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
-	//	for (UINT i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_value, i);
-	//	desc.app->ClearDsv(cmd_list);
 
-	//	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	//	board_renderer->SetState(cmd_list);
-	//	cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
-	//	cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-	//	cmd_list->SetDescriptorHeaps(1, b_cbv.Heap().GetAddressOf());
-	//	cmd_list->SetGraphicsRootDescriptorTable(1, b_cbv.Gpu());
-	//	cmd_list->SetDescriptorHeaps(1, b_srv.Heap().GetAddressOf());
-	//	cmd_list->SetGraphicsRootDescriptorTable(0, b_srv.Gpu());
-
-	//	board->Render(cmd_list);
-
-
-	//	const auto& rbs_sr = rtvs->GetRtvResourceBarriers(false);
-	//	cmd_list->ResourceBarrier(rtv_size, rbs_sr.data());
-	//}
 	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->SetRtvDsv(cmd_list);
-
-		desc.app->ClearRtvDsv(cmd_list, clear_value);
+		const UINT rtv_num = 0u;
+		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
+		const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		rtvs->Set(cmd_list, dsv_handle, rtv_num);
+		rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+		desc.app->ClearDsv(cmd_list);
 
 		// SKY描画
 		sky_mgr->Render(cmd_list);
@@ -821,6 +858,16 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
 		cmd_list->IASetIndexBuffer(&grid_ibv);
 		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
+
+		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+	}
+	{
+		const UINT rtv_num = 0u;
+		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
+
+		const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		ptc_rtvs->Set(cmd_list, dsv_handle, rtv_num);
+		ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[rtv_num]->GetClearColor(), rtv_num);
 
 		// パーティクル描画
 		if (particle_total_num > 0)
@@ -840,6 +887,46 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
 		}
+
+		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(false, rtv_num));
+	}
+	{
+		const UINT rtv_num = 1u;
+		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
+
+		ptc_rtvs->Set(cmd_list, nullptr, rtv_num);
+		ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		high_sprite_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(0));
+		sprite->Render(cmd_list);
+
+		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(false, rtv_num));
+	}
+	{
+		bloom_generator->Generate(cmd_list, ptc_rtvs->GetSRVHeap(), ptc_rtvs->GetSRVGPUHandle(1), viewport);
+	}
+	{
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+
+		desc.app->SetRtv(cmd_list);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		sprite_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
+		sprite->Render(cmd_list);
+
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		add_sprite_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(0));
+		sprite->Render(cmd_list);
+
+		bloom_generator->Render(cmd_list);
 
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
@@ -868,5 +955,16 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	sky_mgr->Uninit(desc.imgui_heap_mgr);
+
+	for (auto& it : b_tex_data)
+	{
+		desc.imgui_heap_mgr->Free(it.imgui_handle);
+	}
+
+	for (const auto& handle : ptc_srv_gui_handles)
+	{
+		desc.imgui_heap_mgr->Free(handle);
+	}
+
 	return S_OK;
 }

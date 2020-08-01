@@ -60,6 +60,9 @@
     <ClCompile Include="Src\SkyMap.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Bloom.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Scene.hpp">
@@ -107,6 +110,9 @@
     <ClInclude Include="Hrd\SkyMap.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\Bloom.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
@@ -143,6 +149,10 @@
     <FxCompile Include="HLSL\3D\NearAlpha_vs.hlsl" />
     <FxCompile Include="HLSL\3D\UnNormal_vs.hlsl" />
     <FxCompile Include="HLSL\3D\UnNormal_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\ParticleAdd_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\HasColor_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\SpriteAdd_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Bloom_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

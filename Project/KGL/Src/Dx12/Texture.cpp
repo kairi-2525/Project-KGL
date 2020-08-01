@@ -344,6 +344,8 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	if (m_path.empty()) m_path = "noname";
 	HRESULT hr = S_OK;
 	RCHECK(!resource, "ïsê≥Ç»ResourceÇ™ìnÇ≥ÇÍÇ‹ÇµÇΩ", E_FAIL);
+
+	m_clear_value = std::make_unique<DirectX::XMFLOAT4>(clear_value);
 	auto res_desc = resource->GetDesc();
 	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 

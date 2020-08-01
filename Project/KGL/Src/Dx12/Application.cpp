@@ -221,25 +221,13 @@ HRESULT Application::CreateHeaps() noexcept
 {
 	HRESULT hr = S_OK;
 	{
-		D3D12_DESCRIPTOR_HEAP_DESC heap_desc = {};
-		// レンダーターゲットビューなのでRTV
-		heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		heap_desc.NodeMask = 0;
-		// 表裏の２つ
-		heap_desc.NumDescriptors = 2;
-		// 特に指定なし(シェーダー側から見る必要がないため)
-		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-		hr = m_dev->CreateDescriptorHeap(&heap_desc, IID_PPV_ARGS(m_rtv_heap.ReleaseAndGetAddressOf()));
-		RCHECK(FAILED(hr), "RTVのディスクリプタヒープの生成に失敗！", hr);
+		m_rtv_heap = std::make_shared<DescriptorManager>(m_dev, 100u, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 	}
 	{
 		DXGI_SWAP_CHAIN_DESC swc_desc = {};
 		hr = m_swapchain->GetDesc(&swc_desc);
 
 		m_rtv_buffers.resize(swc_desc.BufferCount, nullptr);
-
-		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(m_rtv_heap->GetCPUDescriptorHandleForHeapStart());
-		const UINT increment_size = m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 		D3D12_RENDER_TARGET_VIEW_DESC* rtv_desc_ptr = nullptr;
 #ifdef USE_SRGB
@@ -254,18 +242,19 @@ HRESULT Application::CreateHeaps() noexcept
 		rtv_desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		rtv_desc_ptr = &rtv_desc;
 #endif
+		m_rtv_handles.resize(swc_desc.BufferCount);
 		for (UINT idx = 0; idx < swc_desc.BufferCount; idx++)
 		{
 			hr = m_swapchain->GetBuffer(idx, IID_PPV_ARGS(m_rtv_buffers[idx].ReleaseAndGetAddressOf()));
 			RCHECK(FAILED(hr), "RTVのバッファー確保に失敗", hr);
 			SetName(m_rtv_buffers[idx], RCAST<INT_PTR>(this), L" Application", L"RTV");
 
+			m_rtv_handles[idx] = m_rtv_heap->Alloc();
 			m_dev->CreateRenderTargetView(
 				m_rtv_buffers[idx].Get(),
 				rtv_desc_ptr,
-				handle
+				m_rtv_handles[idx].Cpu()
 			);
-			handle.Offset(increment_size);
 		}
 	}
 	{
@@ -354,41 +343,28 @@ HRESULT Application::CheckMaxSampleCount() noexcept
 void Application::SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list が nullptr");
-	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
-	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, &dsv_handle);
+	cmd_list->OMSetRenderTargets(1, &m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), true, &dsv_handle);
 }
 
 void Application::SetRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list が nullptr");
-	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, nullptr);
+	cmd_list->OMSetRenderTargets(1, &m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), true, nullptr);
 }
 
 void Application::ClearRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 	const DirectX::XMFLOAT4& clear_color) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list が nullptr");
-	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	cmd_list->ClearRenderTargetView(rtv_handle, (float*)&clear_color, 0, nullptr);
+
+	cmd_list->ClearRenderTargetView(m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), (float*)&clear_color, 0, nullptr);
 }
 
 void Application::ClearDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
 	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
 	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-}
-
-void Application::SetViewPort(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
-{
-	assert(cmd_list);
-	auto rtv_handle = m_rtv_heap->GetCPUDescriptorHandleForHeapStart();
-	rtv_handle.ptr += SCAST<size_t>(m_swapchain->GetCurrentBackBufferIndex()) * m_dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
 }
 
 D3D12_RESOURCE_BARRIER Application::GetRtvResourceBarrier(bool render_target) const noexcept
