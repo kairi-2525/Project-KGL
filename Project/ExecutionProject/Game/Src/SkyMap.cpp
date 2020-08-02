@@ -176,18 +176,18 @@ void SkyManager::ImGuiUpdate(DirectX::CXMMATRIX viewproj)
 		}
 		ImGui::EndChild();
 		ImGui::SliderFloat("Scale", &scale, 1.f, 1000.f);
-		{
-			using namespace DirectX;
-			XMMATRIX W, S, R, T;
-			S = XMMatrixScaling(scale, scale, scale);
-			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-			T = XMMatrixTranslation(0.f, 0.f, 0.f);
-			W = S * R * T;
-			XMMATRIX WVP = W * viewproj;
-			SetWVP(WVP);
-		}
 	}
 	ImGui::End();
+	{
+		using namespace DirectX;
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(scale, scale, scale);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(0.f, 0.f, 0.f);
+		W = S * R * T;
+		XMMATRIX WVP = W * viewproj;
+		SetWVP(WVP);
+	}
 }
 
 void SkyManager::SetWVP(DirectX::CXMMATRIX wvp)

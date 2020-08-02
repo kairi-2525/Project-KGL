@@ -324,6 +324,7 @@ HRESULT Texture::Create(
 
 	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
+	m_clear_value = std::make_unique<DirectX::XMFLOAT4>(clear_value.Color[0], clear_value.Color[1], clear_value.Color[2], clear_value.Color[3]);
 	// バッファ作成
 	auto hr = device->CreateCommittedResource(
 		&heap_prop,

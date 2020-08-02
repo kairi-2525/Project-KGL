@@ -48,7 +48,6 @@ RenderTargetView::RenderTargetView(
 
 	// RTV—pDesc
 	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-	rtv_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// SRV—pDesc
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -64,6 +63,7 @@ RenderTargetView::RenderTargetView(
 		{
 			if (!m_buffers[i]) continue;
 			m_rtv_handles[i] = m_rtv_mgr->Alloc();
+			srv_desc.Format = rtv_desc.Format = m_buffers[i]->GetDesc().Format;
 			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
 			device->CreateRenderTargetView(
 				m_buffers[i].Get(),
@@ -71,7 +71,6 @@ RenderTargetView::RenderTargetView(
 				m_rtv_handles[i].Cpu()
 			);
 
-			srv_desc.Format = m_buffers[i]->GetDesc().Format;
 			device->CreateShaderResourceView(
 				m_buffers[i].Get(),
 				&srv_desc,
@@ -90,14 +89,15 @@ RenderTargetView::RenderTargetView(
 		{
 			if (!m_buffers[i]) continue;
 
+
 			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+			srv_desc.Format = rtv_desc.Format = m_buffers[i]->GetDesc().Format;
 			device->CreateRenderTargetView(
 				m_buffers[i].Get(),
 				&rtv_desc,
 				rtv_handle
 			);
 
-			srv_desc.Format = m_buffers[i]->GetDesc().Format;
 			device->CreateShaderResourceView(
 				m_buffers[i].Get(),
 				&srv_desc,

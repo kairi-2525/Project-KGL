@@ -96,7 +96,8 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				p.exist_time = rmdalivetime(mt);
 				p.scale_width = rmdscale(mt);
 				p.scale_front = p.scale_back = p.scale_width;
-				p.scale_width * 2.f;
+				p.scale_width *= 2.f;
+				//p.scale_speed_back = p.scale_back;
 				//p.scale_back * 2.f;
 				p.mass = 1.f;
 				p.Update((spawn_time_counter_max - spawn_time_counter), p_parent);

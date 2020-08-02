@@ -122,7 +122,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.depth_desc = {};
-		renderer_desc.render_targets.push_back(renderer_desc.render_targets[0]);
+		//renderer_desc.render_targets[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -144,8 +144,12 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
 				device, desc.app->GetRtvBuffers().at(0), clear_value));
+
+			D3D12_RESOURCE_DESC res_desc = desc.app->GetRtvBuffers().at(0)->GetDesc();
+			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			res_desc.MipLevels = 8u;
 			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-				device, desc.app->GetRtvBuffers().at(0), clear_value));
+				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
 			const auto& resources = KGL::TEXTURE::GetResources(ptc_rtv_textures);
 			ptc_rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
 
@@ -409,9 +413,24 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (ImGui::Begin("RenderTargets"))
 		{
 			auto gui_size = ImGui::GetWindowSize();
+			ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
 			for (const auto& handle : ptc_srv_gui_handles)
-				ImGui::Image((ImTextureID)handle.Gpu().ptr, { gui_size.x * 0.8f, gui_size.y * 0.8f });
-			ImGui::Image((ImTextureID)bloom_imgui_handle.Gpu().ptr, { gui_size.x * 0.8f, gui_size.y * 0.8f });
+				ImGui::Image((ImTextureID)handle.Gpu().ptr, image_size);
+			
+			ImVec2 uv_0 = { 0.f, 0.f };
+			ImVec2 uv_1 = { 1.f, 1.f };
+			ImVec2 uv_offset = uv_1;
+			ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+			for (int i = 0u; i < 6; i++)
+			{
+				uv_offset.x *= 0.5f;
+				uv_offset.y *= 0.5f;
+				uv_1.x = uv_0.x + uv_offset.x;
+				uv_1.y = uv_0.y + uv_offset.y;
+				ImGui::Image((ImTextureID)bloom_imgui_handle.Gpu().ptr, halh_image_size, uv_0, uv_1);
+				uv_0.y = uv_1.y;
+				if (i % 2 == 0) ImGui::SameLine();
+			}
 		}
 		ImGui::End();
 		ImGui::Begin("Camera");
@@ -497,14 +516,21 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
 			ptc_key_spawn_counter += key_spawn_time;
 
+		static constexpr auto to_sec_m = [](float hour_km)->float
+		{
+			return ((hour_km * 1000.f) / 60.f) / 60.f;
+		};
+
 		while (ptc_key_spawn_counter >= key_spawn_time)
 		{
 			FireworksDesc desc;
 			desc.pos = { 0.f, 0.f, 0.f };
-			desc.velocity = { 0.f, 50.f, 0.f };
 
 			std::random_device rd;
 			std::mt19937 mt(rd());
+
+			std::uniform_real_distribution<float> rmd_speed(to_sec_m(330.f), to_sec_m(356.f));
+			desc.velocity = { 0.f, rmd_speed(mt), 0.f };
 
 			std::uniform_real_distribution<float> rmdpos(-10.f, +10.f);
 			desc.pos.x += rmdpos(mt);
@@ -512,7 +538,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 			XMFLOAT2 nmangle;
 			nmangle.x = XMConvertToRadians(0.f) / XM_PI;
-			nmangle.y = XMConvertToRadians(10.f) / XM_PI;
+			nmangle.y = XMConvertToRadians(5.f) / XM_PI;
 			std::uniform_real_distribution<float> rmdangle(nmangle.x, nmangle.y);
 			std::uniform_real_distribution<float> rmdangle360(0.f, XM_2PI);
 			constexpr float radian90f = XMConvertToRadians(90.f);
@@ -531,12 +557,20 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			XMStoreFloat3(&desc.velocity, spawn_v * XMVector3Length(velocity));
 
 			desc.effects = FIREWORK_EFFECTS::A;
-			desc.mass = 1.f;
+			desc.mass = 1.f;/*
 			desc.effects[2].child = desc;
 			desc.effects[2].has_child = true;
 			desc.effects[2].child.effects[0].late = { 10.f, 10.f };
+			desc.effects[2].child.effects[0].time = 1.f;
 			desc.effects[2].child.effects[1].late = { 100.f, 100.f };
+			desc.effects[2].child.effects[1].start_time = 1.f;
+			desc.effects[2].child.effects[1].time = 0.05f;
 			desc.effects[2].child.effects[1].start_accel = 1.f;
+			desc.effects[2].child.effects[1].speed = { 50.f, 50.f };
+			desc.effects[2].child.effects[2].start_time = 1.f;
+			desc.effects[2].child.effects[2].time = 0.05f;
+			desc.effects[2].child.effects[2].speed = { 50.f, 50.f };
+			desc.effects[2].child.effects[2].late = { 100.f, 200.f };*/
 			fireworks.emplace_back(desc);
 			ptc_key_spawn_counter -= key_spawn_time;
 		}

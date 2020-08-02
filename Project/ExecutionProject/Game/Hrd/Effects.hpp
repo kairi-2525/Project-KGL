@@ -60,7 +60,7 @@ namespace FIREWORK_EFFECTS
 	{
 		{
 			0.f,	// start_time
-			1.f,	// time
+			9.f,	// time
 			1.f,	// start_accel
 			1.f,	// end_accel
 			{ 2.f, 3.f },	// alive_time
@@ -70,18 +70,18 @@ namespace FIREWORK_EFFECTS
 			{ 0.2f, 1.0f },	// scale
 			{ DirectX::XMConvertToRadians(177.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.2f },	// spawn_space
-			{ 1.f, 1.f, 1.f, 0.05f },	// color
+			{ 0.5f, 0.5f, 0.5f, 0.05f },	// color
 			false
 		},
 		{
-			1.f,	// start_time
-			0.1f,	// time
+			9.f,	// start_time
+			0.2f,	// time
 			0.f,	// start_accel
 			1.f,	// end_accel
-			{ 2.f, 3.f },	// alive_time
-			{ 1000.f, 1000.f },	// late
+			{ 1.f, 2.f },	// alive_time
+			{ 5000.f, 5000.f },	// late
 			1.0f,			// late_update_time
-			{ 5.f, 5.f },	// speed
+			{ 15.f, 20.f },	// speed
 			{ 0.5f, 1.f },	// scale
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.1f },	// spawn_space
@@ -89,14 +89,14 @@ namespace FIREWORK_EFFECTS
 			false
 		},
 		{
-			1.0f,	// start_time
-			0.1f,	// time
+			9.0f,	// start_time
+			0.2f,	// time
 			1.f,	// start_accel
 			1.f,	// end_accel
-			{ 2.f, 3.f },	// alive_time
-			{ 100.f, 200.f },	// late
+			{ 1.f, 2.f },	// alive_time
+			{ 500.f, 1000.f },	// late
 			1.0f,			// late_update_time
-			{ 5.f, 5.f },	// speed
+			{ 15.f, 20.f },	// speed
 			{ 0.2f, 0.8f },	// scale
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.5f, 0.5f },	// spawn_space
