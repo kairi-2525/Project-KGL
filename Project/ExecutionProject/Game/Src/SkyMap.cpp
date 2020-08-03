@@ -155,7 +155,7 @@ void SkyManager::Init(DirectX::CXMMATRIX viewproj)
 	SetWVP(WVP);
 }
 
-void SkyManager::ImGuiUpdate(DirectX::CXMMATRIX viewproj)
+void SkyManager::Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj)
 {
 	if (ImGui::Begin("Sky"))
 	{
@@ -183,7 +183,7 @@ void SkyManager::ImGuiUpdate(DirectX::CXMMATRIX viewproj)
 		XMMATRIX W, S, R, T;
 		S = XMMatrixScaling(scale, scale, scale);
 		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-		T = XMMatrixTranslation(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(pos.x, pos.y, pos.z);
 		W = S * R * T;
 		XMMATRIX WVP = W * viewproj;
 		SetWVP(WVP);

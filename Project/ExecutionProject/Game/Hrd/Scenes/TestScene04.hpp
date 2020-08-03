@@ -22,6 +22,7 @@
 #include "../SkyMap.hpp"
 #include "../Bloom.hpp"
 #include "../Obj3D.hpp"
+#include "../Camera.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -36,12 +37,13 @@ private:
 	UINT64										particle_total_num;
 	float										time_scale;
 	bool										use_gpu;
+	bool										spawn_fireworks;
 
 	DirectX::XMFLOAT4X4							proj;
 
 	SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
-	KGL::VecCamera								camera;
+	std::shared_ptr<FPSCamera>					camera;
 	DirectX::XMFLOAT2							camera_angle;
 	bool										use_gui;
 

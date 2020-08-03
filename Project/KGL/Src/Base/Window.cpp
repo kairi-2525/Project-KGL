@@ -151,12 +151,26 @@ bool Window::Update() noexcept
 DirectX::XMUINT2 Window::GetWindowSize(HWND hwnd) noexcept
 {
 	RECT rc;
-	GetWindowRect(hwnd, &rc);
+	::GetWindowRect(hwnd, &rc);
 	return { SCAST<UINT>(rc.right - rc.left), SCAST<UINT>(rc.bottom - rc.top) };
 }
 DirectX::XMUINT2 Window::GetClientSize(HWND hwnd) noexcept
 {
 	RECT rc;
-	GetClientRect(hwnd, &rc);
+	::GetClientRect(hwnd, &rc);
 	return { SCAST<UINT>(rc.right), SCAST<UINT>(rc.bottom) };
+}
+RECT Window::GetWindowRect(HWND hwnd) noexcept
+{
+	WINDOWINFO info = {};
+	::GetWindowInfo(hwnd, &info);
+
+	return info.rcWindow;
+}
+RECT Window::GetClientRect(HWND hwnd) noexcept
+{
+	WINDOWINFO info = {};
+	::GetWindowInfo(hwnd, &info);
+
+	return info.rcClient;
 }

@@ -261,6 +261,9 @@ namespace KGL
 				State m_current_state;
 				State m_previous_state;
 				DirectX::XMINT2 m_pos;
+				DirectX::XMINT2 m_old_pos;
+			private:
+				static DirectX::XMINT2 GetWindowPos(HWND hwnd, const DirectX::XMINT2& pos);
 			public:
 				Mouse(
 					LPDIRECTINPUTDEVICE8 lp_device
@@ -270,6 +273,8 @@ namespace KGL
 				DirectX::XMINT2 GetMove() const;
 				DirectX::XMINT2 GetPos() const;
 				DirectX::XMINT2 GetPos(HWND hwnd) const;
+				DirectX::XMINT2 GetOldPos() const;
+				DirectX::XMINT2 GetOldPos(HWND hwnd) const;
 			};
 
 			//-----------------
@@ -411,13 +416,25 @@ namespace KGL
 		//--------------------------
 		//     マウス：インライン実装
 		//--------------------------
+		inline DirectX::XMINT2 Direct::Mouse::GetWindowPos(HWND hwnd, const DirectX::XMINT2& pos)
+		{
+			WINDOWINFO info = {};
+			::GetWindowInfo(hwnd, &info);
+
+			DirectX::XMINT2 ret_pos;
+			ret_pos.x = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.x), info.rcClient.left), info.rcClient.right) - info.rcClient.left);
+			ret_pos.y = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.y), info.rcClient.top), info.rcClient.bottom) - info.rcClient.top);
+
+			return ret_pos;
+		}
+
 		inline LONG Direct::Mouse::GetWheel() const
 		{
 			return m_current_state.state.lZ;
 		}
 		inline DirectX::XMINT2 Direct::Mouse::GetMove() const
 		{
-			return { m_current_state.state.lX, m_current_state.state.lY };
+			return { m_current_state.state.lX, -m_current_state.state.lY };
 		}
 		inline DirectX::XMINT2 Direct::Mouse::GetPos() const
 		{
@@ -425,24 +442,15 @@ namespace KGL
 		}
 		inline DirectX::XMINT2 Direct::Mouse::GetPos(HWND hwnd) const
 		{
-			RECT rw, rc, sub;
-			GetWindowRect(hwnd, &rw); // ウィンドウ全体のサイズ
-			GetClientRect(hwnd, &rc); // クライアント領域のサイズ
-			sub.right = (rw.right - rw.left) - rc.right;
-			sub.bottom = (rw.bottom - rw.top) - rc.bottom;
-			sub.left = 0;
-			sub.top = 0;
-
-			sub.left = rw.left + (sub.right / 2);
-			sub.top = rw.top + sub.bottom;
-			sub.right = sub.left + rc.right;
-			sub.bottom = sub.top + rc.bottom;
-
-			auto pos = m_pos;
-			pos.x = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.x), sub.left), sub.right) - sub.left);
-			pos.y = SCAST<int32_t>((std::min)((std::max)(SCAST<LONG>(pos.y), sub.top), sub.bottom) - sub.top);
-
-			return pos;
+			return GetWindowPos(hwnd, m_pos);
+		}
+		inline DirectX::XMINT2 Direct::Mouse::GetOldPos() const
+		{
+			return m_old_pos;
+		}
+		inline DirectX::XMINT2 Direct::Mouse::GetOldPos(HWND hwnd) const
+		{
+			return GetWindowPos(hwnd, m_old_pos);
 		}
 
 		using KEYS = Direct::KEYS;

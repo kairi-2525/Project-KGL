@@ -80,6 +80,10 @@ namespace KGL
 			DirectX::XMUINT2 GetWindowSize() noexcept;
 			static DirectX::XMUINT2 GetClientSize(HWND hwnd) noexcept;
 			DirectX::XMUINT2 GetClientSize() noexcept;
+			static RECT GetWindowRect(HWND hwnd) noexcept;
+			RECT GetWindowRect() noexcept;
+			static RECT GetClientRect(HWND hwnd) noexcept;
+			RECT GetClientRect() noexcept;
 		};
 	}
 }
@@ -123,5 +127,13 @@ namespace KGL
 	inline DirectX::XMUINT2 Window::GetClientSize() noexcept
 	{
 		return GetClientSize(m_hwnd);
+	}
+	inline RECT Window::GetWindowRect() noexcept
+	{
+		return GetWindowRect(m_hwnd);
+	}
+	inline RECT Window::GetClientRect() noexcept
+	{
+		return GetClientRect(m_hwnd);
 	}
 }

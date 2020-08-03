@@ -62,6 +62,10 @@ namespace KGL
 			DirectX::XMINT2 GetMousePos() const;
 			//カーソルの座標
 			DirectX::XMINT2 GetMousePos(HWND hwnd) const;
+			//前回更新時のカーソルの座標
+			DirectX::XMINT2 GetMouseOldPos() const;
+			//前回更新時のカーソルの座標
+			DirectX::XMINT2 GetMouseOldPos(HWND hwnd) const;
 
 			//カーソルの表示/非表示を切り替える(trueで表示)
 			void SetMouseVisible(bool visible);
@@ -137,6 +141,14 @@ namespace KGL
 		inline DirectX::XMINT2 Input::GetMousePos(HWND hwnd) const
 		{
 			return m_direct_input.GetMouse()->GetPos(hwnd);
+		}
+		inline DirectX::XMINT2 Input::GetMouseOldPos() const
+		{
+			return m_direct_input.GetMouse()->GetOldPos();
+		}
+		inline DirectX::XMINT2 Input::GetMouseOldPos(HWND hwnd) const
+		{
+			return m_direct_input.GetMouse()->GetOldPos(hwnd);
 		}
 
 		//--------------------------

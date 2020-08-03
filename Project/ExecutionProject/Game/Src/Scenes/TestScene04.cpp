@@ -122,7 +122,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.depth_desc = {};
-		//renderer_desc.render_targets[0] = DXGI_FORMAT_R32G32B32A32_FLOAT;
+		renderer_desc.render_targets[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -142,12 +142,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 		{
 			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-				device, desc.app->GetRtvBuffers().at(0), clear_value));
+			/*ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, desc.app->GetRtvBuffers().at(0), clear_value));*/
 
 			D3D12_RESOURCE_DESC res_desc = desc.app->GetRtvBuffers().at(0)->GetDesc();
-			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+			res_desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 			res_desc.MipLevels = 8u;
+			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R16G16B16A16_FLOAT, (float*)&clear_value)));
+			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
 				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
 			const auto& resources = KGL::TEXTURE::GetResources(ptc_rtv_textures);
@@ -307,9 +310,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	auto window_size = desc.window->GetClientSize();
 
-	camera.eye = { 0.f, 10.f, -50.f };
-	camera.focus_vec = { 0.f, 0.f, 1.f };
-	camera.up = { 0.f, 1.f, 0.f };
+	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 10.f, -50.f));
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -333,7 +334,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	next_particle_offset = 0u;
 
-	XMMATRIX view = KGL::CAMERA::GetView(camera);
+	XMMATRIX view = camera->GetView();
 	{
 		grid_pos = { 0.f, 0.f, 0.f };
 		XMMATRIX W, S, R, T;
@@ -346,7 +347,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
 		grid_buffer.mapped_data->length_min = 10.f;
 		grid_buffer.mapped_data->length_max = 50.f;
-		grid_buffer.mapped_data->eye_pos = camera.eye;
+		grid_buffer.mapped_data->eye_pos = camera->GetPos();
 	}
 	{
 		XMMATRIX W, S, R, T;
@@ -381,6 +382,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	ResetCounterMax();
 	time_scale = 1.f;
 	use_gpu = true;
+	spawn_fireworks = true;
 
 	return S_OK;
 }
@@ -404,6 +406,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+
+	const float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
+	camera->Update(desc.window, desc.input, elapsed_time, camera_speed, input->IsMouseHold(KGL::MOUSE_BUTTONS::right));
+	const auto& view = camera->GetView();
+	const auto& camera_pos = camera->GetPos();
 
 	if (desc.input->IsKeyPressed(KGL::KEYS::F1))
 		use_gui = !use_gui;
@@ -433,28 +440,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 		}
 		ImGui::End();
-		ImGui::Begin("Camera");
-		ImGui::SliderFloat3("pos", (float*)&camera.eye, -500.f, 500.f);
-		{
-			using namespace DirectX;
-			DirectX::XMFLOAT2 degree = { XMConvertToDegrees(camera_angle.x), XMConvertToDegrees(camera_angle.y) };
-			ImGui::SliderFloat2("angle", (float*)&degree, -180.f, 180.f);
-			degree.y = std::clamp(degree.y, -90.f + 0.01f, +90.f - 0.01f);
-			camera_angle = { XMConvertToRadians(degree.x), XMConvertToRadians(degree.y) };
-			XMVECTOR z_v = XMVectorSet(0.f, 0.f, 1.f, 0.f);
-			XMStoreFloat3(&camera.focus_vec, XMVector3Transform(z_v, XMMatrixRotationX(camera_angle.y) * XMMatrixRotationY(camera_angle.x)));
-		}
-		ImGui::End();
+
 		ImGui::Begin("Grid");
 		ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
+
+
 		{
 			using namespace DirectX;
 			XMMATRIX W, S, R, T;
 			S = XMMatrixScaling(1.f, 1.f, 1.f);
 			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-			T = XMMatrixTranslation(camera.eye.x - fmodf(camera.eye.x, 1.f), grid_pos.y, camera.eye.z - fmodf(camera.eye.z, 1.f));
+			T = XMMatrixTranslation(camera_pos.x - fmodf(camera_pos.x, 1.f), grid_pos.y, camera_pos.z - fmodf(camera_pos.z, 1.f));
 			W = S * R * T;
-			XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+			XMMATRIX WVP = W * camera->GetView() * XMLoadFloat4x4(&proj);
 			XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
 			XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
 		}
@@ -468,7 +466,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 		ImGui::End();
 		
-		sky_mgr->ImGuiUpdate(KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj));
+		sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj));
 	}
 
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
@@ -479,7 +477,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	using namespace DirectX;
 
 	{
-		XMMATRIX view = KGL::CAMERA::GetView(camera);
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
 
@@ -511,7 +508,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		float key_spawn_late = 10.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
-		if (input->IsKeyHold(KGL::KEYS::NUMPADPLUS))
+		if (input->IsKeyPressed(KGL::KEYS::NUMPADPLUS)) spawn_fireworks = !spawn_fireworks;
+		if (spawn_fireworks)
 			ptc_key_spawn_counter += ptc_update_time;
 		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
 			ptc_key_spawn_counter += key_spawn_time;
@@ -529,6 +527,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			std::random_device rd;
 			std::mt19937 mt(rd());
 
+			std::uniform_real_distribution<float> rmd_unorm(0.f, 1.f);
+			std::uniform_int_distribution<UINT> rmd_5(0u, 4u);
 			std::uniform_real_distribution<float> rmd_speed(to_sec_m(330.f), to_sec_m(356.f));
 			desc.velocity = { 0.f, rmd_speed(mt), 0.f };
 
@@ -571,6 +571,74 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			desc.effects[2].child.effects[2].time = 0.05f;
 			desc.effects[2].child.effects[2].speed = { 50.f, 50.f };
 			desc.effects[2].child.effects[2].late = { 100.f, 200.f };*/
+			switch (rmd_5(mt))
+			{
+				case 0u:
+				{
+					desc.effects.pop_back();
+					desc.effects[0].time = 5.f;
+					desc.effects[1].start_time = 5.f;
+					desc.effects[1].late = { 50.f, 100.f };
+					desc.effects[1].child = desc;
+					desc.effects[1].has_child = true;
+					desc.effects[1].base_speed = { 1.f, 1.f };
+					//desc.effects[1].child.effects[0].late = { 10.f, 10.f };
+					desc.effects[1].child.effects[0].time = 2.f;
+
+					desc.effects[1].child.effects[1].alive_time = { 0.5f, 1.5f };
+					desc.effects[1].child.effects[1].late = { 10000.f, 12000.f };
+					desc.effects[1].child.effects[1].start_time = 2.f;
+					desc.effects[1].child.effects[1].time = 0.05f;
+					desc.effects[1].child.effects[1].start_accel = 1.f;
+					desc.effects[1].child.effects[1].speed = { 10.f, 10.f };
+					desc.effects[1].child.effects[1].base_speed = { 0.f, 0.f };
+					desc.effects[1].child.effects[1].scale = { 0.8f, 1.2f };
+
+					XMStoreFloat4(&desc.effects[1].child.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
+					desc.effects[1].child.effects[1].begin_color.w = 0.2f;
+					desc.effects[1].child.effects[1].end_color = desc.effects[1].child.effects[1].begin_color;
+					desc.effects[1].child.effects[1].end_color.w = 0.f;
+					desc.effects[1].child.effects[1].scale_back = 0.1f;
+
+					break;
+				}
+				case 1u:
+				{
+					desc.effects.pop_back();
+					desc.effects[0].time = 5.f;
+					desc.effects[1].start_time = 5.f;
+					desc.effects[1].late = { 50.f, 100.f };
+					desc.effects[1].child = desc;
+					desc.effects[1].has_child = true;
+					desc.effects[1].base_speed = { 1.f, 1.f };
+					desc.effects[1].child.effects[0].base_speed = { 0.1f, 0.3f };
+					desc.effects[1].child.effects[0].late = { 100.f, 100.f };
+					desc.effects[1].child.effects[0].time = 3.f;
+					desc.effects[1].child.effects[0].speed = { 10.f, 10.f };
+					XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
+					desc.effects[1].child.effects[0].begin_color.w = 0.2f;
+					desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
+					desc.effects[1].child.effects[0].end_color.w = 0.f;
+					desc.effects[1].child.effects[0].scale_back = 0.1f;
+					desc.effects[1].child.effects.pop_back();
+					break;
+				}
+				default:
+				{
+					XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+					desc.effects[1].begin_color.w = 0.3f;
+					desc.effects[1].end_color = desc.effects[1].begin_color;
+					desc.effects[1].end_color.w = 0.f;
+					desc.effects[2].scale_back = 0.1f;
+					XMStoreFloat4(&desc.effects[2].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+					desc.effects[2].begin_color.w = 0.3f;
+					desc.effects[2].end_color = desc.effects[2].begin_color;
+					desc.effects[2].end_color.w = 0.f;
+					desc.effects[2].scale_back = 0.1f;
+					break;
+				}
+			}
+			
 			fireworks.emplace_back(desc);
 			ptc_key_spawn_counter -= key_spawn_time;
 		}
@@ -579,9 +647,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		scene_buffer.mapped_data->view = view;
 		scene_buffer.mapped_data->proj = XMLoadFloat4x4(&proj);
-		scene_buffer.mapped_data->eye = camera.eye;
+		scene_buffer.mapped_data->eye = camera_pos;
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
-		grid_buffer.mapped_data->eye_pos = camera.eye;
+		grid_buffer.mapped_data->eye_pos = camera_pos;
 	}
 
 	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
@@ -839,7 +907,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		T = XMMatrixTranslation(0.f, 0.f, -1.f);
 		W = S * R * T;
 
-		XMMATRIX WVP = W * KGL::CAMERA::GetView(camera) * XMLoadFloat4x4(&proj);
+		XMMATRIX WVP = W * view * XMLoadFloat4x4(&proj);
 		CbvParam* param = matrix_resource->Map();
 		XMStoreFloat4x4(&param->mat, WVP);
 		param->color = { 1.f, 1.f, 1.f, 1.f };

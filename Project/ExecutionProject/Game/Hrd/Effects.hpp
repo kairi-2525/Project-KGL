@@ -31,10 +31,13 @@ struct EffectDesc
 	DirectX::XMFLOAT2	late;					// 一秒間にlate個のパーティクルが発生します
 	float				late_update_time;		// late_update_timeが経過するとlateを再度計算しなおします。
 	DirectX::XMFLOAT2	speed;					// パーティクル射出時の速度
+	DirectX::XMFLOAT2	base_speed;					// パーティクル射出時の射出元速度の影響度
 	DirectX::XMFLOAT2	scale;					// パーティクル射出時の大きさ
+	float				scale_front, scale_back;// scaleとspeedに影響を受ける移動方向へのスケール
 	DirectX::XMFLOAT2	angle;					// パーティクル射出角度
 	DirectX::XMFLOAT2	spawn_space;			// パーティクル射出方向へspawn_space分位置をずらします。
-	DirectX::XMFLOAT4	color;					// 色
+	DirectX::XMFLOAT4	begin_color;			// 開始時点での色
+	DirectX::XMFLOAT4	end_color;				// 終了時点での色
 	
 	bool				has_child;				// このフラグを確認して↓を適応します
 	FireworksDesc		child;					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
@@ -44,6 +47,7 @@ struct EffectDesc
 struct Effect
 {
 	EffectDesc effect;
+	float total_time_count;
 	float update_timer;
 	float late_counter;
 	float late;
@@ -60,47 +64,56 @@ namespace FIREWORK_EFFECTS
 	{
 		{
 			0.f,	// start_time
-			9.f,	// time
+			7.f,	// time
 			1.f,	// start_accel
 			1.f,	// end_accel
 			{ 2.f, 3.f },	// alive_time
-			{ 100.f, 100.f },	// late
+			{ 200.f, 200.f },	// late
 			0.2f,			// late_update_time
-			{ 0.f, 0.f },	// speed
+			{ 0.1f, 0.1f },	// speed
+			{ 0.f, 0.f },	// base_speed
 			{ 0.2f, 1.0f },	// scale
+			0.f, 0.f,		// scale_front, scale_back
 			{ DirectX::XMConvertToRadians(177.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.2f },	// spawn_space
-			{ 0.5f, 0.5f, 0.5f, 0.05f },	// color
+			{ 0.1f, 0.1f, 0.1f, 0.05f },	// begin_color
+			{ 0.1f, 0.1f, 0.1f, 0.05f },	// end_color
 			false
 		},
 		{
-			9.f,	// start_time
+			7.0f,	// start_time
+			0.2f,	// time
+			1.f,	// start_accel
+			1.f,	// end_accel
+			{ 1.f, 2.f },	// alive_time
+			{ 1000.f, 2000.f },	// late
+			1.0f,			// late_update_time
+			{ 15.f, 20.f },	// speed
+			{ 0.f, 0.f },	// base_speed
+			{ 0.8f, 1.2f },	// scale
+			0.f, 0.f,		// scale_front, scale_back
+			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
+			{ 0.5f, 0.5f },	// spawn_space
+			{ 1.f, 0.f, 0.5f, 0.1f },	// begin_color
+			{ 1.f, 0.f, 0.5f, 0.0f },	// end_color
+			false
+		},
+		{
+			7.f,	// start_time
 			0.2f,	// time
 			0.f,	// start_accel
 			1.f,	// end_accel
 			{ 1.f, 2.f },	// alive_time
-			{ 5000.f, 5000.f },	// late
+			{ 10000.f, 10000.f },	// late
 			1.0f,			// late_update_time
-			{ 15.f, 20.f },	// speed
-			{ 0.5f, 1.f },	// scale
+			{ 25.f, 35.f },	// speed
+			{ 0.f, 0.f },	// base_speed
+			{ 0.5f, 1.2f },	// scale
+			0.f, 0.f,		// scale_front, scale_back
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.1f },	// spawn_space
-			{ 1.f, 0.5f, 0.f, 0.1 },	// color
-			false
-		},
-		{
-			9.0f,	// start_time
-			0.2f,	// time
-			1.f,	// start_accel
-			1.f,	// end_accel
-			{ 1.f, 2.f },	// alive_time
-			{ 500.f, 1000.f },	// late
-			1.0f,			// late_update_time
-			{ 15.f, 20.f },	// speed
-			{ 0.2f, 0.8f },	// scale
-			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
-			{ 0.5f, 0.5f },	// spawn_space
-			{ 1.f, 0.f, 0.5f, 0.1 },	// color
+			{ 1.f, 0.5f, 0.f, 0.1f },	// begin_color
+			{ 1.f, 0.5f, 0.f, 0.0f },	// end_color
 			false
 		}
 	};

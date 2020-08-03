@@ -313,6 +313,7 @@ HRESULT Direct::Mouse::Update(bool clear)
 	}
 	if (SUCCEEDED(hr))
 	{
+		m_old_pos = m_pos;
 		GetCursorPos(LPPOINT(&m_pos));
 	}
 	return hr;
