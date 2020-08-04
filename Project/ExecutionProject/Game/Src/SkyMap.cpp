@@ -155,29 +155,32 @@ void SkyManager::Init(DirectX::CXMMATRIX viewproj)
 	SetWVP(WVP);
 }
 
-void SkyManager::Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj)
+void SkyManager::Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj, bool imgui)
 {
-	if (ImGui::Begin("Sky"))
+	if (imgui)
 	{
-		const auto imgui_window_size = ImGui::GetWindowSize();
-		ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
-		for (auto& it : tex_data)
+		if (ImGui::Begin("Sky"))
 		{
-			ImGui::Image((ImTextureID)it.second->imgui_handle[CUBE::FRONT].Gpu().ptr, ImVec2(90, 90));
-			ImGui::SameLine();
-			if (it.second == select)
+			const auto imgui_window_size = ImGui::GetWindowSize();
+			ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
+			for (auto& it : tex_data)
 			{
-				ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
+				ImGui::Image((ImTextureID)it.second->imgui_handle[CUBE::FRONT].Gpu().ptr, ImVec2(90, 90));
+				ImGui::SameLine();
+				if (it.second == select)
+				{
+					ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, it.first.c_str());
+				}
+				else if (ImGui::Button(it.first.c_str()))
+				{
+					select = it.second;
+				}
 			}
-			else if (ImGui::Button(it.first.c_str()))
-			{
-				select = it.second;
-			}
+			ImGui::EndChild();
+			ImGui::SliderFloat("Scale", &scale, 1.f, 1000.f);
 		}
-		ImGui::EndChild();
-		ImGui::SliderFloat("Scale", &scale, 1.f, 1000.f);
+		ImGui::End();
 	}
-	ImGui::End();
 	{
 		using namespace DirectX;
 		XMMATRIX W, S, R, T;

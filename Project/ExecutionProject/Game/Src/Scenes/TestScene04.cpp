@@ -417,6 +417,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gui)
 	{
+		if (ImGui::Begin("FPS"))
+		{
+			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
+		}
+		ImGui::End();
 		if (ImGui::Begin("RenderTargets"))
 		{
 			auto gui_size = ImGui::GetWindowSize();
@@ -444,18 +449,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ImGui::Begin("Grid");
 		ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
 
-
-		{
-			using namespace DirectX;
-			XMMATRIX W, S, R, T;
-			S = XMMatrixScaling(1.f, 1.f, 1.f);
-			R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
-			T = XMMatrixTranslation(camera_pos.x - fmodf(camera_pos.x, 1.f), grid_pos.y, camera_pos.z - fmodf(camera_pos.z, 1.f));
-			W = S * R * T;
-			XMMATRIX WVP = W * camera->GetView() * XMLoadFloat4x4(&proj);
-			XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
-			XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
-		}
 		if (ImGui::SliderFloat("length_min", (float*)&grid_buffer.mapped_data->length_min, 1.f, grid_buffer.mapped_data->length_max - 0.01f))
 		{
 			grid_buffer.mapped_data->length_max = std::max(grid_buffer.mapped_data->length_min + 0.01f, grid_buffer.mapped_data->length_max);
@@ -465,8 +458,18 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			grid_buffer.mapped_data->length_min = std::min(grid_buffer.mapped_data->length_min, grid_buffer.mapped_data->length_max - 0.01f);
 		}
 		ImGui::End();
-		
-		sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj));
+	}
+	sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj), use_gui);
+	{
+		using namespace DirectX;
+		XMMATRIX W, S, R, T;
+		S = XMMatrixScaling(1.f, 1.f, 1.f);
+		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
+		T = XMMatrixTranslation(camera_pos.x - fmodf(camera_pos.x, 1.f), grid_pos.y, camera_pos.z - fmodf(camera_pos.z, 1.f));
+		W = S * R * T;
+		XMMATRIX WVP = W * camera->GetView() * XMLoadFloat4x4(&proj);
+		XMStoreFloat4x4(&grid_buffer.mapped_data->world, W);
+		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
 	}
 
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
@@ -506,7 +509,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
 		}
 
-		float key_spawn_late = 10.f;
+		float key_spawn_late = 5.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
 		if (input->IsKeyPressed(KGL::KEYS::NUMPADPLUS)) spawn_fireworks = !spawn_fireworks;
 		if (spawn_fireworks)
@@ -528,11 +531,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			std::mt19937 mt(rd());
 
 			std::uniform_real_distribution<float> rmd_unorm(0.f, 1.f);
-			std::uniform_int_distribution<UINT> rmd_5(0u, 4u);
+			std::uniform_int_distribution<UINT> rmd_int(0u, 100u);
 			std::uniform_real_distribution<float> rmd_speed(to_sec_m(330.f), to_sec_m(356.f));
 			desc.velocity = { 0.f, rmd_speed(mt), 0.f };
 
-			std::uniform_real_distribution<float> rmdpos(-10.f, +10.f);
+			std::uniform_real_distribution<float> rmdpos(-50.f, +50.f);
 			desc.pos.x += rmdpos(mt);
 			desc.pos.z += rmdpos(mt);
 
@@ -571,9 +574,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			desc.effects[2].child.effects[2].time = 0.05f;
 			desc.effects[2].child.effects[2].speed = { 50.f, 50.f };
 			desc.effects[2].child.effects[2].late = { 100.f, 200.f };*/
-			switch (rmd_5(mt))
+			switch (rmd_int(mt))
 			{
-				case 0u:
+				case 0u: case 1u: case 2u: case 3u: case 4u:
+				case 5u: case 6u: case 7u: case 8u: case 9u:
 				{
 					desc.effects.pop_back();
 					desc.effects[0].time = 5.f;
@@ -602,7 +606,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 					break;
 				}
-				case 1u:
+				case 10u: case 11u: case 12u: case 13u: case 14u:
+				case 15u: case 16u: case 17u: case 18u: case 19u:
 				{
 					desc.effects.pop_back();
 					desc.effects[0].time = 5.f;
@@ -621,6 +626,25 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].child.effects[0].end_color.w = 0.f;
 					desc.effects[1].child.effects[0].scale_back = 0.1f;
 					desc.effects[1].child.effects.pop_back();
+					break;
+				}
+				case 20u: case 21u:
+				{
+					desc.effects.pop_back();
+					desc.effects[0].time = 10.f;
+					XMStoreFloat3(&desc.velocity, spawn_v * 1.5f * XMVector3Length(velocity));
+					desc.effects[0].late = { 300.f, 300.f };
+					desc.effects[0].spawn_space = { 0.1f, 0.5f };
+					desc.effects[1].start_time = 10.f;
+					desc.effects[1].alive_time = { 5.f, 6.f };
+					desc.effects[1].speed = { 40.f, 60.f };
+					desc.effects[1].late = { 20000.f, 20000.f };
+					desc.effects[1].scale_back = 0.2f;
+
+					XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+					desc.effects[1].begin_color.w = 0.3f;
+					desc.effects[1].end_color = desc.effects[1].begin_color;
+					//desc.effects[1].end_color.w = 0.f;
 					break;
 				}
 				default:
@@ -678,7 +702,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
 			cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
 
-			const UINT ptcl_size = particle_total_num;
+			const UINT ptcl_size = std::min(particle_total_num, particle_resource->Size());
 			DirectX::XMUINT3 patch = {};
 			constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 			patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
@@ -700,7 +724,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
 			auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-			const size_t i_max = particle_total_num;
+			const size_t i_max = std::min(particle_total_num, particle_resource->Size());
 			XMVECTOR resultant;
 			const auto* cb = cpt_scene_buffer.mapped_data;
 			for (int i = 0; i < i_max; i++)
@@ -715,7 +739,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	const auto* cb = cpt_scene_buffer.mapped_data;
-	constexpr float spawn_elapsed = 1.f / spawn_late;
+	/*constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += ptc_update_time;
 	UINT spawn_num = 0u;
 	if (spawn_counter >= spawn_elapsed)
@@ -738,6 +762,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					XMMatrixRotationRollPitchYaw(0, unorm(mt) * rad_360min, 0)
 				);
 
+			if (frame_particles.capacity() == frame_particles.size()) break;
 			auto& particle = frame_particles.emplace_back();
 			particle.exist_time = 5.f;
 			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
@@ -750,7 +775,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			particle.Update(spawn_timer, cb);
 			spawn_timer -= spawn_elapsed;
 		}
-	}
+	}*/
 	UINT64 cputime = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
@@ -776,7 +801,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (particle_total_num > 0)
 	{
-		next_particle_offset = particle_total_num * sizeof(Particle);
+		next_particle_offset = std::min(particle_total_num, particle_resource->Size()) * sizeof(Particle);
 		auto particles = particle_resource->Map(0u, &CD3DX12_RANGE(0, next_particle_offset));
 		const auto size = next_particle_offset / sizeof(Particle);
 		UINT64 alive_count = 0;

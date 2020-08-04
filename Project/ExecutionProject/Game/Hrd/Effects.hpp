@@ -104,8 +104,8 @@ namespace FIREWORK_EFFECTS
 			0.f,	// start_accel
 			1.f,	// end_accel
 			{ 1.f, 2.f },	// alive_time
-			{ 10000.f, 10000.f },	// late
-			1.0f,			// late_update_time
+			{ 5000.f, 5000.f },	// late
+			1.0f,			// late_update_time                   
 			{ 25.f, 35.f },	// speed
 			{ 0.f, 0.f },	// base_speed
 			{ 0.5f, 1.2f },	// scale
