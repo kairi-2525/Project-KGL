@@ -1,22 +1,27 @@
-#include "Sprite.hlsli"
 #include "../GaussianBlur5x5.hlsli"
 
-float4 Generate(PSInput input) : SV_TARGET
+Texture2D<float4> tex[8] : register (t0);
+
+SamplerState smp : register (s0);
+
+cbuffer RTV : register (b0)
 {
-	return tex.Sample(smp, input.uv);
+	uint rtv_num;
 }
+
+struct PSInput
+{
+	float4 svpos : SV_POSITION;
+	float2 uv : TEXCOORD;
+};
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
 	float4 bloom_accum	= float4(0.f, 0.f, 0.f, 0.f);
-	float2 uv_size		= float2(0.5f, 0.5f);
-	float2 uv_offset	= float2(0.0f, 0.0f);
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < rtv_num; i++)
 	{
-		bloom_accum += GaussianBlur5x5(tex, smp, input.uv * uv_size + uv_offset);
-		uv_offset.y += uv_size.y;
-		uv_size *= 0.5f;
+		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv);
 	}
 
 	return saturate(bloom_accum);

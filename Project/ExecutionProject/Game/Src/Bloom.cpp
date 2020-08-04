@@ -1,24 +1,59 @@
 #include "../Hrd/Bloom.hpp"
+#include <DirectXTex/d3dx12.h>
 
 BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D12Resource> rsc)
 {
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
-	rtv_texture = std::make_shared<KGL::Texture>(
-		device, rsc, clear_value);
-	std::vector<KGL::ComPtr<ID3D12Resource>> resources(1u);
-	resources[0] = rtv_texture->Data();
+	auto desc = rsc->GetDesc();
+	const auto dx_clear_value = CD3DX12_CLEAR_VALUE(desc.Format, (float*)&clear_value);
+
+	std::vector<KGL::ComPtr<ID3D12Resource>> resources;
+	resources.reserve(rtv_textures.size());
+	for (auto& tex : rtv_textures)
+	{
+		desc.Width /= 2;
+		desc.Height /= 2;
+
+		tex = std::make_shared<KGL::Texture>(
+			device, desc, dx_clear_value);
+
+		resources.emplace_back(tex->Data());
+	}
+
 	rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
 
 	sprite = std::make_shared<KGL::Sprite>(device);
 
 	auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
-	renderer_desc.ps_desc.hlsl = "./HLSL/2D/Bloom_ps.hlsl";
-	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
-	renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
-	renderer_desc.ps_desc.entry_point = "Generate";
 	bloom_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+
+	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
+	renderer_desc.ps_desc.hlsl = "./HLSL/2D/Bloom_ps.hlsl";
+
+	auto root_param0 = CD3DX12_ROOT_PARAMETER();
+	auto range0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0);
+	root_param0.InitAsDescriptorTable(1u, &range0, D3D12_SHADER_VISIBILITY_PIXEL);
+	renderer_desc.root_params[0] = root_param0;
+	auto root_param1 = CD3DX12_ROOT_PARAMETER();
+	auto range1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	root_param1.InitAsDescriptorTable(1u, &range1, D3D12_SHADER_VISIBILITY_PIXEL);
+	renderer_desc.root_params.push_back(root_param1);
+	renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+
+	rtv_num_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
+	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+	*rtv_num = KGL::SCAST<UINT32>(rtv_textures.size());
+	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+	rtv_num_dsmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	rtv_num_handle = rtv_num_dsmgr->Alloc();
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
+	cbv_desc.BufferLocation = rtv_num_res->Data()->GetGPUVirtualAddress();
+	cbv_desc.SizeInBytes = rtv_num_res->SizeInBytes();
+	device->CreateConstantBufferView(&cbv_desc, rtv_num_handle.Cpu());
 }
 
 void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
@@ -33,33 +68,37 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	scissor_rect.bottom = view_port.Height;
 	const auto return_scissor_rect = scissor_rect;
 
-	const UINT rtv_num = 0u;
-	cmd_list->ResourceBarrier(1, &rtvs->GetRtvResourceBarrier(true, rtv_num));
-	rtvs->Set(cmd_list, nullptr, rtv_num);
-	rtvs->Clear(cmd_list, rtv_texture->GetClearColor(), rtv_num);
-
+	const auto& rtrb = rtvs->GetRtvResourceBarriers(true);
+	cmd_list->ResourceBarrier(rtrb.size(), rtrb.data());
+	
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	bloom_renderer->SetState(cmd_list);
 
-	for (int i = 0; i < 6; i++)
+	cmd_list->SetDescriptorHeaps(1, srv_heap.GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(0, srv_gpu_handle);
+
+	UINT32 rtv_num = 0u;
 	{
-		view_port.Width /= 2;
-		view_port.Height /= 2;
-		scissor_rect.right = view_port.Width;
-		scissor_rect.bottom = scissor_rect.top + view_port.Height;
+		UINT32* mapped_rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+		rtv_num = *mapped_rtv_num;
+		rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
+	for (UINT32 idx = 0u; idx < rtv_num; idx++)
+	{
+		rtvs->Set(cmd_list, nullptr, idx);
+		rtvs->Clear(cmd_list, rtv_textures[idx]->GetClearColor(), idx);
+		const auto& desc = rtv_textures[idx]->Data()->GetDesc();
+
+		scissor_rect.right = view_port.Width = desc.Width;
+		scissor_rect.bottom = view_port.Height = desc.Height;
 
 		cmd_list->RSSetViewports(1, &view_port);
 		cmd_list->RSSetScissorRects(1, &scissor_rect);
 
-		cmd_list->SetDescriptorHeaps(1, srv_heap.GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, srv_gpu_handle);
-
 		sprite->Render(cmd_list);
-		view_port.TopLeftY += view_port.Height;
-		scissor_rect.top = view_port.TopLeftY;
 	}
-
-	cmd_list->ResourceBarrier(1, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+	const auto& srvrb = rtvs->GetRtvResourceBarriers(false);
+	cmd_list->ResourceBarrier(srvrb.size(), srvrb.data());
 
 	cmd_list->RSSetViewports(1, &return_view_port);
 	cmd_list->RSSetScissorRects(1, &return_scissor_rect);
@@ -72,6 +111,26 @@ void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	renderer->SetState(cmd_list);
 
 	cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle());
+	cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
+
+	cmd_list->SetDescriptorHeaps(1, rtv_num_handle.Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(1, rtv_num_handle.Gpu());
+
 	sprite->Render(cmd_list);
+}
+
+void BloomGenerator::SetRtvNum(UINT8 num)
+{
+	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+	*rtv_num = (std::min)(KGL::SCAST<UINT32>(rtv_textures.size()), KGL::SCAST<UINT32>(num));
+	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+}
+
+UINT8 BloomGenerator::GetRtvNum()
+{
+	UINT8 result;
+	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+	result = KGL::SCAST<UINT8>(*rtv_num);
+	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	return result;
 }

@@ -290,15 +290,20 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	{
 		bloom_generator = std::make_shared<BloomGenerator>(device, desc.app->GetRtvBuffers().at(0));
-		bloom_imgui_handle = desc.imgui_heap_mgr->Alloc();
-		const auto& tex = bloom_generator->GetTexture();
-
+		
+		const auto& tex = bloom_generator->GetTextures();
+		UINT idx = 0u;
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Format = tex->Data()->GetDesc().Format;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, bloom_imgui_handle.Cpu());
+		for (auto& imgui_handle : bloom_imgui_handles)
+		{
+			imgui_handle = desc.imgui_heap_mgr->Alloc();
+			srv_desc.Format = tex[idx]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			idx++;
+		}
 	}
 
 	return hr;
@@ -433,15 +438,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImVec2 uv_1 = { 1.f, 1.f };
 			ImVec2 uv_offset = uv_1;
 			ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
-			for (int i = 0u; i < 6; i++)
+			UINT idx = 0u;
+			for (const auto& handle : bloom_imgui_handles)
 			{
-				uv_offset.x *= 0.5f;
-				uv_offset.y *= 0.5f;
-				uv_1.x = uv_0.x + uv_offset.x;
-				uv_1.y = uv_0.y + uv_offset.y;
-				ImGui::Image((ImTextureID)bloom_imgui_handle.Gpu().ptr, halh_image_size, uv_0, uv_1);
+				ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
 				uv_0.y = uv_1.y;
-				if (i % 2 == 0) ImGui::SameLine();
+				if (idx % 2 == 0) ImGui::SameLine();
+				idx++;
 			}
 		}
 		ImGui::End();
@@ -884,6 +887,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
 				ct_map_update = std::max<UINT64>(ct_map_update, map_update);
 				ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+
+				ImGui::NextColumn();
+				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetRtvNum());
+				if (ImGui::SliderInt("Bloom Scale", &bloom_scale, 0, KGL::SCAST<int>(BloomGenerator::RTV_MAX)))
+				{
+					bloom_generator->SetRtvNum(KGL::SCAST<UINT8>(bloom_scale));
+				}
 
 				if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
 				{

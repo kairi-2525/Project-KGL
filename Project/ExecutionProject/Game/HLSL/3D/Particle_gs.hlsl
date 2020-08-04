@@ -8,9 +8,13 @@ void GSMain(
 {
 	float3 pos = input[0].pos.xyz;
 	float3 vel = input[0].velocity.xyz;
-	float3 front_pos = pos + (vel * 1.1f);
+	float3 vel_norm = normalize(vel);
+
+	float3 front_pos = pos + (vel_norm * input[0].scale_front + vel * input[0].scale_speed_front);
+	float3 back_pos = pos - (vel_norm * input[0].scale_back + vel * input[0].scale_speed_back);
 	float4 view_pos = mul(float4(pos, 1.0), view);
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
+	float4 view_back_pos = mul(float4(back_pos, 1.0), view);
 
 	float speed = length(vel);
 	static const float angle = radians(90);
@@ -26,11 +30,19 @@ void GSMain(
 	
 	/*float w = input[0].scale * 0.5f;
 	float h = input[0].scale * 0.5f;*/
-	float2 view_vec = view_front_pos.xy - view_pos.xy;
-	float2 view_vec_norm = normalize(view_vec);
-	float2 view_down_norm = mul(view_vec_norm, Rotation2D);
-	float4 pos_lt = view_pos + float4(view_vec_norm * input[0].scale_front + view_vec * input[0].scale_speed_front, 0.0, 0.0);
-	float4 pos_rb = view_pos - float4(view_vec_norm * input[0].scale_back + view_vec * input[0].scale_speed_back, 0.0, 0.0);
+	float2 view_front_vec = view_front_pos.xy - view_pos.xy;
+	float front_length = length(view_front_vec);
+	view_front_vec = normalize(view_front_vec);
+	float2 view_down_norm = mul(view_front_vec, Rotation2D);
+	view_front_vec = view_front_vec * max(front_length, scale_width);
+
+	float2 view_back_vec = view_back_pos.xy - view_pos.xy;
+	float back_length = length(view_back_vec);
+	view_back_vec = normalize(view_back_vec);
+	view_back_vec = view_back_vec * max(back_length, scale_width);
+
+	float4 pos_lt = view_pos + float4(view_front_vec, 0.0, 0.0);
+	float4 pos_rb = view_pos + float4(view_back_vec, 0.0, 0.0);
 	float4 pos_rt = view_pos + float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 	float4 pos_lb = view_pos - float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 

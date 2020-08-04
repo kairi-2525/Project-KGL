@@ -113,7 +113,7 @@ private:
 
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
-	KGL::DescriptorHandle								bloom_imgui_handle;
+	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
