@@ -104,6 +104,11 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				p.scale_width *= 2.f;
 				p.scale_speed_front = p.scale_front * effect.scale_front;
 				p.scale_speed_back = p.scale_back * effect.scale_back;
+				p.bloom = effect.bloom;
+				if (effect.bloom)
+				{
+					p.bloom = effect.bloom;
+				}
 				//p.scale_speed_back = p.scale_back;
 				//p.scale_back * 2.f;
 				p.mass = 1.f;

@@ -12,7 +12,8 @@ struct Particle
 	float	scale_speed_back		: SCALE_SPEED_BACK;
 	float	center_propotion		: CENTER_PROPOTION;
 	float	angle					: ANGLE;
-	float4	velocity				: VELOCITY;
+	float3	velocity				: VELOCITY;
+	bool	bloom					: RENDER_MODE;
 	float3	acceleration			: ACCS;
 	float	exist_time				: EXIST;
 };

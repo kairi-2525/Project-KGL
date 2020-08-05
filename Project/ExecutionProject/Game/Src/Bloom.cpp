@@ -27,6 +27,8 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<I
 	auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+	auto& sampler = renderer_desc.static_samplers[0];
+	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
 	bloom_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;

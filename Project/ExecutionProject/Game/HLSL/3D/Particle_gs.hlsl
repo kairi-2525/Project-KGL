@@ -48,7 +48,7 @@ void GSMain(
 
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;
-
+	element.bloom = input[0].bloom;
 	// ¶ã‚Ì“_‚ÌˆÊ’u(Ë‰eÀ•WŒn)
 	element.pos = mul(pos_lt, proj);
 	//element.pos.w = 1.f;

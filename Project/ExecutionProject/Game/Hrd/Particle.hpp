@@ -24,9 +24,9 @@ struct Particle
 	float				center_propotion;
 	float				angle;
 	DirectX::XMFLOAT3	velocity;
-	float				pad1;
+	bool				bloom;
 	DirectX::XMFLOAT3	accs;
-	float exist_time;
+	float				exist_time;
 
 public:
 	bool Alive() { return exist_time > 0; }

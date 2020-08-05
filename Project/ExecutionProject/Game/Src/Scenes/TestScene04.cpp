@@ -50,7 +50,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
 		add_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 
-		renderer_desc.ps_desc.hlsl = "./HLSL/2D/SpriteAdd_ps.hlsl";
+		//renderer_desc.ps_desc.hlsl = "./HLSL/2D/SpriteAdd_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 		sprite = std::make_shared<KGL::Sprite>(device);
@@ -112,6 +112,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
+			"RENDER_MODE", 0, DXGI_FORMAT_R32_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
 			"ACCS", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
@@ -121,8 +125,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
+		renderer_desc.blend_types[1] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.depth_desc = {};
-		renderer_desc.render_targets[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		renderer_desc.render_targets[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -146,10 +152,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 				device, desc.app->GetRtvBuffers().at(0), clear_value));*/
 
 			D3D12_RESOURCE_DESC res_desc = desc.app->GetRtvBuffers().at(0)->GetDesc();
-			res_desc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			res_desc.MipLevels = 8u;
 			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
-				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R16G16B16A16_FLOAT, (float*)&clear_value)));
+				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
 			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
 				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
@@ -623,6 +629,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].child.effects[0].late = { 100.f, 100.f };
 					desc.effects[1].child.effects[0].time = 3.f;
 					desc.effects[1].child.effects[0].speed = { 10.f, 10.f };
+					desc.effects[1].child.effects[0].bloom = true;
 					XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
 					desc.effects[1].child.effects[0].begin_color.w = 0.2f;
 					desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
@@ -999,12 +1006,17 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 	}
 	{
-		const UINT rtv_num = 0u;
-		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
+		const auto& rtrbs = ptc_rtvs->GetRtvResourceBarriers(true);
+		const UINT rtrbs_size = rtrbs.size();
+		cmd_list->ResourceBarrier(rtrbs_size, rtrbs.data());
 
 		const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		ptc_rtvs->Set(cmd_list, dsv_handle, rtv_num);
-		ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+		ptc_rtvs->SetAll(cmd_list, dsv_handle);
+		
+		for (UINT idx = 0u; idx < rtrbs_size; idx++)
+		{
+			ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[idx]->GetClearColor(), idx);
+		}
 
 		// パーティクル描画
 		if (particle_total_num > 0)
@@ -1025,9 +1037,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
 		}
 
-		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(false, rtv_num));
+		const auto& srvrbs = ptc_rtvs->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(srvrbs.size(), srvrbs.data());
 	}
-	{
+	/*{
 		const UINT rtv_num = 1u;
 		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
 
@@ -1041,7 +1054,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		sprite->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(false, rtv_num));
-	}
+	}*/
 	{
 		bloom_generator->Generate(cmd_list, ptc_rtvs->GetSRVHeap(), ptc_rtvs->GetSRVGPUHandle(1), viewport);
 	}
@@ -1061,6 +1074,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		add_sprite_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(0));
+		sprite->Render(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(1));
 		sprite->Render(cmd_list);
 
 		bloom_generator->Render(cmd_list);

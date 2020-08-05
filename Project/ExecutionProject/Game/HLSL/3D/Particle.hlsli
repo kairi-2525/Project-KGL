@@ -2,9 +2,10 @@
 
 struct PSInput
 {
-	float4 color : COLOR;
-	float4 pos : SV_POSITION;
-	float2 uv : TEXCOORD;
+	float4 color			: COLOR;
+	float4 pos				: SV_POSITION;
+	float2 uv				: TEXCOORD;
+	bool bloom				: RENDER_MODE;
 };
 
 cbuffer scene_buff : register(b0)

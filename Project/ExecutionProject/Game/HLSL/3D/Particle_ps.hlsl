@@ -3,8 +3,23 @@
 Texture2D<float4> tex : register(t0);
 SamplerState smp : register(s0);
 
-float4 PSMain(PSInput input) : SV_TARGET
+struct PSOut
 {
-	//return float4(1.f, 1.f, 1.f, 1.f);
-	return tex.Sample(smp, input.uv) * input.color;
+	float4 normal_color	: SV_TARGET0;
+	float4 bloom_color	: SV_TARGET1;
+};
+
+PSOut PSMain(PSInput input) : SV_TARGET
+{
+	PSOut output = (PSOut)0;
+	const float4 color = tex.Sample(smp, input.uv) * input.color;
+	if (input.bloom)
+	{
+		output.bloom_color = color;
+	}
+	else
+	{
+		output.normal_color = color;
+	}
+	return output;
 }

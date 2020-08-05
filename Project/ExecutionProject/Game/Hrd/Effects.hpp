@@ -38,6 +38,7 @@ struct EffectDesc
 	DirectX::XMFLOAT2	spawn_space;			// パーティクル射出方向へspawn_space分位置をずらします。
 	DirectX::XMFLOAT4	begin_color;			// 開始時点での色
 	DirectX::XMFLOAT4	end_color;				// 終了時点での色
+	bool				bloom;					// ブルームをかけるかどうか。
 	
 	bool				has_child;				// このフラグを確認して↓を適応します
 	FireworksDesc		child;					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
@@ -78,6 +79,7 @@ namespace FIREWORK_EFFECTS
 			{ 0.1f, 0.2f },	// spawn_space
 			{ 0.1f, 0.1f, 0.1f, 0.05f },	// begin_color
 			{ 0.1f, 0.1f, 0.1f, 0.05f },	// end_color
+			false,							// bloom
 			false
 		},
 		{
@@ -94,8 +96,9 @@ namespace FIREWORK_EFFECTS
 			0.f, 0.f,		// scale_front, scale_back
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.5f, 0.5f },	// spawn_space
-			{ 1.f, 0.f, 0.5f, 0.1f },	// begin_color
-			{ 1.f, 0.f, 0.5f, 0.0f },	// end_color
+			{ 1.f, 0.f, 0.5f, 0.1f },		// begin_color
+			{ 1.f, 0.f, 0.5f, 0.0f },		// end_color
+			true,							// bloom
 			false
 		},
 		{
@@ -112,8 +115,9 @@ namespace FIREWORK_EFFECTS
 			0.f, 0.f,		// scale_front, scale_back
 			{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
 			{ 0.1f, 0.1f },	// spawn_space
-			{ 1.f, 0.5f, 0.f, 0.1f },	// begin_color
-			{ 1.f, 0.5f, 0.f, 0.0f },	// end_color
+			{ 1.f, 0.5f, 0.f, 0.1f },		// begin_color
+			{ 1.f, 0.5f, 0.f, 0.0f },		// end_color
+			true,							// bloom
 			false
 		}
 	};
