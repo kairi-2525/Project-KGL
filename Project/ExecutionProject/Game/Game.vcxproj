@@ -188,9 +188,9 @@
     <ClCompile Include="Src\Scenes\TestScene01.cpp" />
     <ClCompile Include="Src\Scenes\TestScene02.cpp" />
     <ClCompile Include="Src\Scenes\TestScene03.cpp" />
-    <ClCompile Include="Src\TestScene04.cpp" />
-    <ClCompile Include="Src\TestScene05.cpp" />
-    <ClCompile Include="Src\TestSceneBase.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene04.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene05.cpp" />
+    <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
     <ClCompile Include="Src\SkyMap.cpp" />
   </ItemGroup>
   <ItemGroup>
