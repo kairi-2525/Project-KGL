@@ -1,7 +1,7 @@
-#include "../Hrd/Bloom.hpp"
+#include "../Hrd/DepthOfField.hpp"
 #include <DirectXTex/d3dx12.h>
 
-BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D12Resource> rsc)
+DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D12Resource> rsc)
 {
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 	auto desc = rsc->GetDesc();
@@ -25,23 +25,28 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<I
 	sprite = std::make_shared<KGL::Sprite>(device);
 
 	auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
-
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 	auto& sampler = renderer_desc.static_samplers[0];
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
 	bloom_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
-	renderer_desc.ps_desc.hlsl = "./HLSL/2D/Bloom_ps.hlsl";
+	renderer_desc.ps_desc.hlsl = "./HLSL/2D/DepthOfField_ps.hlsl";
 
+	renderer_desc.root_params.clear();
+	renderer_desc.root_params.reserve(3u);
 	auto root_param0 = CD3DX12_ROOT_PARAMETER();
-	auto range0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0);
+	auto range0 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	root_param0.InitAsDescriptorTable(1u, &range0, D3D12_SHADER_VISIBILITY_PIXEL);
-	renderer_desc.root_params[0] = root_param0;
+	renderer_desc.root_params.push_back(root_param0);
 	auto root_param1 = CD3DX12_ROOT_PARAMETER();
-	auto range1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	auto range1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 1);
 	root_param1.InitAsDescriptorTable(1u, &range1, D3D12_SHADER_VISIBILITY_PIXEL);
 	renderer_desc.root_params.push_back(root_param1);
+	auto root_param2 = CD3DX12_ROOT_PARAMETER();
+	auto range2 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	root_param2.InitAsDescriptorTable(1u, &range2, D3D12_SHADER_VISIBILITY_PIXEL);
+	renderer_desc.root_params.push_back(root_param2);
 	renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
 
 	rtv_num_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
@@ -56,7 +61,7 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<I
 	device->CreateConstantBufferView(&cbv_desc, rtv_num_handle.Cpu());
 }
 
-void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
+void DOFGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	KGL::ComPtrC<ID3D12DescriptorHeap> srv_heap, D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle,
 	D3D12_VIEWPORT view_port)
 {
@@ -70,7 +75,7 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 	const auto& rtrb = rtvs->GetRtvResourceBarriers(true);
 	cmd_list->ResourceBarrier(rtrb.size(), rtrb.data());
-	
+
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	bloom_renderer->SetState(cmd_list);
 
@@ -104,29 +109,33 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	cmd_list->RSSetScissorRects(1, &return_scissor_rect);
 }
 
-void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
+void DOFGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
+	KGL::ComPtrC<ID3D12DescriptorHeap> depth_heap, D3D12_GPU_DESCRIPTOR_HANDLE depth_srv_handle)
 {
 
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	renderer->SetState(cmd_list);
 
+	cmd_list->SetDescriptorHeaps(1, depth_heap.GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(1, depth_srv_handle);
+
 	cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
+	cmd_list->SetGraphicsRootDescriptorTable(1, rtvs->GetSRVGPUHandle(0));
 
 	cmd_list->SetDescriptorHeaps(1, rtv_num_handle.Heap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(1, rtv_num_handle.Gpu());
+	cmd_list->SetGraphicsRootDescriptorTable(2, rtv_num_handle.Gpu());
 
 	sprite->Render(cmd_list);
 }
 
-void BloomGenerator::SetRtvNum(UINT8 num)
+void DOFGenerator::SetRtvNum(UINT8 num)
 {
 	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
 	*rtv_num = (std::min)(KGL::SCAST<UINT32>(rtv_textures.size()), KGL::SCAST<UINT32>(num));
 	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
-UINT8 BloomGenerator::GetRtvNum()
+UINT8 DOFGenerator::GetRtvNum()
 {
 	UINT8 result;
 	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));

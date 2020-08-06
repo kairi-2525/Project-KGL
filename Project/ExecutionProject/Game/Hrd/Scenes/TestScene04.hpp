@@ -23,6 +23,7 @@
 #include "../Bloom.hpp"
 #include "../Obj3D.hpp"
 #include "../Camera.hpp"
+#include "../DepthOfField.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -114,6 +115,9 @@ private:
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
+
+	std::shared_ptr<DOFGenerator>						dof_generator;
+	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

@@ -312,6 +312,24 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
+	{
+		dof_generator = std::make_shared<DOFGenerator>(device, desc.app->GetRtvBuffers().at(0));
+
+		const auto& tex = dof_generator->GetTextures();
+		UINT idx = 0u;
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		for (auto& imgui_handle : dof_imgui_handles)
+		{
+			imgui_handle = desc.imgui_heap_mgr->Alloc();
+			srv_desc.Format = tex[idx]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			idx++;
+		}
+	}
+
 	return hr;
 }
 
@@ -394,6 +412,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	time_scale = 1.f;
 	use_gpu = true;
 	spawn_fireworks = true;
+
+	bloom_generator->SetRtvNum(6u);
 
 	return S_OK;
 }
