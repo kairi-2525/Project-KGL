@@ -142,10 +142,11 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 
 void SkyManager::Init(DirectX::CXMMATRIX viewproj)
 {
-	scale = 1000.f;
+	using namespace DirectX;
+	XMVECTOR box = XMVectorSet(1000.f * cosf(XMConvertToRadians(-45.f)), 1000.f * cosf(XMConvertToRadians(-45.f)), 1000.f * cosf(XMConvertToRadians(-45.f)), 0.f);
+	scale = XMVector3Length(box).m128_f32[0];
 	select = tex_data.cbegin()->second;
 
-	using namespace DirectX;
 	XMMATRIX W, S, R, T;
 	S = XMMatrixScaling(scale, scale, scale);
 	R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);

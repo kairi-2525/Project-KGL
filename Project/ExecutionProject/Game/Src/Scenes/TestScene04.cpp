@@ -59,7 +59,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
 		//renderer_desc.depth_desc = {};
-		renderer_desc.ps_desc.hlsl = "./HLSL/3D/Particle_ps.hlsl";
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
 		renderer_desc.gs_desc.hlsl = "./HLSL/3D/Particle_gs.hlsl";
 		renderer_desc.input_layouts.clear();
@@ -124,10 +123,16 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
+		renderer_desc.render_targets.clear();
+		renderer_desc.render_targets.reserve(2u);
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/ParticleDepth_ps.hlsl";
+		board_renderer_dsv = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
+
+		renderer_desc.ps_desc.hlsl = "./HLSL/3D/Particle_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.blend_types[1] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.depth_desc = {};
-		renderer_desc.render_targets[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
@@ -141,6 +146,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{
 		{
 			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
+			rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+				device, desc.app->GetRtvBuffers().at(0), clear_value));
 			rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
 				device, desc.app->GetRtvBuffers().at(0), clear_value));
 			const auto& resources = KGL::TEXTURE::GetResources(rtv_textures);
@@ -330,6 +337,29 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
+	{
+		dsv_srv_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+		dsv_srv_handle = dsv_srv_desc_mgr->Alloc();
+		dsv_imgui_handle = desc.imgui_heap_mgr->Alloc();
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC res_desc = {};
+			res_desc.Format = DXGI_FORMAT_R32_FLOAT;
+			res_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			res_desc.Texture2D.MipLevels = 1;
+			res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			device->CreateShaderResourceView(
+				desc.app->GetDsvBuffer().Get(),
+				&res_desc,
+				dsv_srv_handle.Cpu()
+			);
+			device->CreateShaderResourceView(
+				desc.app->GetDsvBuffer().Get(),
+				&res_desc,
+				dsv_imgui_handle.Cpu()
+			);
+		}
+	}
+
 	return hr;
 }
 
@@ -413,6 +443,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	use_gpu = true;
 	spawn_fireworks = true;
 
+	dof_flg = true;
+
 	bloom_generator->SetRtvNum(6u);
 
 	return S_OK;
@@ -457,24 +489,49 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			auto gui_size = ImGui::GetWindowSize();
 			ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
-			for (const auto& handle : ptc_srv_gui_handles)
-				ImGui::Image((ImTextureID)handle.Gpu().ptr, image_size);
-			
-			ImVec2 uv_0 = { 0.f, 0.f };
-			ImVec2 uv_1 = { 1.f, 1.f };
-			ImVec2 uv_offset = uv_1;
-			ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
-			UINT idx = 0u;
-			for (const auto& handle : bloom_imgui_handles)
+			if (ImGui::TreeNode("DSV"))
 			{
-				ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
-				uv_0.y = uv_1.y;
-				if (idx % 2 == 0) ImGui::SameLine();
-				idx++;
+				ImGui::Image((ImTextureID)dsv_imgui_handle.Gpu().ptr, image_size);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Particles"))
+			{
+				for (const auto& handle : ptc_srv_gui_handles)
+					ImGui::Image((ImTextureID)handle.Gpu().ptr, image_size);
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("Bloom"))
+			{
+				ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+				UINT idx = 0u;
+				for (const auto& handle : bloom_imgui_handles)
+				{
+					ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+					if (idx % 2 == 0) ImGui::SameLine();
+					idx++;
+				}
+				ImGui::TreePop();
+			}
+			if (ImGui::TreeNode("DOF"))
+			{
+				ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+				UINT idx = 0u;
+				for (const auto& handle : dof_imgui_handles)
+				{
+					ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+					if (idx % 2 == 0) ImGui::SameLine();
+					idx++;
+				}
+				ImGui::TreePop();
 			}
 		}
 		ImGui::End();
 
+		if (ImGui::Begin("DOF"))
+		{
+			ImGui::Checkbox("Use", &dof_flg);
+		}
+		ImGui::End();
 		ImGui::Begin("Grid");
 		ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
 
@@ -488,7 +545,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 		ImGui::End();
 	}
-	sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj), use_gui);
+	{
+		using namespace DirectX;
+		XMVECTOR xm_camera_pos = XMLoadFloat3(&camera_pos);
+		XMFLOAT3 sky_pos;
+		XMStoreFloat3(&sky_pos, xm_camera_pos * 0.99f);
+		sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj), use_gui);
+	}
 	{
 		using namespace DirectX;
 		XMMATRIX W, S, R, T;
@@ -1055,6 +1118,20 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
+
+			if (dof_flg)
+			{
+				board_renderer_dsv->SetState(cmd_list);
+				cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+				cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+				if (b_select_srv_handle)
+				{
+					cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
+					cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
+				}
+				cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
+				cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
+			}
 		}
 
 		const auto& srvrbs = ptc_rtvs->GetRtvResourceBarriers(false);
@@ -1079,9 +1156,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		bloom_generator->Generate(cmd_list, ptc_rtvs->GetSRVHeap(), ptc_rtvs->GetSRVGPUHandle(1), viewport);
 	}
 	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-
-		desc.app->SetRtv(cmd_list);
+		const UINT rtv_num = 1u;
+		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
+		rtvs->Set(cmd_list, nullptr, rtv_num);
+		rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		sprite_renderer->SetState(cmd_list);
@@ -1100,6 +1178,39 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		sprite->Render(cmd_list);
 
 		bloom_generator->Render(cmd_list);
+
+		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+
+		if (dof_flg)
+			dof_generator->Generate(cmd_list, rtvs->GetSRVHeap(), rtvs->GetSRVGPUHandle(rtv_num), viewport);
+	}
+	{
+		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+
+		desc.app->SetRtv(cmd_list);
+		desc.app->ClearRtv(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
+
+		//cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		//sprite_renderer->SetState(cmd_list);
+		//cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+		//cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
+		//sprite->Render(cmd_list);
+
+		if (dof_flg)
+		{
+			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+			dof_generator->Render(cmd_list, dsv_srv_handle.Heap(), dsv_srv_handle.Gpu());
+		}
+		else
+		{
+			sprite_renderer->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
+			sprite->Render(cmd_list);
+		}
+		
+
+		//bloom_generator->Render(cmd_list);
 
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());

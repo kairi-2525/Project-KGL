@@ -30,9 +30,6 @@
     <ClCompile Include="Src\Scenes\TestScene00.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Scenes\TestSceneBase.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="Src\Scenes\TestScene01.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -40,12 +37,6 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Src\Scenes\TestScene03.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Scenes\TestScene04.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Scenes\TestScene05.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Src\particle.cpp">
@@ -67,6 +58,15 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Src\DepthOfField.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\TestScene04.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\TestScene05.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\TestSceneBase.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -166,6 +166,7 @@
     <FxCompile Include="HLSL\2D\SpriteAdd_ps.hlsl" />
     <FxCompile Include="HLSL\2D\Bloom_ps.hlsl" />
     <FxCompile Include="HLSL\2D\DepthOfField_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\ParticleDepth_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

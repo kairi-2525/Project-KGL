@@ -11,13 +11,13 @@ DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D1
 	resources.reserve(rtv_textures.size());
 	for (auto& tex : rtv_textures)
 	{
-		desc.Width /= 2;
-		desc.Height /= 2;
-
 		tex = std::make_shared<KGL::Texture>(
 			device, desc, dx_clear_value);
 
 		resources.emplace_back(tex->Data());
+
+		desc.Width /= 2;
+		desc.Height /= 2;
 	}
 
 	rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
@@ -117,7 +117,7 @@ void DOFGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	renderer->SetState(cmd_list);
 
 	cmd_list->SetDescriptorHeaps(1, depth_heap.GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(1, depth_srv_handle);
+	cmd_list->SetGraphicsRootDescriptorTable(0, depth_srv_handle);
 
 	cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
 	cmd_list->SetGraphicsRootDescriptorTable(1, rtvs->GetSRVGPUHandle(0));

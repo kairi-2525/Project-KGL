@@ -18,17 +18,26 @@ struct PSInput
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-
-	float depth_diff = abs(depth_tex.Sample(smp, float2(0.5f, 0.5f)) - depth_tex.Sample(smp, input.uv));
-
+	float depth_center = depth_tex.Sample(smp, float2(0.5f, 0.5f));
+	float depth = depth_tex.Sample(smp, input.uv);
+	float depth_diff = abs(depth_center - depth);
+	depth_diff = pow(depth_diff, 0.5f);
 	float no;
-	modf(depth_diff * rtv_num, no);
+	float t = modf(depth_diff * rtv_num, no);
 
-	float4 bloom_accum = float4(0.f, 0.f, 0.f, 0.f);
-	[unroll(8)] for (int i = 0; i < no; i++)
+	float4 color[2];
+	int tex_num_0 = max(no - 1, 0);
+	int tex_num_1 = no;
+
+	if (no == 0)
 	{
-		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv);
+		color[0] = tex[0].Sample(smp, input.uv);
 	}
+	else
+	{
+		color[0] = GaussianBlur5x5(tex[tex_num_0], smp, input.uv);
+	}
+	color[1] = GaussianBlur5x5(tex[tex_num_1], smp, input.uv);
 
-	return saturate(bloom_accum);
+	return lerp(color[0], color[1], t);
 }

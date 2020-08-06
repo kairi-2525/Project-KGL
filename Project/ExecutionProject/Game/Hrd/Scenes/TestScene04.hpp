@@ -53,6 +53,7 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			board_renderer_dsv;
 	std::shared_ptr<KGL::Board>					board;
 	std::shared_ptr<KGL::DescriptorManager>		b_cbv_descmgr;
 	KGL::DescriptorHandle						b_cbv;
@@ -116,8 +117,13 @@ private:
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
 
+	bool												dof_flg;
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
+
+	std::shared_ptr<KGL::DescriptorManager>				dsv_srv_desc_mgr;
+	KGL::DescriptorHandle								dsv_srv_handle;
+	KGL::DescriptorHandle								dsv_imgui_handle;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
