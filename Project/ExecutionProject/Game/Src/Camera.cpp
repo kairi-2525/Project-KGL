@@ -105,7 +105,7 @@ void FPSCamera::Update(const std::shared_ptr<KGL::Window>& window,
 
 		if (key_counter > 0u)
 		{
-			XMStoreFloat3(&eye, XMLoadFloat3(&eye) + (move_vec / key_counter) * speed * elapsed_time);
+			XMStoreFloat3(&eye, XMLoadFloat3(&eye) + XMVector3Normalize(move_vec) * speed * elapsed_time);
 		}
 	}
 }

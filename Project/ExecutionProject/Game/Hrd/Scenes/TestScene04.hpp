@@ -39,6 +39,7 @@ private:
 	float										time_scale;
 	bool										use_gpu;
 	bool										spawn_fireworks;
+	bool										after_blooming;
 
 	DirectX::XMFLOAT4X4							proj;
 

@@ -446,6 +446,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	dof_flg = true;
 
 	bloom_generator->SetRtvNum(6u);
+	after_blooming = false;
 
 	return S_OK;
 }
@@ -984,6 +985,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				{
 					bloom_generator->SetRtvNum(KGL::SCAST<UINT8>(bloom_scale));
 				}
+				ImGui::Checkbox("After blooming", &after_blooming);
 
 				if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
 				{
@@ -1177,7 +1179,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(1));
 		sprite->Render(cmd_list);
 
-		bloom_generator->Render(cmd_list);
+		if (!after_blooming)
+		{
+			bloom_generator->Render(cmd_list);
+		}
 
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 
@@ -1209,8 +1214,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			sprite->Render(cmd_list);
 		}
 		
-
-		//bloom_generator->Render(cmd_list);
+		if (after_blooming)
+		{
+			bloom_generator->Render(cmd_list);
+		}
 
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());

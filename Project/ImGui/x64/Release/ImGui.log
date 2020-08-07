@@ -1,2 +1,27 @@
-﻿  imgui_impl_dx12.cpp
-  ImGui.vcxproj -> E:\School\GitHub\Project-KGL\Project\Lib\x64\Release\ImGui.lib
+﻿  imgui.cpp
+  imgui_demo.cpp
+  imgui_draw.cpp
+  imgui_impl_dx12.cpp
+  imgui_impl_win32.cpp
+  imgui_widgets.cpp
+  imgui_stdlib.cpp
+  binary_to_compressed_c.cpp
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(262,28): warning C4244: '=': '__int64' から 'stb_uint' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(279,31): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(279,31): warning C4244: '=': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(281,63): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(281,63): warning C4244: '=': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(283,63): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(283,63): warning C4244: '=': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(285,31): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(285,31): warning C4244: '=': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(298,37): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(302,37): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(306,37): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(310,37): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(315,37): warning C4244: '引数': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(335,28): warning C4244: '=': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(337,67): warning C4244: '引数': '__int64' から 'stb_uint' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(338,14): warning C4244: 'return': '__int64' から 'int' への変換です。データが失われる可能性があります。
+D:\Work\Project-KGL\Project\ImGui\Src\binary_to_compressed_c.cpp(383,21): warning C4244: 'return': '__int64' から 'stb_uint' への変換です。データが失われる可能性があります。
+  ImGui.vcxproj -> D:\Work\Project-KGL\Project\Lib\x64\Release\ImGui.lib
