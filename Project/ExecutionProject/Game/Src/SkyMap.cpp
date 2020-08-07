@@ -144,7 +144,7 @@ void SkyManager::Init(DirectX::CXMMATRIX viewproj)
 {
 	using namespace DirectX;
 	XMVECTOR box = XMVectorSet(1000.f * cosf(XMConvertToRadians(-45.f)), 1000.f * cosf(XMConvertToRadians(-45.f)), 1000.f * cosf(XMConvertToRadians(-45.f)), 0.f);
-	scale = XMVector3Length(box).m128_f32[0];
+	scale = XMVector3Length(box).m128_f32[0] * 0.9f;
 	select = tex_data.cbegin()->second;
 
 	XMMATRIX W, S, R, T;
