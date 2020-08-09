@@ -21,10 +21,50 @@
     <ClCompile Include="Src\SceneMain.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="DXRHelper\nv_helpers_dx12\BottomLevelASGenerator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DXRHelper\nv_helpers_dx12\RaytracingPipelineGenerator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DXRHelper\nv_helpers_dx12\RootSignatureGenerator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DXRHelper\nv_helpers_dx12\ShaderBindingTableGenerator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="DXRHelper\nv_helpers_dx12\TopLevelASGenerator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Scene.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="DXRHelper\DXRHelper.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DXRHelper\nv_helpers_dx12\BottomLevelASGenerator.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DXRHelper\nv_helpers_dx12\RaytracingPipelineGenerator.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DXRHelper\nv_helpers_dx12\RootSignatureGenerator.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DXRHelper\nv_helpers_dx12\ShaderBindingTableGenerator.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="DXRHelper\nv_helpers_dx12\TopLevelASGenerator.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="HLSL\2D\Triangle_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\Triangle_vs.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="HLSL\2D\Triangle.hlsli" />
   </ItemGroup>
 </Project>
