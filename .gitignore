@@ -1,9 +1,16 @@
 /.vs
 /Project/.vs
+
 /Project/ExecutionProject/Game/Debug
 /Project/ExecutionProject/Game/Release
 /Project/ExecutionProject/Game/x64
 /Project/ExecutionProject/Game/Win32
+
+/Project/ExecutionProject/DXR/Debug
+/Project/ExecutionProject/DXR/Release
+/Project/ExecutionProject/DXR/x64
+/Project/ExecutionProject/DXR/Win32
+
 /Project/ImGui/x64
 /Project/ImGui/Win32
 /Project/KGL/Debug

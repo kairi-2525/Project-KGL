@@ -33,6 +33,18 @@ bool Application::CheckTearingSupport()
 	return allow_tearing == TRUE;
 }
 
+// DXRサポートの確認
+bool Application::CheckDXRSupport(ComPtrC<ID3D12Device> device)
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS5 feature_support_data = {};
+	HRESULT hr = device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &feature_support_data, sizeof(D3D12_FEATURE_DATA_D3D12_OPTIONS5));
+	if (SUCCEEDED(hr) && D3D12_RAYTRACING_TIER_NOT_SUPPORTED != feature_support_data.RaytracingTier)
+	{
+		return true;
+	}
+	return false;
+}
+
 Application::Application(HWND hwnd, bool debug_layer, bool gbv) noexcept
 {
 	HRESULT hr = S_OK;
@@ -44,6 +56,8 @@ Application::Application(HWND hwnd, bool debug_layer, bool gbv) noexcept
 
 		hr = CreateDevice(factory);
 		RCHECK(FAILED(hr), "CreateDeviceに失敗");
+
+		m_dxr_support = CheckDXRSupport(m_dev);
 
 		hr = CheckMaxSampleCount();
 		RCHECK(FAILED(hr), "CheckMaxSampleCountに失敗");
@@ -380,4 +394,11 @@ D3D12_RESOURCE_BARRIER Application::GetRtvResourceBarrier(bool render_target) co
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_PRESENT
 		);
+}
+
+HRESULT Application::GetDevice5(ComPtr<ID3D12Device5>* p_dev5) const noexcept
+{
+	RCHECK(!p_dev5, "p_dev5 が nullptr", E_FAIL);
+	HRESULT hr = m_dev->QueryInterface(IID_PPV_ARGS(p_dev5->GetAddressOf()));
+	return hr;
 }

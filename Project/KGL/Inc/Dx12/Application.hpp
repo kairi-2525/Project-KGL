@@ -33,10 +33,12 @@ namespace KGL
 			std::shared_ptr<CommandQueue>			m_cmd_queue;
 
 			bool									m_tearing_support;
+			bool									m_dxr_support;
 			UINT									m_max_quality_level;
 			UINT									m_max_sample_count;
 		public:
 			static bool CheckTearingSupport();
+			static bool CheckDXRSupport(ComPtrC<ID3D12Device> device);
 		private:
 			Application() = delete;
 			Application(const Application&) = delete;
@@ -64,6 +66,7 @@ namespace KGL
 			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target) const noexcept;
 
 			const ComPtr<ID3D12Device>& GetDevice() const noexcept { return  m_dev; }
+			HRESULT GetDevice5(ComPtr<ID3D12Device5>* p_dev5) const noexcept;
 			const ComPtr<IDXGISwapChain4>& GetSwapchain() const noexcept { return  m_swapchain; }
 			const std::shared_ptr<CommandQueue>& GetQueue() const noexcept { return  m_cmd_queue; }
 			const std::vector<ComPtr<ID3D12Resource>>& GetRtvBuffers() const noexcept { return  m_rtv_buffers; }
@@ -72,6 +75,7 @@ namespace KGL
 			const std::shared_ptr<DescriptorManager>& GetRtvHeapMgr() const noexcept { return  m_rtv_heap; }
 			const ComPtr<ID3D12DescriptorHeap>& GetDsvHeap() const noexcept { return  m_dsv_heap; }
 			bool IsTearingSupport() const noexcept { return m_tearing_support; }
+			bool IsDXRSupport() const noexcept { return m_dxr_support; }
 			UINT GetMaxQualityLevel() const noexcept { return m_max_quality_level; }
 			UINT GetMaxSampleCount() const noexcept { return m_max_sample_count; }
 			DescriptorHandle GetBackBufferCPUHandle() const noexcept
