@@ -63,6 +63,10 @@
   <ItemGroup>
     <FxCompile Include="HLSL\2D\Triangle_ps.hlsl" />
     <FxCompile Include="HLSL\2D\Triangle_vs.hlsl" />
+    <FxCompile Include="HLSL\DXR\Common.hlsl" />
+    <FxCompile Include="HLSL\DXR\Hit.hlsl" />
+    <FxCompile Include="HLSL\DXR\Miss.hlsl" />
+    <FxCompile Include="HLSL\DXR\RayGen.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\2D\Triangle.hlsli" />

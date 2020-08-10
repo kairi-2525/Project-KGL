@@ -6,6 +6,8 @@
 
 #include "../DXRHelper/DXRHelper.h"
 #include "../DXRHelper/nv_helpers_dx12/BottomLevelASGenerator.h"
+#include "../DXRHelper/nv_helpers_dx12/RaytracingPipelineGenerator.h"
+#include "../DXRHelper/nv_helpers_dx12/RootSignatureGenerator.h"
 
 // GPUメモリ内の頂点バッファーのリストとその頂点数に基づいて、
 // 最下位レベルの加速構造を作成します。 ビルドは3つのステップで行われます。
@@ -126,6 +128,122 @@ void SceneMain::CreateAccelerationStructures(const std::shared_ptr<KGL::CommandQ
 	bottom_level_as = bottom_level_buffers.result;
 }
 
+// 光線生成シェーダーは2つのリソースにアクセスする必要があります：光線追跡出力と最上位の加速構造
+KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateRayGenSignature()
+{
+	nv_helpers_dx12::RootSignatureGenerator rsc;
+	rsc.AddHeapRangesParameter(
+		{
+			{
+				0 /*u0*/, 1 /*1 descriptor*/, 0 /*暗黙のレジスタスペース0を使用する*/,
+				D3D12_DESCRIPTOR_RANGE_TYPE_UAV /*出力バッファーを表すUAV*/,
+				0 /*UAVが定義されているヒープスロット*/
+			},
+			{
+				0 /*t0*/, 1, 0,
+				D3D12_DESCRIPTOR_RANGE_TYPE_SRV /*トップレベルの加速構造*/,
+				1
+			}
+		}
+	);
+	return rsc.Generate(device5.Get(), true);
+}
+
+// ミスシェーダーはレイペイロードを介してのみ通信するため、リソースを必要としません
+KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateMissSignature()
+{
+	nv_helpers_dx12::RootSignatureGenerator rsc;
+	return rsc.Generate(device5.Get(), true);
+}
+
+// ヒットシェーダーはレイペイロードを介してのみ通信するため、リソースを必要としません
+KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
+{
+	nv_helpers_dx12::RootSignatureGenerator rsc;
+	return rsc.Generate(device5.Get(), true);
+}
+
+
+// レイトレーシングパイプラインは、シェーダーコード、ルートシグネチャ、パイプライン特性を、
+// DXRがシェーダーを呼び出し、レイトレーシング中に一時メモリを管理するために使用する単一の構造にバインドします。
+void SceneMain::CreateRaytracingPipeline()
+{
+	nv_helpers_dx12::RayTracingPipelineGenerator pipeline(device5.Get());
+
+	// パイプラインには、レイトレーシングプロセス中に潜在的に実行されるすべてのシェーダーのDXILコードが含まれています。
+	// このセクションでは、HLSLコードを一連のDXILライブラリにコンパイルします。
+	// 明確にするために、いくつかのライブラリのコードをセマンティック
+	//（光線生成、ヒット、ミス）で分離することを選択しました。 任意のコードレイアウトを使用できます。
+	ray_gen_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/RayGen.hlsl");
+	miss_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Miss.hlsl");
+	hit_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Hit.hlsl");
+
+	// DLLと同様に、各ライブラリはエクスポートされた多数のシンボルに関連付けられています。
+	// これは、以下の行で明示的に行う必要があります。 
+	// 単一のライブラリには任意の数のシンボルを含めることができ、
+	// その意味は[shader（ "xxx"）]構文を使用してHLSLで指定されます。
+	pipeline.AddLibrary(ray_gen_library.Get(), { L"RayGen" });
+	pipeline.AddLibrary(miss_library.Get(), { L"Miss" });
+	pipeline.AddLibrary(hit_library.Get(), { L"ClosestHit" });
+
+	// 各DX12シェーダーを使用するには、アクセスするパラメーターとバッファーを定義するルート署名が必要です。
+	ray_gen_signature = CreateRayGenSignature();
+	miss_signature = CreateMissSignature();
+	hit_signature = CreateHitSignature();
+
+	// 3つの異なるシェーダーを呼び出して交差を取得できます。
+	// 交差しないシェーダーは、非三角形ジオメトリのバウンディングボックスを押すと呼び出されます。
+	// これは、このチュートリアルの範囲を超えています。 
+	// ヒットの可能性があるシェーダーは、潜在的な交差で呼び出されます。 
+	// このシェーダーは、たとえば、アルファテストを実行して一部の交差を破棄できます。
+	// 最後に、最も近いヒットのプログラムは、レイの原点に最も近い交点で呼び出されます。
+	// これら3つのシェーダーは1つのヒットグループにまとめられます。
+
+	// 三角形のジオメトリの場合、交差シェーダーが組み込まれていることに注意してください。
+	// 空の任意ヒットシェーダーもデフォルトで定義されているため、
+	// 単純なケースでは、各ヒットグループには最も近いヒットシェーダーのみが含まれています。
+	// エクスポートされたシンボルは上記で定義されているため、シェーダーは名前で簡単に参照できます。
+
+	// シェーダーが頂点カラーを補間するだけで、三角形のヒットグループ
+	pipeline.AddHitGroup(L"HitGroup", L"ClosestHit");
+
+	// 次のセクションでは、ルートシグネチャを各シェーダーに関連付けます。
+	// 一部のシェーダーが同じルート署名を共有していることを明示的に示すことができることに注意してください
+	//（例：MissとShadowMiss）。 
+	// ヒットシェーダーは現在、ヒットグループとのみ呼ばれることに注意してください。
+	// つまり、基になる交差、any-hit、およびnearest-hitシェーダーは同じルートシグネチャを共有します。
+	pipeline.AddRootSignatureAssociation(ray_gen_signature.Get(), { L"RayGen" });
+	pipeline.AddRootSignatureAssociation(miss_signature.Get(), { L"Miss" });
+	pipeline.AddRootSignatureAssociation(hit_signature.Get(), { L"HitGroup" });
+
+	// ペイロードサイズは、レイによって運ばれるデータの最大サイズを定義します。
+	// HLSLコードのHitInfo構造など、シェーダー間で交換されるデータ。
+	// 値が高すぎると、不必要なメモリ消費とキャッシュトラッシングが発生するため、
+	// この値をできるだけ低く保つことが重要です。
+	pipeline.SetMaxPayloadSize(4 * sizeof(float)); // RGB + distance
+
+	// DXRは、サーフェスに当たると、そのヒットにいくつかの属性を提供できます。
+	// サンプルでは、三角形の最後の2つの頂点の重みu、vで定義された重心座標を使用しています。
+	// 実際の重心は、float3 barycentrics = float3（1.f-u-v、u、v）;を使用して取得できます。
+	pipeline.SetMaxAttributeSize(2 * sizeof(float)); // 重心座標
+
+	// レイトレーシングプロセスでは、既存のヒットポイントからレイを放つことができるため、
+	// TraceRay呼び出しがネストされます。
+	// サンプルコードは1次光線のみをトレースするため、トレース深度1が必要です。
+	// 最高のパフォーマンスを得るには、この再帰深度を最小限に抑える必要があります。
+	// パストレーシングアルゴリズムは、光線生成で単純なループに簡単にフラット化できます。
+	pipeline.SetMaxRecursionDepth(1);
+
+	// GPUで実行するためにパイプラインをコンパイルする
+	rt_state_object = pipeline.Generate();
+
+	// ステートオブジェクトをプロパティオブジェクトにキャストし、
+	// 後で名前でシェーダーポインターにアクセスできるようにします
+	HRESULT hr = rt_state_object->QueryInterface(IID_PPV_ARGS(rt_state_object_props.GetAddressOf()));
+	RCHECK(FAILED(hr), "rt_state_object->QueryInterfaceに失敗");
+	
+}
+
 HRESULT SceneMain::Load(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
@@ -188,6 +306,11 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		// レイトレーシング用の加速構造（AS）をセットアップします。
 		// ジオメトリを設定する場合、最下位の各ASには独自の変換行列があります。
 		CreateAccelerationStructures(desc.app->GetQueue());
+
+		// レイトレーシングパイプラインを作成し、
+		// シェーダーコードをシンボル名とそのルートシグネチャに関連付け、
+		// レイが運ぶメモリの量を定義します（レイペイロード）
+		CreateRaytracingPipeline(); // #DXR
 	}
 
 	return hr;

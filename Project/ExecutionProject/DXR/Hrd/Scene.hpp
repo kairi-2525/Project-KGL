@@ -7,6 +7,7 @@
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/2D/Renderer.hpp>
 #include "../DXRHelper/nv_helpers_dx12/TopLevelASGenerator.h"
+#include <dxcapi.h>
 
 struct SceneDesc
 {
@@ -51,11 +52,31 @@ public:
 	AccelerationStructureBuffers						top_level_buffers;
 	std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> instances;
 
+	KGL::ComPtr<IDxcBlob>								ray_gen_library;
+	KGL::ComPtr<IDxcBlob>								hit_library;
+	KGL::ComPtr<IDxcBlob>								miss_library;
+
+	KGL::ComPtr<ID3D12RootSignature>					ray_gen_signature;
+	KGL::ComPtr<ID3D12RootSignature>					hit_signature;
+	KGL::ComPtr<ID3D12RootSignature>					miss_signature;
+
+	// レイトレーシングパイプラインステート
+	KGL::ComPtr<ID3D12StateObject>						rt_state_object;
+	// レイトレーシングパイプラインステートのプロパティ、
+	// シェーダーバインディングテーブルで使用するシェーダー識別子を保持
+	KGL::ComPtr<ID3D12StateObjectProperties>			rt_state_object_props;
 public:
 	AccelerationStructureBuffers CreateBottomLevelAS(
 		const std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, uint32_t>>& vertex_buffers);
 	void CreateTopLevelAS(const std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> &instances);
 	void CreateAccelerationStructures(const std::shared_ptr<KGL::CommandQueue>& queue);
+
+	// #DXR
+	KGL::ComPtr<ID3D12RootSignature> CreateRayGenSignature();
+	KGL::ComPtr<ID3D12RootSignature> CreateMissSignature();
+	KGL::ComPtr<ID3D12RootSignature> CreateHitSignature();
+
+	void CreateRaytracingPipeline();
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

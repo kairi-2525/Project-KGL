@@ -8,9 +8,14 @@
 #include <sstream>
 #include <string>
 #include <d3d12.h>
-//#include "DXSampleHelper.h"
 #include <dxcapi.h>
+#ifdef _WIN64
 #pragma comment(lib, "dxcompiler")
+//#pragma comment(lib, "DLL/x64/dxcompiler")
+#else
+#pragma comment(lib, "dxcompiler")
+//#pragma comment(lib, "DLL/x86/dxcompiler")
+#endif
 
 #include <vector>
 
