@@ -7,6 +7,7 @@
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/2D/Renderer.hpp>
 #include "../DXRHelper/nv_helpers_dx12/TopLevelASGenerator.h"
+#include "../DXRHelper/nv_helpers_dx12/ShaderBindingTableGenerator.h"
 #include <dxcapi.h>
 
 struct SceneDesc
@@ -68,6 +69,9 @@ public:
 
 	KGL::ComPtr<ID3D12Resource>							output_resource;
 	KGL::ComPtr<ID3D12DescriptorHeap>					srv_uav_heap;
+
+	nv_helpers_dx12::ShaderBindingTableGenerator		sbt_helper;
+	KGL::ComPtr<ID3D12Resource>							sbt_storage;
 public:
 	AccelerationStructureBuffers CreateBottomLevelAS(
 		const std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, uint32_t>>& vertex_buffers);
@@ -81,6 +85,7 @@ public:
 	void CreateRaytracingPipeline();
 	void CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size);
 	void CreateShaderResourceHeap();
+	void CreateShaderBindingTable();
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

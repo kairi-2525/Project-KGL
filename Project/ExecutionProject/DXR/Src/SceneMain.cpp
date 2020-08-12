@@ -166,6 +166,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateMissSignature()
 KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
+	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
 	KGL::ComPtr<ID3D12RootSignature> rs;
 	rs.Attach(rsc.Generate(device5.Get(), true));
 	rs->SetName(L"HitSignature");
@@ -316,6 +317,55 @@ void SceneMain::CreateShaderResourceHeap()
 	device5->CreateShaderResourceView(nullptr, &srv_desc, srv_handle);
 }
 
+// シェーダーバインディングテーブル（SBT）は、レイトレーシングセットアップの基礎です。
+// これは、GPU上のレイトレーサーによって解釈できるように、
+// シェーダーリソースがシェーダーにバインドされる場所です。 
+// レイアウトに関しては、SBTには一連のシェーダーIDとそのリソースポインターが含まれています。
+// SBTには、光線生成シェーダー、ミスシェーダー、ヒットグループが含まれます。 
+// ヘルパークラスを使用すると、それらを任意の順序で指定できます。
+void SceneMain::CreateShaderBindingTable()
+{
+	// SBTヘルパークラスはAdd * Programの呼び出しを収集します。
+	// 複数回呼び出される場合は、シェーダーを再度追加する前にヘルパーを空にする必要があります。
+	sbt_helper.Reset();
+
+	// ヒープの先頭へのポインターは、ルートパラメーターのないシェーダーで必要な唯一のパラメーターです
+	D3D12_GPU_DESCRIPTOR_HANDLE srv_uav_heap_handle =
+		srv_uav_heap->GetGPUDescriptorHandleForHeapStart();
+
+	// ヘルパーはルートパラメータポインタとヒープポインタの両方をvoid *として扱いますが、
+	// DX12はD3D12_GPU_DESCRIPTOR_HANDLEを使用してヒープポインタを定義します。
+	// この構造体のポインターはUINT64で、ポインターとして再解釈する必要があります。
+	auto heap_pointer = RCAST<UINT64*>(srv_uav_heap_handle.ptr);
+
+	// 光線生成はヒープデータのみを使用します
+	sbt_helper.AddRayGenerationProgram(L"RayGen", { (void*)heap_pointer });
+
+	// ミスシェーダーとヒットシェーダーは外部リソースにアクセスせず、
+	// 代わりにレイペイロードを通じて結果を伝達します。
+	sbt_helper.AddMissProgram(L"Miss", {});	// カメラレイ用とシャドウレイ用のミスシェーダーがあるため
+	sbt_helper.AddMissProgram(L"Miss", {});
+
+	// トライアングルヒットシェーダーを追加する
+	sbt_helper.AddHitGroup(L"HitGroup", { (void*)(t_vert_res->Data()->GetGPUVirtualAddress()) });
+
+	// シェーダーとそのパラメーターの数を指定して、SBTのサイズを計算します。
+	const UINT32 sbt_size = sbt_helper.ComputeSBTSize();
+
+	// アップロードヒープにSBTを作成します。 
+	// これは、ヘルパーがマッピングを使用してSBTコンテンツを書き込むために必要です。 
+	// SBTのコンパイル後、パフォーマンス向上のためにデフォルトのヒープにコピーできます。
+	sbt_storage.Attach(nv_helpers_dx12::CreateBuffer(
+		device5.Get(), sbt_size, D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps
+	));
+
+	RCHECK(!sbt_storage, "シェーダーバインディングテーブルを割り当てられませんでした");
+
+	// シェーダーとパラメーター情報からSBTをコンパイルする
+	sbt_helper.Generate(sbt_storage.Get(), rt_state_object_props.Get());
+}
+
 HRESULT SceneMain::Load(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
@@ -390,6 +440,10 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		// レイトレーシングの結果を含むバッファーを作成し（常にUAVに出力）、
 		// レイトレーシングで使用されるリソース（加速構造など）を参照するヒープを作成します。
 		CreateShaderResourceHeap();
+
+		// シェーダーバインディングテーブルを作成し、
+		// ASのインスタンスごとに呼び出されるシェーダーを示します。
+		CreateShaderBindingTable();
 	}
 
 	return hr;
@@ -438,11 +492,11 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 		window_size.x, window_size.y
 	);
 
-	cmd_list4->RSSetViewports(1, &viewport);
-	cmd_list4->RSSetScissorRects(1, &scissorrect);
-
 	if (raster)
 	{
+		cmd_list4->RSSetViewports(1, &viewport);
+		cmd_list4->RSSetScissorRects(1, &scissorrect);
+
 		desc.app->SetRtvDsv(cmd_list4);
 		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->ClearRtvDsv(cmd_list4, DirectX::XMFLOAT4(0.0f, 0.2f, 0.4f, 1.f));
@@ -456,10 +510,91 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 	}
 	else
 	{
-		desc.app->SetRtvDsv(cmd_list4);
 		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->ClearRtvDsv(cmd_list4, DirectX::XMFLOAT4(0.6f, 0.8f, 0.4f, 1.f));
+		// 記述子ヒープをバインドして、トップレベルのアクセラレーション構造とレイトレーシング出力へのアクセスを提供します
+		std::vector<ID3D12DescriptorHeap*> heaps = { srv_uav_heap.Get() };
+		cmd_list4->SetDescriptorHeaps(SCAST<UINT>(heaps.size()), heaps.data());
 
+		// 最後のフレームでは、レイトレーシング出力がコピーソースとして使用され、
+		// その内容がレンダーターゲットにコピーされました。 
+		// 次に、シェーダーがUAVに書き込むことができるように、UAVに移行する必要があります。
+		CD3DX12_RESOURCE_BARRIER transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			output_resource.Get(),
+			D3D12_RESOURCE_STATE_COPY_SOURCE,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS
+		);
+		cmd_list4->ResourceBarrier(1, &transition);
+
+		// レイトレーシングタスクを設定します
+		{
+			D3D12_DISPATCH_RAYS_DESC ray_desc = {};
+			// SBTのレイアウトは、光線生成シェーダー、ミスシェーダー、ヒットグループです。
+			// CreateShaderBindingTableメソッドで説明されているように、
+			// 特定のタイプのすべてのSBTエントリは、固定ストライドを可能にするために同じサイズを持っています。
+
+			// 光線生成シェーダーは常にSBTの先頭にあります。
+			D3D12_GPU_VIRTUAL_ADDRESS start_address = sbt_storage->GetGPUVirtualAddress();
+			const UINT32 ray_generation_section_size_in_bytes = sbt_helper.GetRayGenSectionSize();
+			ray_desc.RayGenerationShaderRecord.StartAddress = start_address;
+			ray_desc.RayGenerationShaderRecord.SizeInBytes = ray_generation_section_size_in_bytes;
+
+			start_address += ray_generation_section_size_in_bytes;
+
+			// ミスシェーダーは、光線生成シェーダーの直後の2番目のSBTセクションにあります。 
+			// カメラレイ用とシャドウレイ用の1つのミスシェーダーがあるため、
+			// このセクションのサイズは2 * m_sbtEntrySizeです。 
+			// 2つのミスシェーダー間のストライドも示します。これは、SBTエントリのサイズです。
+			const UINT32 miss_section_size_in_bytes = sbt_helper.GetMissSectionSize();
+			ray_desc.MissShaderTable.StartAddress = start_address;
+			ray_desc.MissShaderTable.SizeInBytes = miss_section_size_in_bytes;
+			ray_desc.MissShaderTable.StrideInBytes = sbt_helper.GetMissEntrySize();
+
+			start_address += miss_section_size_in_bytes;
+
+			// ヒットグループセクションは、ミスシェーダーの後に始まります。
+			// このサンプルでは、三角形に1つの1ヒットグループがあります。
+			const UINT32 hit_groups_section_size = sbt_helper.GetHitGroupSectionSize();
+			ray_desc.HitGroupTable.StartAddress = start_address;
+			ray_desc.HitGroupTable.SizeInBytes = hit_groups_section_size;
+			ray_desc.HitGroupTable.StrideInBytes = sbt_helper.GetHitGroupEntrySize();
+
+			// カーネル起動寸法と同じ、レンダリングする画像の寸法
+			ray_desc.Width = window_size.x;
+			ray_desc.Height = window_size.y;
+			ray_desc.Depth = 1;
+
+			// レイトレーシングパイプラインをバインドする
+			cmd_list4->SetPipelineState1(rt_state_object.Get());
+			// 光線をディスパッチし、光線追跡出力に書き込みます
+			cmd_list4->DispatchRays(&ray_desc);
+		}
+
+		// レイトレーシング出力は、表示に使用される実際のレンダーターゲットにコピーする必要があります。 
+		// そのためには、レイトレーシング出力をUAVからコピーソースに、
+		// レンダーターゲットバッファーをコピー先に移行する必要があります。 
+		// その後、レンダーターゲットバッファーをレンダーターゲットに移行する前に、
+		// 実際のコピーを実行できます。これを使用して、イメージを表示します。
+		transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			output_resource.Get(),
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COPY_SOURCE
+		);
+		cmd_list4->ResourceBarrier(1, &transition);
+		const auto& back_buffer = desc.app->GetRtvBuffers().at(desc.app->GetSwapchain()->GetCurrentBackBufferIndex());
+		transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			back_buffer.Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_COPY_DEST
+		);
+		cmd_list4->ResourceBarrier(1, &transition);
+
+		cmd_list4->CopyResource(back_buffer.Get(), output_resource.Get());
+		transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			back_buffer.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_RENDER_TARGET
+		);
+		cmd_list4->ResourceBarrier(1, &transition);
 		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
 
