@@ -65,18 +65,22 @@ public:
 	// レイトレーシングパイプラインステートのプロパティ、
 	// シェーダーバインディングテーブルで使用するシェーダー識別子を保持
 	KGL::ComPtr<ID3D12StateObjectProperties>			rt_state_object_props;
+
+	KGL::ComPtr<ID3D12Resource>							output_resource;
+	KGL::ComPtr<ID3D12DescriptorHeap>					srv_uav_heap;
 public:
 	AccelerationStructureBuffers CreateBottomLevelAS(
 		const std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, uint32_t>>& vertex_buffers);
 	void CreateTopLevelAS(const std::vector<std::pair<KGL::ComPtr<ID3D12Resource>, DirectX::XMMATRIX>> &instances);
 	void CreateAccelerationStructures(const std::shared_ptr<KGL::CommandQueue>& queue);
 
-	// #DXR
 	KGL::ComPtr<ID3D12RootSignature> CreateRayGenSignature();
 	KGL::ComPtr<ID3D12RootSignature> CreateMissSignature();
 	KGL::ComPtr<ID3D12RootSignature> CreateHitSignature();
 
 	void CreateRaytracingPipeline();
+	void CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size);
+	void CreateShaderResourceHeap();
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

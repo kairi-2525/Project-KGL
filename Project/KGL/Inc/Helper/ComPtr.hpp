@@ -20,3 +20,6 @@ namespace KGL
 		~UseComPtr() noexcept { CoUninitialize(); }
 	};
 }
+
+using KGL::ComPtr;
+using KGL::ComPtrC;

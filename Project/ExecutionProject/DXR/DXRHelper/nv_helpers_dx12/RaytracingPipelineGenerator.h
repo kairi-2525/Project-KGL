@@ -67,6 +67,7 @@ rtStateObject = pipeline.Generate();
 
 #include <string>
 #include <vector>
+#include <wrl.h>
 
 namespace nv_helpers_dx12
 {
@@ -188,8 +189,8 @@ private:
   UINT m_maxRecursionDepth = 1;
 
   ID3D12Device5* m_device;
-  ID3D12RootSignature* m_dummyLocalRootSignature;
-  ID3D12RootSignature* m_dummyGlobalRootSignature;
+  Microsoft::WRL::ComPtr<ID3D12RootSignature> m_dummyLocalRootSignature;
+  Microsoft::WRL::ComPtr<ID3D12RootSignature> m_dummyGlobalRootSignature;
 
   
 };

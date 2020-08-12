@@ -242,7 +242,7 @@ ID3D12StateObject* RayTracingPipelineGenerator::Generate()
   // The pipeline construction always requires an empty global root signature
   D3D12_STATE_SUBOBJECT globalRootSig;
   globalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
-  ID3D12RootSignature* dgSig = m_dummyGlobalRootSignature;
+  ID3D12RootSignature* dgSig = m_dummyGlobalRootSignature.Get();
   globalRootSig.pDesc = &dgSig;
 
   subobjects[currentIndex++] = globalRootSig;
@@ -250,7 +250,7 @@ ID3D12StateObject* RayTracingPipelineGenerator::Generate()
   // The pipeline construction always requires an empty local root signature
   D3D12_STATE_SUBOBJECT dummyLocalRootSig;
   dummyLocalRootSig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-  ID3D12RootSignature* dlSig = m_dummyLocalRootSignature;
+  ID3D12RootSignature* dlSig = m_dummyLocalRootSignature.Get();
   dummyLocalRootSig.pDesc = &dlSig;
   subobjects[currentIndex++] = dummyLocalRootSig;
 
@@ -308,7 +308,7 @@ void RayTracingPipelineGenerator::CreateDummyRootSignatures()
   }
   hr = m_device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(),
                                      serializedRootSignature->GetBufferSize(),
-                                     IID_PPV_ARGS(&m_dummyGlobalRootSignature));
+                                     IID_PPV_ARGS(m_dummyGlobalRootSignature.GetAddressOf()));
 
   serializedRootSignature->Release();
   if (FAILED(hr))
@@ -326,7 +326,7 @@ void RayTracingPipelineGenerator::CreateDummyRootSignatures()
   }
   hr = m_device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(),
                                      serializedRootSignature->GetBufferSize(),
-                                     IID_PPV_ARGS(&m_dummyLocalRootSignature));
+                                     IID_PPV_ARGS(m_dummyLocalRootSignature.GetAddressOf()));
 
   serializedRootSignature->Release();
   if (FAILED(hr))

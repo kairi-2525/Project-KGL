@@ -146,21 +146,30 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateRayGenSignature()
 			}
 		}
 	);
-	return rsc.Generate(device5.Get(), true);
+	KGL::ComPtr<ID3D12RootSignature> rs;
+	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs->SetName(L"RayGenSignature");
+	return rs;
 }
 
 // ミスシェーダーはレイペイロードを介してのみ通信するため、リソースを必要としません
 KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateMissSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
-	return rsc.Generate(device5.Get(), true);
+	KGL::ComPtr<ID3D12RootSignature> rs;
+	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs->SetName(L"MissSignature");
+	return rs;
 }
 
 // ヒットシェーダーはレイペイロードを介してのみ通信するため、リソースを必要としません
 KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
-	return rsc.Generate(device5.Get(), true);
+	KGL::ComPtr<ID3D12RootSignature> rs;
+	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs->SetName(L"HitSignature");
+	return rs;
 }
 
 
@@ -174,9 +183,9 @@ void SceneMain::CreateRaytracingPipeline()
 	// このセクションでは、HLSLコードを一連のDXILライブラリにコンパイルします。
 	// 明確にするために、いくつかのライブラリのコードをセマンティック
 	//（光線生成、ヒット、ミス）で分離することを選択しました。 任意のコードレイアウトを使用できます。
-	ray_gen_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/RayGen.hlsl");
-	miss_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Miss.hlsl");
-	hit_library = nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Hit.hlsl");
+	ray_gen_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/RayGen.hlsl"));
+	miss_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Miss.hlsl"));
+	hit_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Hit.hlsl"));
 
 	// DLLと同様に、各ライブラリはエクスポートされた多数のシンボルに関連付けられています。
 	// これは、以下の行で明示的に行う必要があります。 
@@ -235,13 +244,76 @@ void SceneMain::CreateRaytracingPipeline()
 	pipeline.SetMaxRecursionDepth(1);
 
 	// GPUで実行するためにパイプラインをコンパイルする
-	rt_state_object = pipeline.Generate();
+	rt_state_object.Attach(pipeline.Generate());
 
 	// ステートオブジェクトをプロパティオブジェクトにキャストし、
 	// 後で名前でシェーダーポインターにアクセスできるようにします
 	HRESULT hr = rt_state_object->QueryInterface(IID_PPV_ARGS(rt_state_object_props.GetAddressOf()));
 	RCHECK(FAILED(hr), "rt_state_object->QueryInterfaceに失敗");
 	
+}
+
+// レイトレーシング出力を保持するバッファを、出力画像と同じサイズで割り当てます
+void SceneMain::CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size)
+{
+	D3D12_RESOURCE_DESC res_desc = {};
+	res_desc.DepthOrArraySize = 1;
+	res_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+
+	// バックバッファーは実際にはDXGI_FORMAT_R8G8B8A8_UNORM_SRGBですが、
+	// sRGB形式はUAVで使用できません。 
+	// 正確さのために、シェーダーで自分自身をsRGBに変換する必要があります
+	res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	res_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	res_desc.Width = screen_size.x;
+	res_desc.Height = screen_size.y;
+	res_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	res_desc.MipLevels = 1;
+	res_desc.SampleDesc.Count = 1;
+
+	HRESULT hr = device5->CreateCommittedResource(
+		&nv_helpers_dx12::kDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &res_desc,
+		D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr,
+		IID_PPV_ARGS(output_resource.GetAddressOf())
+	);
+	RCHECK(FAILED(hr), "RaytracingOutputBufferのCreateCommittedResourceに失敗");
+
+
+}
+
+// シェーダーが使用するメインヒープを作成します。
+// これにより、レイトレーシング出力と最上位の加速構造にアクセスできます。
+void SceneMain::CreateShaderResourceHeap()
+{
+	// SRV / UAV / CBV記述子ヒープを作成します。 
+	// 2つのエントリが必要です - レイトレーシング出力用の1 UAVとTLAS用の1 SRV
+	srv_uav_heap.Attach(
+		nv_helpers_dx12::CreateDescriptorHeap(device5.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true)
+	);
+
+	// 記述子を直接書き込むことができるように、CPU側のヒープメモリへのハンドルを取得します。
+	D3D12_CPU_DESCRIPTOR_HANDLE srv_handle =
+		srv_uav_heap->GetCPUDescriptorHandleForHeapStart();
+
+	// UAVを作成します。 作成したルート署名に基づいて、
+	// 最初のエントリです。 Create * Viewメソッドは、ビュー情報をsrvHandleに直接書き込みます
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
+	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	device5->CreateUnorderedAccessView(output_resource.Get(), nullptr, &uav_desc,
+		srv_handle);
+
+	// レイトレーシング出力バッファーの直後にトップレベルAS SRVを追加する
+	srv_handle.ptr += device5->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
+	srv_desc.Format = DXGI_FORMAT_UNKNOWN;
+	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv_desc.RaytracingAccelerationStructure.Location =
+		top_level_buffers.result->GetGPUVirtualAddress();
+	// ヒープにアクセラレーション構造ビューを書き込む
+	device5->CreateShaderResourceView(nullptr, &srv_desc, srv_handle);
 }
 
 HRESULT SceneMain::Load(const SceneDesc& desc)
@@ -280,7 +352,7 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 
 		t_vert_view.BufferLocation = t_vert_res->Data()->GetGPUVirtualAddress();
 		t_vert_view.StrideInBytes = sizeof(TriangleVertex);
-		t_vert_view.SizeInBytes = sizeof(TriangleVertex) * vertex.size();
+		t_vert_view.SizeInBytes = SCAST<UINT>(sizeof(TriangleVertex) * vertex.size());
 
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.vs_desc.hlsl = "./HLSL/2D/Triangle_vs.hlsl";
@@ -310,7 +382,14 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		// レイトレーシングパイプラインを作成し、
 		// シェーダーコードをシンボル名とそのルートシグネチャに関連付け、
 		// レイが運ぶメモリの量を定義します（レイペイロード）
-		CreateRaytracingPipeline(); // #DXR
+		CreateRaytracingPipeline();
+
+		// レイトレーシング出力を格納するバッファを、ターゲットイメージと同じサイズで割り当てます
+		CreateRaytracingOutputBuffer(desc.window->GetClientSize());
+
+		// レイトレーシングの結果を含むバッファーを作成し（常にUAVに出力）、
+		// レイトレーシングで使用されるリソース（加速構造など）を参照するヒープを作成します。
+		CreateShaderResourceHeap();
 	}
 
 	return hr;
