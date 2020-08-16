@@ -74,13 +74,13 @@ std::unique_ptr<KGL::Shader> BaseRenderer::GetShaderDesc(
 	std::unique_ptr<KGL::Shader> shader;
 
 	shader = std::make_unique<KGL::Shader>(
-		vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, input_layouts,
+		vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, input_layouts/*,
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 #ifdef _DEBUG
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
 #else
 		0
-#endif
+#endif*/
 		);
 	shader->GetDesc(out_desc);
 	return shader;

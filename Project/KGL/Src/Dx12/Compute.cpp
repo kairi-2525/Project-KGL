@@ -32,12 +32,12 @@ ComputePipline::ComputePipline(ComPtrC<ID3D12Device> device, const Desc& desc) n
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipe_desc{};
 
-	ShaderCS shader(desc.cs_desc, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+	ShaderCS shader(desc.cs_desc/*, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 #ifdef _DEBUG
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
 #else
 		0
-#endif
+#endif*/
 	);
 	shader.GetDesc(&pipe_desc);
 
