@@ -22,7 +22,8 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>				rtv_num_dsmgr;
 	KGL::DescriptorHandle								rtv_num_handle;
 public:
-	DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D12Resource> rsc);
+	DOFGenerator(KGL::ComPtrC<ID3D12Device> device,
+		const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc);
 	void Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		KGL::ComPtrC<ID3D12DescriptorHeap> srv_heap, D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle,
 		D3D12_VIEWPORT view_port);

@@ -56,7 +56,7 @@ HRESULT TestScene05::Load(const SceneDesc& desc)
 	//	{ { KGL::SCAST<UINT>(KGL::ComputePipline::DESCRIPTOR_RANGES1.size()), KGL::ComputePipline::DESCRIPTOR_RANGES1.data() } },
 	//	D3D12_SHADER_VISIBILITY_ALL }
 	//);
-	cpt_pipeline = std::make_shared<KGL::ComputePipline>(device, pipe_desc);
+	cpt_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc, pipe_desc);
 
 	return hr;
 }

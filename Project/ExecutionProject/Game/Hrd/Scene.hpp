@@ -14,6 +14,7 @@
 #include <Dx12/DescriptorHeap.hpp>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/ThrowAssert.hpp>
+#include <Base/DXC.hpp>
 
 class SceneManager;
 struct SceneDesc
@@ -23,6 +24,7 @@ struct SceneDesc
 	std::shared_ptr<KGL::Input> input;
 	std::shared_ptr<KGL::DescriptorManager>	imgui_heap_mgr;
 	KGL::DescriptorHandle		imgui_handle;
+	std::shared_ptr<KGL::DXC>	dxc;
 };
 
 class SceneBase

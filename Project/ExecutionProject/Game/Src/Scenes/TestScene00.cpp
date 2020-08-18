@@ -43,7 +43,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 		texture_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
 	}
 
-	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device);
+	renderer_sprite = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc);
 	renderer_sprite->SetName("renderer_sprite");
 	{
 		auto add_ranges = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
@@ -55,11 +55,11 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 			renderer_desc.root_params.push_back(root_param);
 		}
 		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/GaussianBlurW_ps.hlsl", "PSMain", "ps_5_1" };
-		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_blur_w = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_blur_w->SetName("renderer_blur_w");
 
 		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/GaussianBlurH_ps.hlsl", "PSMain", "ps_5_1" };
-		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_blur_h = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_blur_h->SetName("renderer_blur_h");
 		auto add_ranges_effect = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 1);
 		{
@@ -68,7 +68,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 			renderer_desc.root_params.push_back(root_param);
 		}
 		renderer_desc.ps_desc = KGL::SHADER::Desc{ "./HLSL/2D/SpriteNormal_ps.hlsl", "PSMain", "ps_5_1" };
-		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		renderer_effect = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_effect->SetName("renderer_effect");
 	}
 	sprite = std::make_shared<KGL::Sprite>(device);
@@ -77,7 +77,7 @@ HRESULT TestScene00::Load(const SceneDesc& desc)
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
-	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
+	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc);
 	pmd_renderer->SetName("pmd_renderer");
 
 	models.resize(1, { device, *pmd_model });

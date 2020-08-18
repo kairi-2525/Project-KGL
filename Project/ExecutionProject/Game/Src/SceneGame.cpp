@@ -28,7 +28,7 @@ HRESULT SceneGame::Load(const SceneDesc& desc)
 	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
 	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
 	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
-	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device);
+	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc);
 
 	models.resize(1, { device, *pmd_model });
 	for (auto& model : models)

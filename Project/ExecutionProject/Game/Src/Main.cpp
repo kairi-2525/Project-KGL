@@ -56,6 +56,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		KGL::RefreshRate fps_counter;
 		window->Show();
 
+		std::shared_ptr<KGL::DXC>	dxc;
+#ifdef _WIN64
+		dxc = std::make_shared<KGL::DXC>("./DLL/x64/dxcompiler.dll");
+#else
+		dxc = std::make_shared<KGL::DXC>("./DLL/Win32/dxcompiler.dll");
+#endif
 		ComPtr<ID3D12Device> device;
 		{
 			HRESULT hr = S_OK;
@@ -92,7 +98,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
-				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle };
+				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle, dxc };
 				hr = scene_mgr.Init<TestScene04>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };

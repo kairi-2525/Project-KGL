@@ -27,7 +27,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/PMDShadowMap_vs.hlsl";
 		renderer_desc.ps_desc.hlsl.clear();
 		renderer_desc.render_targets.clear();
-		pmd_light_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_light_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc, renderer_desc);
 		pmd_light_renderer->SetName("pmd_light_renderer");
 	}
 
@@ -35,11 +35,11 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 	{
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Depth_ps.hlsl";
-		depth_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		depth_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		depth_renderer->SetName("depth_renderer");
 	}
 
-	sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device);
+	sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc);
 	{
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// [‚³‚ÌÅ‘å’l‚ÅƒNƒŠƒA
@@ -121,7 +121,7 @@ HRESULT TestScene03::Load(const SceneDesc& desc)
 
 			renderer_desc.static_samplers.push_back(sampler_desc);
 		}
-		pmd_multi_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_multi_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc, renderer_desc);
 		pmd_multi_renderer->SetName("pmd_multi_renderer");
 	}
 

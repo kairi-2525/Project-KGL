@@ -29,7 +29,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		uint16_t spawn_num = KGL::SCAST<uint16_t>(-update_timer / spawn_elapsed) + 1u;
 		float spawn_time_counter = -update_timer;
 		float spawn_time_counter_max = spawn_time_counter;
-		update_timer = fmodf(-update_timer, spawn_elapsed);
+		update_timer += spawn_num * spawn_elapsed;
 		XMVECTOR axis = XMVector3Normalize(velocity);
 		XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
 		XMVECTOR side_axis;

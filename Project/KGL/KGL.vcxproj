@@ -20,9 +20,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\Base\Camera.hpp" />
+    <ClInclude Include="Inc\Base\DXC.hpp" />
     <ClInclude Include="Inc\Base\FBX.hpp" />
     <ClInclude Include="Inc\Base\Input.hpp" />
-    <ClInclude Include="Inc\Base\Library.hpp" />
+    <ClInclude Include="Inc\Base\DLL.hpp" />
     <ClInclude Include="Inc\Base\Model.hpp" />
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Base\VMD.hpp" />
@@ -67,8 +68,9 @@
     <ClInclude Include="Inc\Loader\VMDLoader.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Base\DXC.cpp" />
     <ClCompile Include="Src\Base\Input.cpp" />
-    <ClCompile Include="Src\Base\Library.cpp" />
+    <ClCompile Include="Src\Base\DLL.cpp" />
     <ClCompile Include="Src\Helper\JIS_X_0208.cpp" />
     <ClCompile Include="Src\Helper\Other.cpp" />
     <ClCompile Include="Src\Helper\Scene.cpp" />

@@ -21,23 +21,23 @@ namespace KGL
 			public:
 				static inline const SHADER::Desc VS_DESC =
 				{
-					"./HLSL/2D/Sprite_vs.hlsl", "VSMain", "vs_5_1"
+					"./HLSL/2D/Sprite_vs.hlsl", "VSMain", "vs_6_0"
 				};
 				static inline const SHADER::Desc PS_DESC =
 				{
-					"./HLSL/2D/Sprite_ps.hlsl", "PSMain", "ps_5_1"
+					"./HLSL/2D/Sprite_ps.hlsl", "PSMain", "ps_6_0"
 				};
 				static inline const SHADER::Desc DS_DESC =
 				{
-					{}, "DSMain", "ds_5_1"
+					{}, "DSMain", "ds_6_0"
 				};
 				static inline const SHADER::Desc HS_DESC =
 				{
-					{}, "HSMain", "hs_5_1"
+					{}, "HSMain", "hs_6_0"
 				};
 				static inline const SHADER::Desc GS_DESC =
 				{
-					{}, "GSMain", "gs_5_1"
+					{}, "GSMain", "gs_6_0"
 				};
 				static inline const std::vector<D3D12_INPUT_ELEMENT_DESC> INPUT_LAYOUTS =
 				{
@@ -106,9 +106,10 @@ namespace KGL
 			public:
 				explicit Renderer(
 					const ComPtr<ID3D12Device>& device,
+					const std::shared_ptr<DXC> dxc,
 					const Desc& desc = DEFAULT_DESC
 				) noexcept {
-					Create(device, desc);
+					Create(device, dxc, desc);
 				}
 			};
 		}

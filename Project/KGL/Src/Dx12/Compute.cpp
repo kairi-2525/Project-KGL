@@ -4,7 +4,10 @@
 
 using namespace KGL;
 
-ComputePipline::ComputePipline(ComPtrC<ID3D12Device> device, const Desc& desc) noexcept
+ComputePipline::ComputePipline(
+	ComPtrC<ID3D12Device> device,
+	const std::shared_ptr<DXC> dxc,
+	const Desc& desc) noexcept
 {
 	CD3DX12_ROOT_SIGNATURE_DESC root_desc = {};
 	root_desc.Init(
@@ -32,7 +35,7 @@ ComputePipline::ComputePipline(ComPtrC<ID3D12Device> device, const Desc& desc) n
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC pipe_desc{};
 
-	ShaderCS shader(desc.cs_desc/*, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+	ShaderCS shader(dxc, desc.cs_desc/*, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 #ifdef _DEBUG
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION
 #else

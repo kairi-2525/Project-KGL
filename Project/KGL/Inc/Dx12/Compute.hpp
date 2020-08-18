@@ -20,7 +20,7 @@ namespace KGL
 		public:
 			static inline const SHADER::Desc SHADER_DESC
 			{
-				"./HLSL/3D/Particle_cs.hlsl", "CSMain", "cs_5_1"
+				"./HLSL/3D/Particle_cs.hlsl", "CSMain", "cs_6_0"
 			};
 			static inline const std::vector<D3D12_DESCRIPTOR_RANGE> DESCRIPTOR_RANGES0 =
 			{
@@ -52,7 +52,7 @@ namespace KGL
 			ComPtr<ID3D12PipelineState>	m_pl_state;
 			ComPtr<ID3D12RootSignature>	m_rootsig;
 		public:
-			explicit ComputePipline(ComPtrC<ID3D12Device> device, const Desc& desc = DEFAULT_DESC) noexcept;
+			explicit ComputePipline(ComPtrC<ID3D12Device> device, const std::shared_ptr<DXC> dxc, const Desc& desc = DEFAULT_DESC) noexcept;
 			void SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
 		};
 	}

@@ -2,11 +2,12 @@
 #include <Loader/Loader.hpp>
 #include <Helper/ThrowAssert.hpp>
 
-#pragma comment(lib, "dxcompiler")
+//#pragma comment(lib, "dxcompiler")
 #include <fstream>
 #include <sstream>
+#include <comdef.h>
 
-#pragma comment(lib, "d3dcompiler.lib")
+//#pragma comment(lib, "d3dcompiler.lib")
 
 using namespace KGL;
 
@@ -18,21 +19,12 @@ using namespace KGL;
 //	_Always_(_Outptr_opt_result_maybenull_) ID3DBlob** pp_error_msg
 //) noexcept(false)
 
-HRESULT SHADER::Load(const Desc& desc, ComPtr<IDxcBlob>* code
+HRESULT SHADER::Load(const std::shared_ptr<DXC> dxc, const Desc& desc, ComPtr<ID3DBlob>* code
 ) noexcept(false)
 {
-	KGL::ComPtr<IDxcCompiler>		compiler;
-	KGL::ComPtr<IDxcLibrary>		liblary;
-	KGL::ComPtr<IDxcIncludeHandler> dx_include_handler;
-
 	HRESULT hr;
 
-	hr = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(compiler.GetAddressOf()));
-	RCHECK_HR(hr, "compiler の DxcCreateInstance に失敗");
-	hr = DxcCreateInstance(CLSID_DxcLibrary, IID_PPV_ARGS(liblary.GetAddressOf()));
-	RCHECK_HR(hr, "liblary の DxcCreateInstance に失敗");
-	hr = liblary->CreateIncludeHandler(dx_include_handler.GetAddressOf());
-	RCHECK_HR(hr, "dx_include_handler の CreateIncludeHandler に失敗");
+	RCHECK(!dxc, "dxc が nullptr。", E_FAIL);
 
 	// シェーダーファイルを読み込み
 	std::ifstream shader_file(desc.hlsl.string());
@@ -50,9 +42,9 @@ HRESULT SHADER::Load(const Desc& desc, ComPtr<IDxcBlob>* code
 	std::string str_shader = str_stream.str();
 
 	// string から shader blob を作成
-	assert(!(*code) && "pp_codeがnullptrではありません。");
+	RCHECK((*code), "pp_codeがnullptrではありません。", E_FAIL);
 	KGL::ComPtr<IDxcBlobEncoding> text_blob;
-	hr = liblary->CreateBlobWithEncodingFromPinned(
+	hr = dxc->GetLiblary()->CreateBlobWithEncodingFromPinned(
 		(LPBYTE)str_shader.c_str(), SCAST<uint32_t>(str_shader.size()), 0,
 		text_blob.GetAddressOf()
 	);
@@ -78,14 +70,14 @@ HRESULT SHADER::Load(const Desc& desc, ComPtr<IDxcBlob>* code
 		L"/02"	// リリースビルドでは最適化
 #endif
 	};
-	hr = compiler->Compile(
+	hr = dxc->GetCompiler()->Compile(
 		text_blob.Get(),
 		desc.hlsl.wstring().c_str(),
 		entry_point.wstring().c_str(),
 		version.wstring().c_str(),
 		compile_flags, SCAST<UINT32>(std::size(compile_flags))
 		, nullptr, 0,
-		dx_include_handler.Get(),
+		dxc->GetDXIHeader().Get(),
 		result.GetAddressOf()
 		);
 	RCHECK_HR(hr, "IDXC の Compile に失敗");
@@ -113,7 +105,18 @@ HRESULT SHADER::Load(const Desc& desc, ComPtr<IDxcBlob>* code
 		MessageBoxA(nullptr, error_msg.c_str(), "エラー！", MB_OK);
 		throw std::runtime_error("シェーダーコンパイルエラー！");
 	}
-	hr = result->GetResult(code->ReleaseAndGetAddressOf());
+
+	_COM_SMARTPTR_TYPEDEF(IDxcBlob, __uuidof(IDxcBlob));
+	IDxcBlobPtr p_idxc_blob;
+	_COM_SMARTPTR_TYPEDEF(ID3DBlob, __uuidof(ID3DBlob));
+	ID3DBlobPtr p_id3d_blob;
+
+	hr = result->GetResult(&p_idxc_blob);
+	p_idxc_blob.AddRef();
+	p_id3d_blob = p_idxc_blob;
+	code->Attach(p_id3d_blob);
+	//p_idxc_blob = p_id3d_blob = nullptr;
+
 	RCHECK_HR(hr, "IDXC の GetResult に失敗");
 
 	
@@ -145,6 +148,7 @@ HRESULT SHADER::Load(const Desc& desc, ComPtr<IDxcBlob>* code
 //	_In_opt_ ID3DInclude* p_include,
 //	_In_ UINT flag0, _In_ UINT flag1
 Shader::Shader(
+	const std::shared_ptr<DXC> dxc,
 	const SHADER::Desc& vs, const SHADER::Desc& ps,
 	const SHADER::Desc& ds, const SHADER::Desc& hs, const SHADER::Desc& gs,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_desc
@@ -157,34 +161,34 @@ Shader::Shader(
 		// VS
 		if (!vs.hlsl.empty())
 		{
-			hr = Load(vs, &m_vs);
+			hr = Load(dxc, vs, &m_vs);
 			RCHECK(FAILED(hr), "VSの生成に失敗");
 		}
 		// PS
 		if (!ps.hlsl.empty())
 		{
 			// PS
-			hr = Load(ps, &m_ps);
+			hr = Load(dxc, ps, &m_ps);
 			RCHECK(FAILED(hr), "PSの生成に失敗");
 		}
 		// DS
 		if (!ds.hlsl.empty())
 		{
-			hr = Load(ds, &m_ds);
+			hr = Load(dxc, ds, &m_ds);
 			RCHECK(FAILED(hr), "DSの生成に失敗");
 		}
 		// HS
 		if (!hs.hlsl.empty())
 		{
 			// HS
-			hr = Load(hs, &m_hs);
+			hr = Load(dxc, hs, &m_hs);
 			RCHECK(FAILED(hr), "HSの生成に失敗");
 		}
 		// GS
 		if (!gs.hlsl.empty())
 		{
 			// GS
-			hr = Load(gs, &m_gs);
+			hr = Load(dxc, gs, &m_gs);
 			RCHECK(FAILED(hr), "GSの生成に失敗");
 		}
 	}
@@ -200,7 +204,7 @@ Shader::Shader(
 //	_In_reads_opt_(_Inexpressible_(pDefines->Name != NULL)) CONST D3D_SHADER_MACRO* p_defines,
 //	_In_opt_ ID3DInclude* p_include,
 //	_In_ UINT flag0, _In_ UINT flag1
-ShaderCS::ShaderCS(const SHADER::Desc& cs) noexcept
+ShaderCS::ShaderCS(const std::shared_ptr<DXC> dxc, const SHADER::Desc& cs) noexcept
 {
 	ComPtr<ID3DBlob> error_code;
 	HRESULT hr;
@@ -210,8 +214,8 @@ ShaderCS::ShaderCS(const SHADER::Desc& cs) noexcept
 		if (!cs.hlsl.empty())
 		{
 			// CS
-			hr = Load(cs, &m_cs);
-			RCHECK(FAILED(hr), "PSの生成に失敗");
+			hr = Load(dxc, cs, &m_cs);
+			RCHECK(FAILED(hr), "CSの生成に失敗");
 		}
 	}
 	catch (std::runtime_error& exception)

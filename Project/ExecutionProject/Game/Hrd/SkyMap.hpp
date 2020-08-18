@@ -59,7 +59,9 @@ private:
 	std::shared_ptr<Tex>										select;
 
 public:
-	SkyManager(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
+	SkyManager(KGL::ComPtrC<ID3D12Device> device,
+		const std::shared_ptr<KGL::DXC>& dxc, 
+		std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
 		std::string folder = "./Assets/Textures/Sky/",
 		const std::vector<std::pair<std::string, std::string>>& textures = TEXTURES,
 		std::string extension = ".DDS");

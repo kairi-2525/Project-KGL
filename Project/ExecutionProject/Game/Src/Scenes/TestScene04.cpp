@@ -45,14 +45,14 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
-		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
-		add_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		add_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 
 		//renderer_desc.ps_desc.hlsl = "./HLSL/2D/SpriteAdd_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
-		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		sprite = std::make_shared<KGL::Sprite>(device);
 	}
 
@@ -126,7 +126,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.clear();
 		renderer_desc.render_targets.reserve(2u);
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/ParticleDepth_ps.hlsl";
-		board_renderer_dsv = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
+		board_renderer_dsv = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/Particle_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
@@ -134,7 +134,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.depth_desc = {};
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
-		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, renderer_desc);
+		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		board = std::make_shared<KGL::Board>(device);
 	}
 
@@ -194,7 +194,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	frame_particles.reserve(particle_resource->Size());
 	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-	particle_pipeline = std::make_shared<KGL::ComputePipline>(device);
+	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
 	b_tex_data[0].tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/particle.png");
@@ -269,7 +269,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ALPHA;
 
-		grid_renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
+		grid_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 
 		grid_buffer.Load(desc);
 	}
@@ -299,10 +299,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fireworks.reserve(10000u);
 
 	
-	sky_mgr = std::make_shared<SkyManager>(device, desc.imgui_heap_mgr);
+	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr);
 
 	{
-		bloom_generator = std::make_shared<BloomGenerator>(device, desc.app->GetRtvBuffers().at(0));
+		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
 		
 		const auto& tex = bloom_generator->GetTextures();
 		UINT idx = 0u;
@@ -320,7 +320,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	{
-		dof_generator = std::make_shared<DOFGenerator>(device, desc.app->GetRtvBuffers().at(0));
+		dof_generator = std::make_shared<DOFGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
 
 		const auto& tex = dof_generator->GetTextures();
 		UINT idx = 0u;
@@ -796,7 +796,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
 			cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
 
-			const UINT ptcl_size = std::min(particle_total_num, particle_resource->Size());
+			const UINT ptcl_size = std::min<UINT>(particle_total_num, particle_resource->Size());
 			DirectX::XMUINT3 patch = {};
 			constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 			patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
@@ -818,7 +818,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
 			auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-			const size_t i_max = std::min(particle_total_num, particle_resource->Size());
+			const size_t i_max = std::min<size_t>(particle_total_num, particle_resource->Size());
 			XMVECTOR resultant;
 			const auto* cb = cpt_scene_buffer.mapped_data;
 			for (int i = 0; i < i_max; i++)
@@ -895,7 +895,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (particle_total_num > 0)
 	{
-		next_particle_offset = std::min(particle_total_num, particle_resource->Size()) * sizeof(Particle);
+		next_particle_offset = std::min<size_t>(particle_total_num, particle_resource->Size()) * sizeof(Particle);
 		auto particles = particle_resource->Map(0u, &CD3DX12_RANGE(0, next_particle_offset));
 		const auto size = next_particle_offset / sizeof(Particle);
 		UINT64 alive_count = 0;

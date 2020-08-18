@@ -1,7 +1,8 @@
 #include "../Hrd/DepthOfField.hpp"
 #include <DirectXTex/d3dx12.h>
 
-DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D12Resource> rsc)
+DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device,
+	const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc)
 {
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
 	auto desc = rsc->GetDesc();
@@ -28,7 +29,7 @@ DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D1
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 	auto& sampler = renderer_desc.static_samplers[0];
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-	bloom_renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+	bloom_renderer = std::make_shared<KGL::_2D::Renderer>(device, dxc, renderer_desc);
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
 	renderer_desc.ps_desc.hlsl = "./HLSL/2D/DepthOfField_ps.hlsl";
@@ -47,7 +48,7 @@ DOFGenerator::DOFGenerator(KGL::ComPtrC<ID3D12Device> device, KGL::ComPtrC<ID3D1
 	auto range2 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
 	root_param2.InitAsDescriptorTable(1u, &range2, D3D12_SHADER_VISIBILITY_PIXEL);
 	renderer_desc.root_params.push_back(root_param2);
-	renderer = std::make_shared<KGL::_2D::Renderer>(device, renderer_desc);
+	renderer = std::make_shared<KGL::_2D::Renderer>(device, dxc, renderer_desc);
 
 	rtv_num_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
 	SetRtvNum(KGL::SCAST<UINT8>(rtv_textures.size()));

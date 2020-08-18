@@ -26,7 +26,7 @@ HRESULT TestScene01::Load(const SceneDesc& desc)
 		auto renderer_desc = KGL::PMD_Renderer::DEFAULT_DESC;
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/PMDGroundShadow_vs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/PMDGroundShadow_ps.hlsl";
-		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, renderer_desc);
+		pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc, renderer_desc);
 	}
 
 	models.resize(1, { device, *pmd_model });

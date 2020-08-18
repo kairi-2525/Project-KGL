@@ -35,6 +35,7 @@ namespace KGL
 			ComPtr<ID3D12RootSignature>	m_rootsig;
 		protected:
 			[[nodiscard]] std::unique_ptr<KGL::Shader> GetShaderDesc(
+				const std::shared_ptr<DXC>& dxc,
 				const SHADER::Desc& vs_desc, const SHADER::Desc& ps_desc,
 				const SHADER::Desc& ds_desc, const SHADER::Desc& hs_desc, const SHADER::Desc& gs_desc,
 				const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
@@ -42,10 +43,10 @@ namespace KGL
 			) noexcept;
 		protected:
 			BaseRenderer() = default;
-			HRESULT Create(const ComPtr<ID3D12Device>& device, const Desc& desc) noexcept;
+			HRESULT Create(const ComPtr<ID3D12Device>& device, const std::shared_ptr<DXC>& dxc, const Desc& desc) noexcept;
 		public:
-			explicit BaseRenderer(const ComPtr<ID3D12Device>& device, const Desc& desc) noexcept
-			{ Create(device, desc); }
+			explicit BaseRenderer(const ComPtr<ID3D12Device>& device, const std::shared_ptr<DXC>& dxc, const Desc& desc) noexcept
+			{ Create(device, dxc, desc); }
 			virtual ~BaseRenderer() = default;
 			void SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
 			void SetName(const std::filesystem::path& name) const noexcept;

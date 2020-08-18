@@ -6,7 +6,11 @@
 
 using namespace KGL;
 
-HRESULT BaseRenderer::Create(const ComPtr<ID3D12Device>& device, const Desc& desc) noexcept
+HRESULT BaseRenderer::Create(
+	const ComPtr<ID3D12Device>& device,
+	const std::shared_ptr<DXC>& dxc,
+	const Desc& desc
+) noexcept
 {
 	HRESULT hr = S_OK;
 
@@ -33,7 +37,7 @@ HRESULT BaseRenderer::Create(const ComPtr<ID3D12Device>& device, const Desc& des
 	RCHECK_HR(hr, "CreateRootSignature‚ÉŽ¸”s");
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC gpipe_desc = {};
-	const auto& shader = GetShaderDesc(desc.vs_desc, desc.ps_desc, desc.ds_desc, desc.hs_desc, desc.gs_desc, desc.input_layouts, &gpipe_desc);
+	const auto& shader = GetShaderDesc(dxc, desc.vs_desc, desc.ps_desc, desc.ds_desc, desc.hs_desc, desc.gs_desc, desc.input_layouts, &gpipe_desc);
 	BLEND::SetBlend(desc.blend_types, &gpipe_desc.BlendState);
 
 	gpipe_desc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
@@ -56,6 +60,8 @@ HRESULT BaseRenderer::Create(const ComPtr<ID3D12Device>& device, const Desc& des
 
 	gpipe_desc.pRootSignature = m_rootsig.Get();
 
+
+
 	hr = device->CreateGraphicsPipelineState(&gpipe_desc, IID_PPV_ARGS(m_pl_state.ReleaseAndGetAddressOf()));
 	RCHECK_HR(hr, "CreateGraphicsPipelineState‚ÉŽ¸”s");
 
@@ -63,6 +69,7 @@ HRESULT BaseRenderer::Create(const ComPtr<ID3D12Device>& device, const Desc& des
 }
 
 std::unique_ptr<KGL::Shader> BaseRenderer::GetShaderDesc(
+	const std::shared_ptr<DXC>& dxc,
 	const SHADER::Desc& vs_desc, const SHADER::Desc& ps_desc,
 	const SHADER::Desc& ds_desc, const SHADER::Desc& hs_desc, const SHADER::Desc& gs_desc,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC>& input_layouts,
@@ -74,7 +81,9 @@ std::unique_ptr<KGL::Shader> BaseRenderer::GetShaderDesc(
 	std::unique_ptr<KGL::Shader> shader;
 
 	shader = std::make_unique<KGL::Shader>(
-		vs_desc, ps_desc, ds_desc, hs_desc, gs_desc, input_layouts/*,
+		dxc,
+		vs_desc, ps_desc, ds_desc, hs_desc, gs_desc,
+		input_layouts/*,
 		nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
 #ifdef _DEBUG
 		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION

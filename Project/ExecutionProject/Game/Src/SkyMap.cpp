@@ -5,6 +5,7 @@
 #include <imgui.h>
 
 SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
+	const std::shared_ptr<KGL::DXC>& dxc,
 	std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr, std::string folder,
 	const std::vector<std::pair<std::string, std::string>>& textures,
 	std::string extension)
@@ -104,7 +105,7 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 
 	auto& sampler = renderer_desc.static_samplers[0];
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-	renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
+	renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
 
 	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, CUBE::NUM * tex_data.size() + 1);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};

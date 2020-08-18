@@ -389,6 +389,12 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 	hr = cmd_list->QueryInterface(IID_PPV_ARGS(cmd_list4.GetAddressOf()));
 	RCHECK(FAILED(hr), "コマンドリスト4の作成に失敗", hr);
 
+#ifdef _WIN64
+	dxc = std::make_shared<KGL::DXC>("./DLL/x64/dxcompiler.dll");
+#else
+	dxc = std::make_shared<KGL::DXC>("./DLL/Win32/dxcompiler.dll");
+#endif
+
 	{
 		t_vert_res = std::make_shared<KGL::Resource<TriangleVertex>>(device, 3);
 		std::vector<TriangleVertex> vertex(3);
@@ -407,8 +413,8 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.vs_desc.hlsl = "./HLSL/2D/Triangle_vs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/2D/Triangle_ps.hlsl";
-		renderer_desc.vs_desc.version = "vs_5_1";
-		renderer_desc.ps_desc.version = "ps_5_1";
+		renderer_desc.vs_desc.version = "vs_6_0";
+		renderer_desc.ps_desc.version = "ps_6_0";
 
 		renderer_desc.input_layouts.clear();
 		renderer_desc.input_layouts.push_back({
@@ -421,7 +427,7 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.root_params.clear();
 		renderer_desc.static_samplers.clear();
-		t_renderer = std::make_shared<KGL::BaseRenderer>(device, renderer_desc);
+		t_renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
 	}
 
 	{

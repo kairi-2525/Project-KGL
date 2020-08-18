@@ -8,7 +8,7 @@
 #include <Dx12/2D/Renderer.hpp>
 #include "../DXRHelper/nv_helpers_dx12/TopLevelASGenerator.h"
 #include "../DXRHelper/nv_helpers_dx12/ShaderBindingTableGenerator.h"
-#include <dxcapi.h>
+#include <Base/DXC.hpp>
 
 struct SceneDesc
 {
@@ -29,10 +29,10 @@ private:
 	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList4>				cmd_list4;
 	KGL::ComPtr<ID3D12Device5>							device5;
+	std::shared_ptr<KGL::DXC>							dxc;
 
 	bool												raster;
 
-public:
 	struct TriangleVertex
 	{
 		DirectX::XMFLOAT3 pos;
