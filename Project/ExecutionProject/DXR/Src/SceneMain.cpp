@@ -28,22 +28,22 @@ SceneMain::AccelerationStructureBuffers SceneMain::CreateBottomLevelAS(
 	// 最後のASは、既存の頂点バッファーに加えて保存する必要もあります。 サイズはシーンの複雑さにも依存します。
 	UINT64 result_size_in_bytes = 0;
 
-	bottom_level_as.ComputeASBufferSizes(device5.Get(), false, &scratch_size_in_bytes, &result_size_in_bytes);
+	bottom_level_as.ComputeASBufferSizes(dxr_device.Get(), false, &scratch_size_in_bytes, &result_size_in_bytes);
 
 	// サイズが取得されると、アプリケーションは必要なバッファを割り当てる必要があります。
 	// 生成全体がGPUで行われるため、デフォルトヒープに直接割り当てることができます。
 	AccelerationStructureBuffers buffers;
-	buffers.scratch.Attach(nv_helpers_dx12::CreateBuffer(device5.Get(), scratch_size_in_bytes,
+	buffers.scratch.Attach(nv_helpers_dx12::CreateBuffer(dxr_device.Get(), scratch_size_in_bytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON,
 		nv_helpers_dx12::kDefaultHeapProps));
-	buffers.result.Attach(nv_helpers_dx12::CreateBuffer(device5.Get(), result_size_in_bytes,
+	buffers.result.Attach(nv_helpers_dx12::CreateBuffer(dxr_device.Get(), result_size_in_bytes,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 		nv_helpers_dx12::kDefaultHeapProps));
 
 	// 加速構造を構築します。 この呼び出しは生成されたASのバリアを統合するため、
 	// このメソッドの直後にトップレベルのASを計算するために使用できることに注意してください。
-	bottom_level_as.Generate(cmd_list4.Get(), buffers.scratch.Get(), buffers.result.Get(), false, nullptr);
+	bottom_level_as.Generate(dxr_cmd_list.Get(), buffers.scratch.Get(), buffers.result.Get(), false, nullptr);
 
 	return buffers;
 }
@@ -69,18 +69,18 @@ void SceneMain::CreateTopLevelAS(
 	// この呼び出しは、アプリケーションが対応するメモリを割り当てることができるように、
 	// それぞれのメモリ要件（スクラッチ、結果、インスタンス記述子）を出力します
 	UINT64 scratch_size, result_size, instance_descs_size;
-	top_level_as_generator.ComputeASBufferSizes(device5.Get(), true,
+	top_level_as_generator.ComputeASBufferSizes(dxr_device.Get(), true,
 		&scratch_size, &result_size, &instance_descs_size);
 
 	// スクラッチバッファと結果バッファを作成します。
 	// ビルドはすべてGPUで行われるため、デフォルトのヒープに割り当てることができます
 	top_level_buffers.scratch.Attach(nv_helpers_dx12::CreateBuffer(
-		device5.Get(), scratch_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		dxr_device.Get(), scratch_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 		nv_helpers_dx12::kDefaultHeapProps));
 
 	top_level_buffers.result.Attach(nv_helpers_dx12::CreateBuffer(
-		device5.Get(), result_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		dxr_device.Get(), result_size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 		nv_helpers_dx12::kDefaultHeapProps));
 
@@ -88,14 +88,14 @@ void SceneMain::CreateTopLevelAS(
 	// これらはマッピングを通じてヘルパーによってバッファーにコピーされるため、
 	// アップロードヒープにバッファーを割り当てる必要があります。
 	top_level_buffers.instance_desc.Attach(nv_helpers_dx12::CreateBuffer(
-		device5.Get(), instance_descs_size, D3D12_RESOURCE_FLAG_NONE,
+		dxr_device.Get(), instance_descs_size, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nv_helpers_dx12::kUploadHeapProps));
 
 	// すべてのバッファが割り当てられた後、または更新のみが必要な場合は、加速構造を構築できます。
 	// 更新の場合、既存のASを「以前の」ASとしても渡すため、
 	// 所定の位置に再フィットできることに注意してください。
-	top_level_as_generator.Generate(cmd_list4.Get(),
+	top_level_as_generator.Generate(dxr_cmd_list.Get(),
 		top_level_buffers.scratch.Get(),
 		top_level_buffers.result.Get(),
 		top_level_buffers.instance_desc.Get()
@@ -114,15 +114,15 @@ void SceneMain::CreateAccelerationStructures(const std::shared_ptr<KGL::CommandQ
 	CreateTopLevelAS(instances);
 
 	// コマンドリストをフラッシュし、終了するまで待ちます
-	cmd_list4->Close();
-	ID3D12CommandList* cmd_lists[] = { cmd_list4.Get() };
+	dxr_cmd_list->Close();
+	ID3D12CommandList* cmd_lists[] = { dxr_cmd_list.Get() };
 	queue->Data()->ExecuteCommandLists(1, cmd_lists);
 	queue->Signal();
 	queue->Wait();
 
 	// コマンドリストの実行が完了したら、それをリセットしてレンダリングに再利用します
 	cmd_allocator->Reset();
-	cmd_list4->Reset(cmd_allocator.Get(), nullptr);
+	dxr_cmd_list->Reset(cmd_allocator.Get(), nullptr);
 
 	// ASバッファーを保管します。 関数を終了すると、残りのバッファが解放されます
 	bottom_level_as = bottom_level_buffers.result;
@@ -147,7 +147,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateRayGenSignature()
 		}
 	);
 	KGL::ComPtr<ID3D12RootSignature> rs;
-	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs.Attach(rsc.Generate(dxr_device.Get(), true));
 	rs->SetName(L"RayGenSignature");
 	return rs;
 }
@@ -157,7 +157,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateMissSignature()
 {
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	KGL::ComPtr<ID3D12RootSignature> rs;
-	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs.Attach(rsc.Generate(dxr_device.Get(), true));
 	rs->SetName(L"MissSignature");
 	return rs;
 }
@@ -168,7 +168,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
 	nv_helpers_dx12::RootSignatureGenerator rsc;
 	rsc.AddRootParameter(D3D12_ROOT_PARAMETER_TYPE_SRV);
 	KGL::ComPtr<ID3D12RootSignature> rs;
-	rs.Attach(rsc.Generate(device5.Get(), true));
+	rs.Attach(rsc.Generate(dxr_device.Get(), true));
 	rs->SetName(L"HitSignature");
 	return rs;
 }
@@ -178,7 +178,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
 // DXRがシェーダーを呼び出し、レイトレーシング中に一時メモリを管理するために使用する単一の構造にバインドします。
 void SceneMain::CreateRaytracingPipeline()
 {
-	nv_helpers_dx12::RayTracingPipelineGenerator pipeline(device5.Get());
+	nv_helpers_dx12::RayTracingPipelineGenerator pipeline(dxr_device.Get());
 
 	// パイプラインには、レイトレーシングプロセス中に潜在的に実行されるすべてのシェーダーのDXILコードが含まれています。
 	// このセクションでは、HLSLコードを一連のDXILライブラリにコンパイルします。
@@ -272,7 +272,7 @@ void SceneMain::CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size
 	res_desc.MipLevels = 1;
 	res_desc.SampleDesc.Count = 1;
 
-	HRESULT hr = device5->CreateCommittedResource(
+	HRESULT hr = dxr_device->CreateCommittedResource(
 		&nv_helpers_dx12::kDefaultHeapProps, D3D12_HEAP_FLAG_NONE, &res_desc,
 		D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr,
 		IID_PPV_ARGS(output_resource.GetAddressOf())
@@ -289,7 +289,7 @@ void SceneMain::CreateShaderResourceHeap()
 	// SRV / UAV / CBV記述子ヒープを作成します。 
 	// 2つのエントリが必要です - レイトレーシング出力用の1 UAVとTLAS用の1 SRV
 	srv_uav_heap.Attach(
-		nv_helpers_dx12::CreateDescriptorHeap(device5.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true)
+		nv_helpers_dx12::CreateDescriptorHeap(dxr_device.Get(), 2, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true)
 	);
 
 	// 記述子を直接書き込むことができるように、CPU側のヒープメモリへのハンドルを取得します。
@@ -300,11 +300,11 @@ void SceneMain::CreateShaderResourceHeap()
 	// 最初のエントリです。 Create * Viewメソッドは、ビュー情報をsrvHandleに直接書き込みます
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
 	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
-	device5->CreateUnorderedAccessView(output_resource.Get(), nullptr, &uav_desc,
+	dxr_device->CreateUnorderedAccessView(output_resource.Get(), nullptr, &uav_desc,
 		srv_handle);
 
 	// レイトレーシング出力バッファーの直後にトップレベルAS SRVを追加する
-	srv_handle.ptr += device5->GetDescriptorHandleIncrementSize(
+	srv_handle.ptr += dxr_device->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc;
@@ -314,7 +314,7 @@ void SceneMain::CreateShaderResourceHeap()
 	srv_desc.RaytracingAccelerationStructure.Location =
 		top_level_buffers.result->GetGPUVirtualAddress();
 	// ヒープにアクセラレーション構造ビューを書き込む
-	device5->CreateShaderResourceView(nullptr, &srv_desc, srv_handle);
+	dxr_device->CreateShaderResourceView(nullptr, &srv_desc, srv_handle);
 }
 
 // シェーダーバインディングテーブル（SBT）は、レイトレーシングセットアップの基礎です。
@@ -356,7 +356,7 @@ void SceneMain::CreateShaderBindingTable()
 	// これは、ヘルパーがマッピングを使用してSBTコンテンツを書き込むために必要です。 
 	// SBTのコンパイル後、パフォーマンス向上のためにデフォルトのヒープにコピーできます。
 	sbt_storage.Attach(nv_helpers_dx12::CreateBuffer(
-		device5.Get(), sbt_size, D3D12_RESOURCE_FLAG_NONE,
+		dxr_device.Get(), sbt_size, D3D12_RESOURCE_FLAG_NONE,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nv_helpers_dx12::kUploadHeapProps
 	));
 
@@ -384,16 +384,10 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
-	hr = device->QueryInterface(IID_PPV_ARGS(device5.GetAddressOf()));
-	RCHECK(FAILED(hr), "device5の作成に失敗", hr);
-	hr = cmd_list->QueryInterface(IID_PPV_ARGS(cmd_list4.GetAddressOf()));
+	hr = device->QueryInterface(IID_PPV_ARGS(dxr_device.GetAddressOf()));
+	RCHECK(FAILED(hr), "dxr_deviceの作成に失敗", hr);
+	hr = cmd_list->QueryInterface(IID_PPV_ARGS(dxr_cmd_list.GetAddressOf()));
 	RCHECK(FAILED(hr), "コマンドリスト4の作成に失敗", hr);
-
-#ifdef _WIN64
-	dxc = std::make_shared<KGL::DXC>("./DLL/x64/dxcompiler.dll");
-#else
-	dxc = std::make_shared<KGL::DXC>("./DLL/Win32/dxcompiler.dll");
-#endif
 
 	{
 		t_vert_res = std::make_shared<KGL::Resource<TriangleVertex>>(device, 3);
@@ -427,7 +421,7 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.root_params.clear();
 		renderer_desc.static_samplers.clear();
-		t_renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
+		t_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 	}
 
 	{
@@ -470,6 +464,10 @@ HRESULT SceneMain::Update(const SceneDesc& desc, float elapsed_time)
 
 	const auto& input = desc.input;
 	
+	if (input->IsKeyPressed(KGL::KEYS::ENTER))
+	{
+		SetNextScene<SceneOriginal>(desc);
+	}
 	if (input->IsKeyPressed(KGL::KEYS::SPACE))
 	{
 		raster = !raster;
@@ -500,26 +498,26 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 
 	if (raster)
 	{
-		cmd_list4->RSSetViewports(1, &viewport);
-		cmd_list4->RSSetScissorRects(1, &scissorrect);
+		dxr_cmd_list->RSSetViewports(1, &viewport);
+		dxr_cmd_list->RSSetScissorRects(1, &scissorrect);
 
-		desc.app->SetRtvDsv(cmd_list4);
-		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->ClearRtvDsv(cmd_list4, DirectX::XMFLOAT4(0.0f, 0.2f, 0.4f, 1.f));
+		desc.app->SetRtvDsv(dxr_cmd_list);
+		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->ClearRtvDsv(dxr_cmd_list, DirectX::XMFLOAT4(0.0f, 0.2f, 0.4f, 1.f));
 
-		cmd_list4->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		t_renderer->SetState(cmd_list4);
-		cmd_list4->IASetVertexBuffers(0, 1, &t_vert_view);
-		cmd_list4->DrawInstanced(3, 1, 0, 0);
+		dxr_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		t_renderer->SetState(dxr_cmd_list);
+		dxr_cmd_list->IASetVertexBuffers(0, 1, &t_vert_view);
+		dxr_cmd_list->DrawInstanced(3, 1, 0, 0);
 
-		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
 	else
 	{
-		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		// 記述子ヒープをバインドして、トップレベルのアクセラレーション構造とレイトレーシング出力へのアクセスを提供します
 		std::vector<ID3D12DescriptorHeap*> heaps = { srv_uav_heap.Get() };
-		cmd_list4->SetDescriptorHeaps(SCAST<UINT>(heaps.size()), heaps.data());
+		dxr_cmd_list->SetDescriptorHeaps(SCAST<UINT>(heaps.size()), heaps.data());
 
 		// 最後のフレームでは、レイトレーシング出力がコピーソースとして使用され、
 		// その内容がレンダーターゲットにコピーされました。 
@@ -529,7 +527,7 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 			D3D12_RESOURCE_STATE_COPY_SOURCE,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS
 		);
-		cmd_list4->ResourceBarrier(1, &transition);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
 
 		// レイトレーシングタスクを設定します
 		{
@@ -570,9 +568,9 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 			ray_desc.Depth = 1;
 
 			// レイトレーシングパイプラインをバインドする
-			cmd_list4->SetPipelineState1(rt_state_object.Get());
+			dxr_cmd_list->SetPipelineState1(rt_state_object.Get());
 			// 光線をディスパッチし、光線追跡出力に書き込みます
-			cmd_list4->DispatchRays(&ray_desc);
+			dxr_cmd_list->DispatchRays(&ray_desc);
 		}
 
 		// レイトレーシング出力は、表示に使用される実際のレンダーターゲットにコピーする必要があります。 
@@ -585,33 +583,33 @@ HRESULT SceneMain::Render(const SceneDesc& desc)
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
 			D3D12_RESOURCE_STATE_COPY_SOURCE
 		);
-		cmd_list4->ResourceBarrier(1, &transition);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
 		const auto& back_buffer = desc.app->GetRtvBuffers().at(desc.app->GetSwapchain()->GetCurrentBackBufferIndex());
 		transition = CD3DX12_RESOURCE_BARRIER::Transition(
 			back_buffer.Get(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_COPY_DEST
 		);
-		cmd_list4->ResourceBarrier(1, &transition);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
 
-		cmd_list4->CopyResource(back_buffer.Get(), output_resource.Get());
+		dxr_cmd_list->CopyResource(back_buffer.Get(), output_resource.Get());
 		transition = CD3DX12_RESOURCE_BARRIER::Transition(
 			back_buffer.Get(),
 			D3D12_RESOURCE_STATE_COPY_DEST,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		);
-		cmd_list4->ResourceBarrier(1, &transition);
-		cmd_list4->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		dxr_cmd_list->ResourceBarrier(1, &transition);
+		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
 
-	cmd_list4->Close();
-	ID3D12CommandList* cmd_list4s[] = { cmd_list4.Get() };
-	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_list4s);
+	dxr_cmd_list->Close();
+	ID3D12CommandList* dxr_cmd_lists[] = { dxr_cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, dxr_cmd_lists);
 	desc.app->GetQueue()->Signal();
 	desc.app->GetQueue()->Wait();
 
 	cmd_allocator->Reset();
-	cmd_list4->Reset(cmd_allocator.Get(), nullptr);
+	dxr_cmd_list->Reset(cmd_allocator.Get(), nullptr);
 
 	if (desc.app->IsTearingSupport())
 		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);

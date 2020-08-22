@@ -53,6 +53,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		window->Show();
 
 		ComPtr<ID3D12Device> device;
+
+		std::shared_ptr<KGL::DXC> dxc;
+#ifdef _WIN64
+		dxc = std::make_shared<KGL::DXC>("./DLL/x64/dxcompiler.dll");
+#else
+		dxc = std::make_shared<KGL::DXC>("./DLL/Win32/dxcompiler.dll");
+#endif
+
 		{
 			HRESULT hr = S_OK;
 			std::shared_ptr<KGL::App> app = std::make_shared<KGL::App>(window->GetHWND(), DEBUG_LAYER, false);
@@ -85,7 +93,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
-				SceneDesc scene_desc = { window, app, input, imgui_heap, imgui_handle };
+				SceneDesc scene_desc = { window, app, dxc, input, imgui_heap, imgui_handle };
 				hr = scene_mgr.Init<SceneMain>(scene_desc);
 
 				HRESULT scene_hr = S_OK;

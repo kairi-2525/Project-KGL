@@ -5,7 +5,13 @@ using namespace KGL;
 
 DLL::DLL(const std::filesystem::path& name) noexcept
 {
+//#ifdef _WIN32
 	m_dll = LoadLibraryA(name.string().c_str());
+//#else
+//	char name_str[256];
+//	std::wcstombs(name_str, name.wstring().c_str(), 256);
+//	m_dll = ::dlopen(name_str, RTLD_LAZY);
+//#endif
 	try
 	{
 		if (m_dll == nullptr)

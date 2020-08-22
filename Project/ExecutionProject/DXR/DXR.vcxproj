@@ -179,6 +179,7 @@
     <ClCompile Include="DXRHelper\nv_helpers_dx12\TopLevelASGenerator.cpp" />
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\SceneMain.cpp" />
+    <ClCompile Include="Src\SceneOriginal.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DXRHelper\DXRHelper.h" />

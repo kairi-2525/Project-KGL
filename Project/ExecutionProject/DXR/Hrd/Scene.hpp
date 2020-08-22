@@ -14,10 +14,10 @@ struct SceneDesc
 {
 	std::shared_ptr<KGL::Window>				window;
 	std::shared_ptr<KGL::Application>			app;
+	std::shared_ptr<KGL::DXC>					dxc;
 	std::shared_ptr<KGL::Input>					input;
 	std::shared_ptr<KGL::DescriptorManager>		imgui_heap;
 	KGL::DescriptorHandle						imgui_handle;
-
 };
 
 using SceneBase = KGL::SceneBase<SceneDesc>;
@@ -27,9 +27,8 @@ class SceneMain : public SceneBase
 {
 private:
 	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList4>				cmd_list4;
-	KGL::ComPtr<ID3D12Device5>							device5;
-	std::shared_ptr<KGL::DXC>							dxc;
+	KGL::ComPtr<ID3D12GraphicsCommandList4>				dxr_cmd_list;
+	KGL::ComPtr<ID3D12Device5>							dxr_device;
 
 	bool												raster;
 
@@ -86,6 +85,30 @@ public:
 	void CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size);
 	void CreateShaderResourceHeap();
 	void CreateShaderBindingTable();
+public:
+	HRESULT Load(const SceneDesc& desc) override;
+	HRESULT Init(const SceneDesc& desc) override;
+	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
+	HRESULT Render(const SceneDesc& desc);
+	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
+};
+
+class SceneOriginal : public SceneBase
+{
+public:
+	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList4>				dxr_cmd_list;
+	KGL::ComPtr<ID3D12Device5>							dxr_device;
+	bool												raster;
+
+	struct TriangleVertex
+	{
+		DirectX::XMFLOAT3 pos;
+		DirectX::XMFLOAT4 color;
+	};
+	std::shared_ptr<KGL::Resource<TriangleVertex>>		t_vert_res;
+	D3D12_VERTEX_BUFFER_VIEW							t_vert_view;
+	std::shared_ptr<KGL::BaseRenderer>					t_renderer;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
