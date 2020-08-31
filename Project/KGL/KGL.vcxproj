@@ -22,6 +22,7 @@
     <ClInclude Include="Inc\Base\Camera.hpp" />
     <ClInclude Include="Inc\Base\DXC.hpp" />
     <ClInclude Include="Inc\Base\FBX.hpp" />
+    <ClInclude Include="Inc\Base\Folder.hpp" />
     <ClInclude Include="Inc\Base\Input.hpp" />
     <ClInclude Include="Inc\Base\DLL.hpp" />
     <ClInclude Include="Inc\Base\Model.hpp" />

@@ -14,6 +14,7 @@ struct FireworksDesc
 	DirectX::XMFLOAT3	pos;
 	DirectX::XMFLOAT3	velocity;
 	float				mass;
+	float				resistivity;
 
 	std::vector<EffectDesc>	effects;
 };
@@ -31,13 +32,16 @@ struct EffectDesc
 	DirectX::XMFLOAT2	late;					// 一秒間にlate個のパーティクルが発生します
 	float				late_update_time;		// late_update_timeが経過するとlateを再度計算しなおします。
 	DirectX::XMFLOAT2	speed;					// パーティクル射出時の速度
-	DirectX::XMFLOAT2	base_speed;					// パーティクル射出時の射出元速度の影響度
+	DirectX::XMFLOAT2	base_speed;				// パーティクル射出時の射出元速度の影響度
 	DirectX::XMFLOAT2	scale;					// パーティクル射出時の大きさ
 	float				scale_front, scale_back;// scaleとspeedに影響を受ける移動方向へのスケール
 	DirectX::XMFLOAT2	angle;					// パーティクル射出角度
 	DirectX::XMFLOAT2	spawn_space;			// パーティクル射出方向へspawn_space分位置をずらします。
-	DirectX::XMFLOAT4	begin_color;			// 開始時点での色
-	DirectX::XMFLOAT4	end_color;				// 終了時点での色
+	DirectX::XMFLOAT4	begin_color;			// エフェクト開始時点での色
+	DirectX::XMFLOAT4	end_color;				// エフェクト終了時点での色
+	DirectX::XMFLOAT4	erase_color;			// パーティクル消滅時点での色
+	float				resistivity;			// 不可の影響度（スケールから影響を受けない）
+	float				scale_resistivity;		// 不可の影響度（スケールから影響を受ける）
 	bool				bloom;					// ブルームをかけるかどうか。
 	
 	bool				has_child;				// このフラグを確認して↓を適応します
@@ -68,7 +72,7 @@ namespace FIREWORK_EFFECTS
 			7.f,	// time
 			1.f,	// start_accel
 			1.f,	// end_accel
-			{ 2.f, 3.f },	// alive_time
+			{ 4.f, 5.f },	// alive_time
 			{ 200.f, 200.f },	// late
 			0.2f,			// late_update_time
 			{ 0.1f, 0.1f },	// speed
@@ -79,6 +83,8 @@ namespace FIREWORK_EFFECTS
 			{ 0.1f, 0.2f },	// spawn_space
 			{ 0.1f, 0.1f, 0.1f, 0.05f },	// begin_color
 			{ 0.1f, 0.1f, 0.1f, 0.05f },	// end_color
+			{ 0.1f, 0.1f, 0.1f, 0.00f },	// erase_color
+			5.f, 0.f,						// resistivity, scale_resistivity
 			false,							// bloom
 			false
 		},
@@ -87,10 +93,10 @@ namespace FIREWORK_EFFECTS
 			0.2f,	// time
 			1.f,	// start_accel
 			1.f,	// end_accel
-			{ 1.f, 2.f },	// alive_time
+			{ 3.f, 4.f },	// alive_time
 			{ 1000.f, 2000.f },	// late
 			1.0f,			// late_update_time
-			{ 15.f, 20.f },	// speed
+			{ 150.f, 200.f },	// speed
 			{ 0.f, 0.f },	// base_speed
 			{ 0.8f, 1.2f },	// scale
 			0.f, 0.f,		// scale_front, scale_back
@@ -98,6 +104,8 @@ namespace FIREWORK_EFFECTS
 			{ 0.5f, 0.5f },	// spawn_space
 			{ 1.f, 0.f, 0.5f, 0.1f },		// begin_color
 			{ 1.f, 0.f, 0.5f, 0.0f },		// end_color
+			{ 1.f, 0.f, 0.5f, 0.0f },		// erase_color
+			5.f, 0.f,						// resistivity, scale_resistivity
 			true,							// bloom
 			false
 		},
@@ -106,10 +114,10 @@ namespace FIREWORK_EFFECTS
 			0.2f,	// time
 			0.f,	// start_accel
 			1.f,	// end_accel
-			{ 1.f, 2.f },	// alive_time
+			{ 3.f, 4.f },	// alive_time
 			{ 5000.f, 5000.f },	// late
 			1.0f,			// late_update_time                   
-			{ 25.f, 35.f },	// speed
+			{ 250.f, 350.f },	// speed
 			{ 0.f, 0.f },	// base_speed
 			{ 0.5f, 1.2f },	// scale
 			0.f, 0.f,		// scale_front, scale_back
@@ -117,6 +125,8 @@ namespace FIREWORK_EFFECTS
 			{ 0.1f, 0.1f },	// spawn_space
 			{ 1.f, 0.5f, 0.f, 0.1f },		// begin_color
 			{ 1.f, 0.5f, 0.f, 0.0f },		// end_color
+			{ 1.f, 0.5f, 0.f, 0.0f },		// erase_color
+			5.f, 0.f,						// resistivity, scale_resistivity
 			true,							// bloom
 			false
 		}

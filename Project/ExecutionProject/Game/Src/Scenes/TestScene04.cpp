@@ -67,6 +67,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
+			"COLOR_SPEED", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
 			"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
@@ -99,7 +103,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"CENTER_PROPOTION", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			"RESISTIVITY", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -424,7 +428,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	cpt_scene_buffer.mapped_data->center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
 	cpt_scene_buffer.mapped_data->center_mass = 5.9724e24f;
-	cpt_scene_buffer.mapped_data->resistivity = 0.1f;
+	cpt_scene_buffer.mapped_data->resistivity = 1.f;
 
 	spawn_counter = 0.f;
 	ptc_key_spawn_counter = 0.f;
@@ -473,6 +477,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	const float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
 	camera->Update(desc.window, desc.input, elapsed_time, camera_speed, input->IsMouseHold(KGL::MOUSE_BUTTONS::right));
+	camera->GetPos().y = std::max(grid_pos.y + 1, camera->GetPos().y);
 	const auto& view = camera->GetView();
 	const auto& camera_pos = camera->GetPos();
 
@@ -481,11 +486,32 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gui)
 	{
-		if (ImGui::Begin("FPS"))
+		if (ImGui::Begin("Info"))
 		{
+			ImGui::Text("FPS");
 			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
+			ImGui::Spacing();
+
+			ImGui::Checkbox("Use DOF", &dof_flg);
+			ImGui::Spacing();
+
+			if (ImGui::TreeNode("Grid"))
+			{
+				ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
+
+				if (ImGui::SliderFloat("length_min", (float*)&grid_buffer.mapped_data->length_min, 1.f, grid_buffer.mapped_data->length_max - 0.01f))
+				{
+					grid_buffer.mapped_data->length_max = std::max(grid_buffer.mapped_data->length_min + 0.01f, grid_buffer.mapped_data->length_max);
+				}
+				if (ImGui::SliderFloat("length_max", (float*)&grid_buffer.mapped_data->length_max, grid_buffer.mapped_data->length_min + 0.01f, 100.f))
+				{
+					grid_buffer.mapped_data->length_min = std::min(grid_buffer.mapped_data->length_min, grid_buffer.mapped_data->length_max - 0.01f);
+				}
+				ImGui::TreePop();
+			}
 		}
 		ImGui::End();
+
 		if (ImGui::Begin("RenderTargets"))
 		{
 			auto gui_size = ImGui::GetWindowSize();
@@ -527,24 +553,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 		}
 		ImGui::End();
-
-		if (ImGui::Begin("DOF"))
-		{
-			ImGui::Checkbox("Use", &dof_flg);
-		}
-		ImGui::End();
-		ImGui::Begin("Grid");
-		ImGui::SliderFloat3("pos", (float*)&grid_pos, -10.f, 10.f);
-
-		if (ImGui::SliderFloat("length_min", (float*)&grid_buffer.mapped_data->length_min, 1.f, grid_buffer.mapped_data->length_max - 0.01f))
-		{
-			grid_buffer.mapped_data->length_max = std::max(grid_buffer.mapped_data->length_min + 0.01f, grid_buffer.mapped_data->length_max);
-		}
-		if (ImGui::SliderFloat("length_max", (float*)&grid_buffer.mapped_data->length_max, grid_buffer.mapped_data->length_min + 0.01f, 100.f))
-		{
-			grid_buffer.mapped_data->length_min = std::min(grid_buffer.mapped_data->length_min, grid_buffer.mapped_data->length_max - 0.01f);
-		}
-		ImGui::End();
 	}
 	{
 		using namespace DirectX;
@@ -571,7 +579,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		SetNextScene<TestScene06>(desc);
 
 	using namespace DirectX;
-
+	KGL::Timer timer;
 	{
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
@@ -600,6 +608,68 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (input->IsKeyHold(KGL::KEYS::DOWN))
 		{
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
+		}
+
+		// 一秒秒間に[spawn_late]個のパーティクルを発生させる
+		//constexpr UINT spawn_late = 2500;
+		{
+			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+			*p_counter = 0u;
+			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+		cpt_scene_buffer.mapped_data->elapsed_time = ptc_update_time;
+		timer.Restart();
+		if (particle_total_num > 0)
+		{
+			if (use_gpu)
+			{
+				cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
+
+				particle_pipeline->SetState(cpt_cmd_list);
+				//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
+
+				//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
+				//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
+				cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
+				cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
+
+				cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
+				cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
+
+				const UINT ptcl_size = std::min<UINT>(particle_total_num, particle_resource->Size());
+				DirectX::XMUINT3 patch = {};
+				constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+				patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
+				patch.x = std::min(patch.x, patch_max);
+				patch.y = 1;
+				patch.z = 1;
+
+				cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
+				cpt_cmd_list->Close();
+				//コマンドの実行
+				ID3D12CommandList* cmd_lists[] = {
+				   cpt_cmd_list.Get(),
+				};
+
+				cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
+				cpt_cmd_queue->Signal();
+			}
+			else
+			{
+				auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+				auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
+				const size_t i_max = std::min<size_t>(particle_total_num, particle_resource->Size());
+				XMVECTOR resultant;
+				const auto* cb = cpt_scene_buffer.mapped_data;
+				for (int i = 0; i < i_max; i++)
+				{
+					if (!particles[i].Alive()) continue;
+					particles[i].Update(cpt_scene_buffer.mapped_data->elapsed_time, cb);
+					(*p_counter)++;
+				}
+				particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+				particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+			}
 		}
 
 		float key_spawn_late = 5.f;
@@ -631,6 +701,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			std::uniform_real_distribution<float> rmdpos(-50.f, +50.f);
 			desc.pos.x += rmdpos(mt);
 			desc.pos.z += rmdpos(mt);
+			desc.resistivity = 0.1f;
 
 			XMFLOAT2 nmangle;
 			nmangle.x = XMConvertToRadians(0.f) / XM_PI;
@@ -677,17 +748,18 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].start_time = 5.f;
 					desc.effects[1].late = { 50.f, 100.f };
 					desc.effects[1].child = desc;
+					desc.effects[1].resistivity = 1.f;
 					desc.effects[1].has_child = true;
 					desc.effects[1].base_speed = { 1.f, 1.f };
 					//desc.effects[1].child.effects[0].late = { 10.f, 10.f };
 					desc.effects[1].child.effects[0].time = 2.f;
 
-					desc.effects[1].child.effects[1].alive_time = { 0.5f, 1.5f };
+					desc.effects[1].child.effects[1].alive_time = { 2.5f, 3.5f };
 					desc.effects[1].child.effects[1].late = { 10000.f, 12000.f };
 					desc.effects[1].child.effects[1].start_time = 2.f;
 					desc.effects[1].child.effects[1].time = 0.05f;
 					desc.effects[1].child.effects[1].start_accel = 1.f;
-					desc.effects[1].child.effects[1].speed = { 10.f, 10.f };
+					desc.effects[1].child.effects[1].speed = { 100.f, 100.f };
 					desc.effects[1].child.effects[1].base_speed = { 0.f, 0.f };
 					desc.effects[1].child.effects[1].scale = { 0.8f, 1.2f };
 
@@ -695,6 +767,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].child.effects[1].begin_color.w = 0.2f;
 					desc.effects[1].child.effects[1].end_color = desc.effects[1].child.effects[1].begin_color;
 					desc.effects[1].child.effects[1].end_color.w = 0.f;
+					desc.effects[1].child.effects[1].erase_color = desc.effects[1].child.effects[1].end_color;
 					desc.effects[1].child.effects[1].scale_back = 0.1f;
 
 					break;
@@ -707,17 +780,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].start_time = 5.f;
 					desc.effects[1].late = { 50.f, 100.f };
 					desc.effects[1].child = desc;
+					desc.effects[1].resistivity = 1.f;
 					desc.effects[1].has_child = true;
 					desc.effects[1].base_speed = { 1.f, 1.f };
 					desc.effects[1].child.effects[0].base_speed = { 0.1f, 0.3f };
 					desc.effects[1].child.effects[0].late = { 100.f, 100.f };
 					desc.effects[1].child.effects[0].time = 3.f;
-					desc.effects[1].child.effects[0].speed = { 10.f, 10.f };
+					desc.effects[1].child.effects[0].speed = { 100.f, 100.f };
 					desc.effects[1].child.effects[0].bloom = true;
 					XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
 					desc.effects[1].child.effects[0].begin_color.w = 0.2f;
 					desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
 					desc.effects[1].child.effects[0].end_color.w = 0.f;
+					desc.effects[1].child.effects[0].erase_color = desc.effects[1].child.effects[0].end_color;
 					desc.effects[1].child.effects[0].scale_back = 0.1f;
 					desc.effects[1].child.effects.pop_back();
 					break;
@@ -731,13 +806,15 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[0].spawn_space = { 0.1f, 0.5f };
 					desc.effects[1].start_time = 10.f;
 					desc.effects[1].alive_time = { 5.f, 6.f };
-					desc.effects[1].speed = { 40.f, 60.f };
+					desc.effects[1].speed = { 400.f, 600.f };
 					desc.effects[1].late = { 20000.f, 20000.f };
 					desc.effects[1].scale_back = 0.2f;
 
 					XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
 					desc.effects[1].begin_color.w = 0.3f;
 					desc.effects[1].end_color = desc.effects[1].begin_color;
+					desc.effects[1].erase_color = desc.effects[1].end_color;
+					desc.effects[1].erase_color.w = 0.f;
 					//desc.effects[1].end_color.w = 0.f;
 					break;
 				}
@@ -747,11 +824,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					desc.effects[1].begin_color.w = 0.3f;
 					desc.effects[1].end_color = desc.effects[1].begin_color;
 					desc.effects[1].end_color.w = 0.f;
+					desc.effects[1].erase_color = desc.effects[1].end_color;
 					desc.effects[2].scale_back = 0.1f;
 					XMStoreFloat4(&desc.effects[2].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
 					desc.effects[2].begin_color.w = 0.3f;
 					desc.effects[2].end_color = desc.effects[2].begin_color;
 					desc.effects[2].end_color.w = 0.f;
+					desc.effects[2].erase_color = desc.effects[2].end_color;
 					desc.effects[2].scale_back = 0.1f;
 					break;
 				}
@@ -761,75 +840,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_key_spawn_counter -= key_spawn_time;
 		}
 
-		cpt_scene_buffer.mapped_data->elapsed_time = ptc_update_time;
-
 		scene_buffer.mapped_data->view = view;
 		scene_buffer.mapped_data->proj = XMLoadFloat4x4(&proj);
 		scene_buffer.mapped_data->eye = camera_pos;
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
 		grid_buffer.mapped_data->eye_pos = camera_pos;
-	}
-
-	// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-	constexpr UINT spawn_late = 2500;
-	KGL::Timer timer;
-
-	{
-		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter = 0u;
-		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-	}
-	if (particle_total_num > 0)
-	{
-		if (use_gpu)
-		{
-			cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
-
-			particle_pipeline->SetState(cpt_cmd_list);
-			//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
-
-			//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
-			//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
-			cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
-			cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
-
-			cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
-			cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
-
-			const UINT ptcl_size = std::min<UINT>(particle_total_num, particle_resource->Size());
-			DirectX::XMUINT3 patch = {};
-			constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-			patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
-			patch.x = std::min(patch.x, patch_max);
-			patch.y = 1;
-			patch.z = 1;
-
-			cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
-			cpt_cmd_list->Close();
-			//コマンドの実行
-			ID3D12CommandList* cmd_lists[] = {
-			   cpt_cmd_list.Get(),
-			};
-
-			cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-			cpt_cmd_queue->Signal();
-		}
-		else
-		{
-			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-			auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-			const size_t i_max = std::min<size_t>(particle_total_num, particle_resource->Size());
-			XMVECTOR resultant;
-			const auto* cb = cpt_scene_buffer.mapped_data;
-			for (int i = 0; i < i_max; i++)
-			{
-				if (!particles[i].Alive()) continue;
-				particles[i].Update(cpt_scene_buffer.mapped_data->elapsed_time, cb);
-				(*p_counter)++;
-			}
-			particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-		}
 	}
 
 	const auto* cb = cpt_scene_buffer.mapped_data;
@@ -1091,15 +1106,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		// SKY描画
 		sky_mgr->Render(cmd_list);
 
-		// グリッド描画
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-		grid_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
-		cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
-		cmd_list->IASetIndexBuffer(&grid_ibv);
-		cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
-
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 	}
 	{
@@ -1229,6 +1235,21 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		if (after_blooming)
 		{
 			bloom_generator->Render(cmd_list);
+		}
+
+		{
+			desc.app->SetRtvDsv(cmd_list);
+
+			// グリッド描画
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
+			grid_renderer->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
+			cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
+			cmd_list->IASetIndexBuffer(&grid_ibv);
+			cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
+
+			desc.app->SetRtv(cmd_list);
 		}
 
 		ImGui::Render();

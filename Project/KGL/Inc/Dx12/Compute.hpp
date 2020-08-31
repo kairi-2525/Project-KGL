@@ -20,7 +20,7 @@ namespace KGL
 		public:
 			static inline const SHADER::Desc SHADER_DESC
 			{
-				"./HLSL/3D/Particle_cs.hlsl", "CSMain", "cs_6_0"
+				"./HLSL/3D/Particle_cs.hlsl", "CSMain", "cs_5_1"
 			};
 			static inline const std::vector<D3D12_DESCRIPTOR_RANGE> DESCRIPTOR_RANGES0 =
 			{

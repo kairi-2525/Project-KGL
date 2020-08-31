@@ -2,6 +2,7 @@
 struct Particle
 {
 	float4	color					: COLOR;
+	float4	color_speed				: COLOR_SPEED;
 	float3	pos						: POSITION;
 	float	mass					: MASS;
 	float	scale_width				: SCALE_WIDTH;
@@ -10,7 +11,7 @@ struct Particle
 	float	scale_speed_width		: SCALE_SPEED_WIDTH;
 	float	scale_speed_front		: SCALE_SPEED_FRONT;
 	float	scale_speed_back		: SCALE_SPEED_BACK;
-	float	center_propotion		: CENTER_PROPOTION;
+	float	resistivity				: RESISTIVITY;
 	float	angle					: ANGLE;
 	float3	velocity				: VELOCITY;
 	bool	bloom					: RENDER_MODE;

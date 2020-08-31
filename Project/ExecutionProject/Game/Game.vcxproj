@@ -178,6 +178,7 @@
     <ClCompile Include="Src\Camera.cpp" />
     <ClCompile Include="Src\DepthOfField.cpp" />
     <ClCompile Include="Src\Effect.cpp" />
+    <ClCompile Include="Src\FireworkCerialManager.cpp" />
     <ClCompile Include="Src\fireworks.cpp" />
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\Obj3D.cpp" />
@@ -197,8 +198,10 @@
   <ItemGroup>
     <ClInclude Include="Hrd\Bloom.hpp" />
     <ClInclude Include="Hrd\Camera.hpp" />
+    <ClInclude Include="Hrd\CelealHelper.hpp" />
     <ClInclude Include="Hrd\DepthOfField.hpp" />
     <ClInclude Include="Hrd\Effects.hpp" />
+    <ClInclude Include="Hrd\FireworkCerialManager.hpp" />
     <ClInclude Include="Hrd\Fireworks.hpp" />
     <ClInclude Include="Hrd\Obj3D.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />

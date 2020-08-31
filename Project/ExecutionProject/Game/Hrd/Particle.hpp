@@ -13,6 +13,7 @@ struct ParticleParent
 struct Particle
 {
 	DirectX::XMFLOAT4	color;
+	DirectX::XMFLOAT4	color_speed;
 	DirectX::XMFLOAT3	position;
 	float				mass;
 	float				scale_width;
@@ -21,7 +22,7 @@ struct Particle
 	float				scale_speed_width;
 	float				scale_speed_front;
 	float				scale_speed_back;
-	float				center_propotion;
+	float				resistivity;
 	float				angle;
 	DirectX::XMFLOAT3	velocity;
 	bool				bloom;

@@ -15,6 +15,7 @@ void Fireworks::Init(const FireworksDesc& desc, float time)
 	pos = desc.pos;
 	velocity = desc.velocity;
 	mass = desc.mass;
+	resistivity = desc.resistivity;
 
 	const auto effect_size = desc.effects.size();
 	effects.reserve(effect_size);
@@ -54,7 +55,7 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 			XMStoreFloat(&l, XMVector3LengthSq(xm_vec));
 			float N = (G * mass * p_parent->center_mass) / l;
 			XMVECTOR resultant = XMVector3Normalize(xm_vec) * N;
-			resultant += -xm_velocity * p_parent->resistivity;
+			resultant += (-xm_velocity * (p_parent->resistivity * resistivity));
 			xm_velocity += (resultant / mass) * time;
 		}
 		xm_pos += xm_velocity * time;

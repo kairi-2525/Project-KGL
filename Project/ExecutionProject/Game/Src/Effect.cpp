@@ -73,6 +73,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 
 				DirectX::XMStoreFloat3(&desc.pos, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
 				DirectX::XMStoreFloat3(&desc.velocity, velocity * rmdbasespeed(mt) + spawn_v * rmdspeed(mt));
+				desc.resistivity = effect.resistivity;
 
 				auto& fw = p_fireworks->emplace_back(desc, spawn_time_counter_max - spawn_time_counter);
 				spawn_time_counter -= spawn_elapsed;
@@ -95,15 +96,22 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				DirectX::XMStoreFloat3(&p.position, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
 				DirectX::XMStoreFloat3(&p.velocity, velocity * rmdbasespeed(mt) + spawn_v * rmdspeed(mt));
 				//p.color = (effect.end_color - effect.begin_color);
-				CXMVECTOR begin_color = XMLoadFloat4(&effect.begin_color);
-				XMStoreFloat4(&p.color, begin_color + (XMLoadFloat4(&effect.end_color) - begin_color) * (std::min(total_time_count, effect.time) / effect.time));
+				CXMVECTOR xm_begin_color = XMLoadFloat4(&effect.begin_color);
+				XMVECTOR xm_color = xm_begin_color + (XMLoadFloat4(&effect.end_color) - xm_begin_color) * (std::min(total_time_count, effect.time) / effect.time);
+				XMStoreFloat4(&p.color, xm_color);
+				
 				p.accs = { 0.f, 0.f, 0.f };
 				p.exist_time = rmdalivetime(mt);
+				XMVECTOR xm_color_speed = (XMLoadFloat4(&effect.erase_color) - xm_color) / p.exist_time;
+				XMStoreFloat4(&p.color_speed, xm_color_speed);
+
 				p.scale_width = rmdscale(mt);
 				p.scale_front = p.scale_back = p.scale_width;
 				p.scale_width *= 2.f;
 				p.scale_speed_front = p.scale_front * effect.scale_front;
 				p.scale_speed_back = p.scale_back * effect.scale_back;
+				p.resistivity = effect.resistivity;
+				p.resistivity += effect.scale_resistivity * p.scale_width;
 				p.bloom = effect.bloom;
 				if (effect.bloom)
 				{

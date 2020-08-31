@@ -27,9 +27,10 @@ void CSMain( uint3 dtid : SV_DispatchThreadID )
 
 	float N = (G * particles[id].mass * center_mass) / dot(vec, vec);
 	resultant += normalize(vec) * N;
-	resultant += -particles[id].velocity.xyz * resistivity;
+	resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
 	particles[id].acceleration = resultant / particles[id].mass;
 	particles[id].velocity.xyz += particles[id].acceleration * elapsed_time;
 	particles[id].pos.xyz += particles[id].velocity.xyz * elapsed_time;
+	particles[id].color += particles[id].color_speed * elapsed_time;
 	particles[id].exist_time -= elapsed_time;
 }

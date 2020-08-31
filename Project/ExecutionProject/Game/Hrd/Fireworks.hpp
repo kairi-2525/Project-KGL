@@ -12,6 +12,7 @@ public:
 	float									time;
 	DirectX::XMFLOAT3						pos;
 	DirectX::XMFLOAT3						velocity;
+	float									resistivity;
 	float									mass;
 private:
 	void Init(const FireworksDesc& desc, float time = -1.f);
