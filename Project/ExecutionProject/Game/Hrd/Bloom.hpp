@@ -12,13 +12,20 @@ class BloomGenerator
 {
 public:
 	static inline const UINT8							RTV_MAX = 8u;
+	using Weights = std::array<float, RTV_MAX>;
+	
+	struct Buffer
+	{
+		UINT32	kernel;
+		Weights	weight;
+	};
 private:
 	std::shared_ptr<KGL::BaseRenderer>					bloom_renderer;
 	std::shared_ptr<KGL::BaseRenderer>					renderer;
 	std::shared_ptr<KGL::RenderTargetView>				rtvs;
 	std::array<std::shared_ptr<KGL::Texture>, RTV_MAX>	rtv_textures;
 	std::shared_ptr<KGL::Sprite>						sprite;
-	std::shared_ptr<KGL::Resource<UINT32>>				rtv_num_res;
+	std::shared_ptr<KGL::Resource<Buffer>>				buffer_res;
 	std::shared_ptr<KGL::DescriptorManager>				rtv_num_dsmgr;
 	KGL::DescriptorHandle								rtv_num_handle;
 public:
@@ -34,6 +41,8 @@ public:
 		D3D12_VIEWPORT view_port);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
 	const std::array<std::shared_ptr<KGL::Texture>, 8u>& GetTextures() const noexcept { return rtv_textures; }
-	void SetRtvNum(UINT8 num);
-	UINT8 GetRtvNum();
+	void SetKernel(UINT8 num) noexcept;
+	UINT8 GetKernel() const noexcept;
+	void SetWeights(Weights weights) noexcept;
+	Weights GetWeights() const noexcept;
 };

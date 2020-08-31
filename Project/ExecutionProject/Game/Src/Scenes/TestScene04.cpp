@@ -445,7 +445,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	dof_flg = true;
 
-	bloom_generator->SetRtvNum(6u);
+	bloom_generator->SetKernel(6u);
 	after_blooming = false;
 
 	return S_OK;
@@ -568,7 +568,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<TestScene03>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
-		SetNextScene<TestScene05>(desc);
+		SetNextScene<TestScene06>(desc);
 
 	using namespace DirectX;
 
@@ -980,10 +980,22 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
 
 				ImGui::NextColumn();
-				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetRtvNum());
+				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetKernel());
 				if (ImGui::SliderInt("Bloom Scale", &bloom_scale, 0, KGL::SCAST<int>(BloomGenerator::RTV_MAX)))
 				{
-					bloom_generator->SetRtvNum(KGL::SCAST<UINT8>(bloom_scale));
+					bloom_generator->SetKernel(KGL::SCAST<UINT8>(bloom_scale));
+				}
+				if (ImGui::TreeNode("Weights"))
+				{
+					auto weights = bloom_generator->GetWeights();
+					bool weights_changed = false;
+					for (UINT i = 0u; i < BloomGenerator::RTV_MAX; i++)
+					{
+						bool changed = ImGui::SliderFloat(std::to_string(i).c_str(), &weights[i], 0.f, 1.f);
+						weights_changed = weights_changed || changed;
+					}
+					if (weights_changed) bloom_generator->SetWeights(weights);
+					ImGui::TreePop();
 				}
 				ImGui::Checkbox("After blooming", &after_blooming);
 

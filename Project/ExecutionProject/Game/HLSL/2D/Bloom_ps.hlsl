@@ -6,8 +6,11 @@ SamplerState smp : register (s0);
 
 cbuffer RTV : register (b0)
 {
-	uint rtv_num;
+	uint kernel;
+	unorm float4 weight[2];
 }
+
+static float temp_weight[8] = (float[8])weight;
 
 struct PSInput
 {
@@ -19,9 +22,9 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
 	float4 bloom_accum	= float4(0.f, 0.f, 0.f, 0.f);
 
-	for (int i = 0; i < rtv_num; i++)
+	for (int i = 0; i < kernel; i++)
 	{
-		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv);
+		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv) * temp_weight[i];
 	}
 
 	return saturate(bloom_accum);

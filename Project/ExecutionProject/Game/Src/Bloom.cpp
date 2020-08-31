@@ -44,16 +44,22 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 	root_param1.InitAsDescriptorTable(1u, &range1, D3D12_SHADER_VISIBILITY_PIXEL);
 	renderer_desc.root_params.push_back(root_param1);
 	renderer = std::make_shared<KGL::_2D::Renderer>(device, dxc, renderer_desc);
-
-	rtv_num_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
-	SetRtvNum(KGL::SCAST<UINT8>(rtv_textures.size()));
+	buffer_res = std::make_shared<KGL::Resource<Buffer>>(device, 1u);
+	SetKernel(KGL::SCAST<UINT8>(rtv_textures.size()));
+	{
+		Weights weight;
+		weight[0] = 1.f;
+		for (UINT i = 1; i < RTV_MAX; i++)
+			weight[i] = weight[i - 1u] * 1.f;
+		SetWeights(weight);
+	}
 
 	rtv_num_dsmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	rtv_num_handle = rtv_num_dsmgr->Alloc();
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-	cbv_desc.BufferLocation = rtv_num_res->Data()->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = rtv_num_res->SizeInBytes();
+	cbv_desc.BufferLocation = buffer_res->Data()->GetGPUVirtualAddress();
+	cbv_desc.SizeInBytes = buffer_res->SizeInBytes();
 	device->CreateConstantBufferView(&cbv_desc, rtv_num_handle.Cpu());
 }
 
@@ -80,9 +86,9 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 	UINT32 rtv_num = 0u;
 	{
-		UINT32* mapped_rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
-		rtv_num = *mapped_rtv_num;
-		rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+		rtv_num = mapped_buffer->kernel;
+		buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 	for (UINT32 idx = 0u; idx < rtv_num; idx++)
 	{
@@ -120,18 +126,34 @@ void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	sprite->Render(cmd_list);
 }
 
-void BloomGenerator::SetRtvNum(UINT8 num)
+void BloomGenerator::SetKernel(UINT8 num) noexcept
 {
-	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
-	*rtv_num = (std::min)(KGL::SCAST<UINT32>(rtv_textures.size()), KGL::SCAST<UINT32>(num));
-	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	mapped_buffer->kernel = (std::min)(KGL::SCAST<UINT32>(rtv_textures.size()), KGL::SCAST<UINT32>(num));
+	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
-UINT8 BloomGenerator::GetRtvNum()
+UINT8 BloomGenerator::GetKernel() const noexcept
 {
 	UINT8 result;
-	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
-	result = KGL::SCAST<UINT8>(*rtv_num);
-	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	result = KGL::SCAST<UINT8>(mapped_buffer->kernel);
+	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	return result;
+}
+
+void BloomGenerator::SetWeights(Weights weights) noexcept
+{
+	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	mapped_buffer->weight = weights;
+	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+}
+
+BloomGenerator::Weights BloomGenerator::GetWeights() const noexcept
+{
+	Weights result;
+	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	result = mapped_buffer->weight;
+	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	return result;
 }

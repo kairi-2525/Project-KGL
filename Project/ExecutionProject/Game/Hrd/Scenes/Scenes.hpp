@@ -6,6 +6,7 @@
 #include "TestScene03.hpp"
 #include "TestScene04.hpp"
 #include "TestScene05.hpp"
+#include "TestScene06.hpp"
 
 using SceneBegin = TestScene00;
-using SceneBack = TestScene05;
+using SceneBack = TestScene06;

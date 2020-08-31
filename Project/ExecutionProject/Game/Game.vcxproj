@@ -190,6 +190,7 @@
     <ClCompile Include="Src\Scenes\TestScene03.cpp" />
     <ClCompile Include="Src\Scenes\TestScene04.cpp" />
     <ClCompile Include="Src\Scenes\TestScene05.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene06.cpp" />
     <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
     <ClCompile Include="Src\SkyMap.cpp" />
   </ItemGroup>
@@ -209,6 +210,7 @@
     <ClInclude Include="Hrd\Scenes\TestScene03.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene04.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene05.hpp" />
+    <ClInclude Include="Hrd\Scenes\TestScene06.hpp" />
     <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
     <ClInclude Include="Hrd\Particle.hpp" />
     <ClInclude Include="Hrd\SkyMap.hpp" />
@@ -1103,7 +1105,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ObjectFileOutput>
       <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
