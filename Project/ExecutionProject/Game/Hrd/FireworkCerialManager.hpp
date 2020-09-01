@@ -7,14 +7,15 @@
 #define NOMINMAX
 #include <Windows.h>
 #undef NOMINMAX
+#include <Base/Directory.hpp>
 
 
 class FCManager
 {
 private:
-	std::filesystem::path folder;
+	std::shared_ptr<KGL::Directory> directory;
 public:
-	FCManager(const std::filesystem::path& folder);
-	HRESULT Load(const std::filesystem::path& folder) noexcept;
-	HRESULT Load() noexcept { return Load(folder); };
+	FCManager(const std::filesystem::path& directory);
+	HRESULT Load(const std::filesystem::path& directory) noexcept;
+	HRESULT Load() noexcept { return Load(directory->GetPath()); }
 };

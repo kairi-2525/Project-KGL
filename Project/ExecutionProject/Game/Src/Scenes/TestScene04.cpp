@@ -364,6 +364,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
+	{
+		fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
+	}
+
 	return hr;
 }
 

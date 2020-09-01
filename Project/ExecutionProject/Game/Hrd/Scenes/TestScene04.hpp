@@ -24,6 +24,7 @@
 #include "../Obj3D.hpp"
 #include "../Camera.hpp"
 #include "../DepthOfField.hpp"
+#include "../FireworkCerialManager.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -125,6 +126,8 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>				dsv_srv_desc_mgr;
 	KGL::DescriptorHandle								dsv_srv_handle;
 	KGL::DescriptorHandle								dsv_imgui_handle;
+
+	std::shared_ptr<FCManager>							fc_mgr;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
