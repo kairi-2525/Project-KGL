@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <Cereal/archives/binary.hpp>
 #include <Cereal/types/vector.hpp>
+#include <Cereal/types/memory.hpp>
 #include <imgui.h>
 #include <fstream>
 
@@ -31,7 +32,7 @@ HRESULT FCManager::Load(const std::filesystem::path& directory) noexcept
 
 HRESULT FCManager::ReloadDesc() noexcept
 {
-	desc_list.clear();
+	/*desc_list.clear();
 	select_desc = nullptr;
 
 	const auto& files = directory->GetFiles(".bin");
@@ -43,10 +44,10 @@ HRESULT FCManager::ReloadDesc() noexcept
 			const auto& file_name = file.filename();
 			auto& desc = desc_list[file_name.string()];
 			cereal::BinaryInputArchive i_archive(ss);
-			i_archive(cereal::make_nvp(file_name.string(), desc.get()));
+			i_archive(cereal::make_nvp(file_name.string(), desc));
 		}
 		std::cout << ss.str() << std::endl;
-	}
+	}*/
 
 	return S_OK;
 }
@@ -58,12 +59,12 @@ HRESULT FCManager::Export(const Desc& desc) noexcept
 	if (ofs.is_open())
 	{
 		cereal::BinaryOutputArchive o_archive(ofs);
-		o_archive(cereal::make_nvp(desc.first, desc.second.get()));
+		o_archive(cereal::make_nvp(desc.first, desc.second));
 	}
 	return S_OK;
 }
 
-HRESULT FCManager::ImGuiUpdate()
+HRESULT FCManager::ImGuiUpdate() noexcept
 {
 	if (ImGui::Begin("Fireworks Editor"))
 	{

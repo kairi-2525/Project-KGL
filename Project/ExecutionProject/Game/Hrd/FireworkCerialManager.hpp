@@ -10,32 +10,46 @@
 #include <Base/Directory.hpp>
 #include <map>
 
+//struct VF2
+//{
+//	float x;
+//	float y;
+//};
+//template<class Archive>
+//void serialize(Archive& archive,
+//	const VF2& m)
+//{
+//	archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y));
+//}
+
 template<class Archive>
 void serialize(Archive& archive,
-	EffectDesc& m, std::uint32_t const version)
+	const EffectDesc& m, std::uint32_t const version)
 {
+	using namespace DirectX;
 	archive(
-		m.start_time,
-		m.time,
-		m.start_accel,
-		m.end_accel,
-		m.alive_time,
-		m.late,
-		m.late_update_time,
-		m.speed,
-		m.base_speed,
-		m.scale,
-		m.scale_front, m.scale_back,
-		m.angle,
-		m.spawn_space,
-		m.begin_color,
-		m.end_color,
-		m.erase_color,
-		m.resistivity,
-		m.scale_resistivity,
-		m.bloom,
-		m.has_child,
-		m.child					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
+		KGL_NVP("start_time", m.start_time),
+		KGL_NVP("time", m.time),
+		KGL_NVP("start_accel", m.start_accel),
+		KGL_NVP("end_accel", m.end_accel),
+		KGL_NVP("alive_time", m.alive_time),
+		KGL_NVP("late", m.late),
+		KGL_NVP("late_update_time", m.late_update_time),
+		KGL_NVP("speed", m.speed),
+		KGL_NVP("base_speed", m.base_speed),
+		KGL_NVP("scale", m.scale),
+		KGL_NVP("scale_front", m.scale_front),
+		KGL_NVP("scale_back", m.scale_back),
+		KGL_NVP("angle", m.angle),
+		KGL_NVP("spawn_space", m.spawn_space),
+		KGL_NVP("begin_color", m.begin_color),
+		KGL_NVP("end_color", m.end_color),
+		KGL_NVP("erase_color", m.erase_color),
+		KGL_NVP("resistivity", m.resistivity),
+		KGL_NVP("scale_resistivity", m.scale_resistivity),
+		KGL_NVP("bloom", m.bloom),
+		KGL_NVP("has_child", m.has_child),
+		KGL_NVP("child", m.child)					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
 	);
 	if (1 <= version) {
 		// archive(...);
@@ -45,9 +59,13 @@ CEREAL_CLASS_VERSION(EffectDesc, 1);
 
 template<class Archive>
 void serialize(Archive& archive,
-	FireworksDesc& m, std::uint32_t const version)
+	const FireworksDesc& m, std::uint32_t const version)
 {
-	archive(m.mass, m.resistivity, m.effects);
+	archive(
+		KGL_NVP("mass", m.mass),
+		KGL_NVP("resistivity", m.resistivity),
+		KGL_NVP("effects", m.effects)
+	);
 	if (1 <= version) {
 		// archive(...);
 	}
@@ -66,10 +84,10 @@ private:
 	HRESULT ReloadDesc() noexcept;
 public:
 	static void DescImGuiUpdate(std::shared_ptr<Desc> desc);
-	static HRESULT Export(const Desc& desc);
+	static HRESULT Export(const Desc& desc) noexcept;
 
 	FCManager(const std::filesystem::path& directory);
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
-	HRESULT ImGuiUpdate()
+	HRESULT ImGuiUpdate() noexcept;
 };
