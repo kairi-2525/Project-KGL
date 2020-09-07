@@ -183,6 +183,7 @@
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\Obj3D.cpp" />
     <ClCompile Include="Src\particle.cpp" />
+    <ClCompile Include="Src\ParticleManager.cpp" />
     <ClCompile Include="Src\SceneGame.cpp" />
     <ClCompile Include="Src\SceneManager.cpp" />
     <ClCompile Include="Src\Scenes\TestScene00.cpp" />
@@ -204,6 +205,7 @@
     <ClInclude Include="Hrd\FireworkCerialManager.hpp" />
     <ClInclude Include="Hrd\Fireworks.hpp" />
     <ClInclude Include="Hrd\Obj3D.hpp" />
+    <ClInclude Include="Hrd\ParticleManager.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />
     <ClInclude Include="Hrd\Scenes\Scenes.hpp" />

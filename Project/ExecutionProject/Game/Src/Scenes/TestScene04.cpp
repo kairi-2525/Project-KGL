@@ -142,8 +142,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		board = std::make_shared<KGL::Board>(device);
 	}
 
-	hr = cpt_scene_buffer.Load(desc);
-	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
+	//hr = cpt_scene_buffer.Load(desc);
+	//RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
@@ -188,16 +188,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
-	D3D12_HEAP_PROPERTIES prop = {};
-	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	prop.CreationNodeMask = 1;
-	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
-	prop.VisibleNodeMask = 1;
-	particle_resource = std::make_shared<KGL::Resource<Particle>>(device, 1000000u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	frame_particles.reserve(particle_resource->Size());
-	particle_counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	particle_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
+
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
@@ -205,18 +197,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	b_tex_data[1].tex = std::make_shared<KGL::Texture>(device);
 
 	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
-	
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
-	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uav_desc.Format = DXGI_FORMAT_UNKNOWN;
-	uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(particle_resource->Size());
-	uav_desc.Buffer.StructureByteStride = sizeof(Particle);
 
-	uav_desc.Buffer.CounterOffsetInBytes = 0u;
-
-	particle_begin_handle = particle_desc_mgr->Alloc();
-	device->CreateUnorderedAccessView(particle_resource->Data().Get(), particle_counter_res->Data().Get(), &uav_desc, particle_begin_handle.Cpu());
-	
 	{
 		constexpr UINT grid_size = 100u;
 		std::vector<DirectX::XMFLOAT4> grid_vertices(grid_size * grid_size);
@@ -295,8 +276,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		b_select_srv_handle = b_tex_data[0].handle;
 	}
 	{
-		b_vbv.BufferLocation = particle_resource->Data()->GetGPUVirtualAddress();
-		b_vbv.SizeInBytes = particle_resource->SizeInBytes();
+		b_vbv.BufferLocation = ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
+		b_vbv.SizeInBytes = ptc_mgr->Resource()->SizeInBytes();
 		b_vbv.StrideInBytes = sizeof(Particle);
 	}
 
@@ -387,19 +368,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		1.0f, 1000.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
-	auto* p_particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-	Particle particle_base = {};
-
-	std::fill(&p_particles[0], &p_particles[particle_resource->Size()], particle_base);
-	particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-
-	{
-		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter = 0u;
-		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-	}
-
-	next_particle_offset = 0u;
+	
+	ptc_mgr->Clear();
 
 	XMMATRIX view = camera->GetView();
 	{
@@ -430,15 +400,14 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		matrix_resource->Unmap();
 	}
 
-	cpt_scene_buffer.mapped_data->center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
-	cpt_scene_buffer.mapped_data->center_mass = 5.9724e24f;
-	cpt_scene_buffer.mapped_data->resistivity = 1.f;
+	ParticleParent ptc_parent{};
+	ptc_parent.center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	ptc_parent.center_mass = 5.9724e24f;
+	ptc_parent.resistivity = 1.f;
+	ptc_mgr->SetParent(ptc_parent);
 
 	spawn_counter = 0.f;
 	ptc_key_spawn_counter = 0.f;
-	particle_total_num = 0u;
-
-	frame_particles.clear();
 
 	camera_angle = { 0.f, 0.f };
 
@@ -586,12 +555,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	using namespace DirectX;
 	KGL::Timer timer;
+	auto particle_total_num = ptc_mgr->ResetCounter();
 	{
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
 
 		constexpr float center_speed = 1.f;
-		if (input->IsKeyHold(KGL::KEYS::D))
+		/*if (input->IsKeyHold(KGL::KEYS::D))
 		{
 			cpt_scene_buffer.mapped_data->center_pos.x += center_speed * elapsed_time;
 		}
@@ -614,43 +584,27 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (input->IsKeyHold(KGL::KEYS::DOWN))
 		{
 			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
-		}
+		}*/
 
 		// 一秒秒間に[spawn_late]個のパーティクルを発生させる
 		//constexpr UINT spawn_late = 2500;
+
+
 		{
-			auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-			*p_counter = 0u;
-			particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+			auto* ptc_parent = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			ptc_parent->elapsed_time = ptc_update_time;
+			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		cpt_scene_buffer.mapped_data->elapsed_time = ptc_update_time;
+
 		timer.Restart();
 		if (particle_total_num > 0)
 		{
 			if (use_gpu)
 			{
-				cpt_cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(particle_counter_res->Data().Get()));
-
 				particle_pipeline->SetState(cpt_cmd_list);
-				//ID3D12DescriptorHeap* const heaps[] = { cpt_scene_buffer.handle.Heap().Get(), particle_begin_handle.Heap().Get() };
+				
+				ptc_mgr->Dispatch(cpt_cmd_list);
 
-				//cpt_cmd_list->SetDescriptorHeaps(1, b_counter_handle.Heap().GetAddressOf());
-				//cpt_cmd_list->SetComputeRootDescriptorTable(1, b_counter_handle.Gpu());
-				cpt_cmd_list->SetDescriptorHeaps(1, particle_begin_handle.Heap().GetAddressOf());
-				cpt_cmd_list->SetComputeRootDescriptorTable(1, particle_begin_handle.Gpu());
-
-				cpt_cmd_list->SetDescriptorHeaps(1, cpt_scene_buffer.handle.Heap().GetAddressOf());
-				cpt_cmd_list->SetComputeRootDescriptorTable(0, cpt_scene_buffer.handle.Gpu());
-
-				const UINT ptcl_size = std::min<UINT>(particle_total_num, particle_resource->Size());
-				DirectX::XMUINT3 patch = {};
-				constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
-				patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
-				patch.x = std::min(patch.x, patch_max);
-				patch.y = 1;
-				patch.z = 1;
-
-				cpt_cmd_list->Dispatch(patch.x, patch.y, patch.z);
 				cpt_cmd_list->Close();
 				//コマンドの実行
 				ID3D12CommandList* cmd_lists[] = {
@@ -662,19 +616,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 			else
 			{
-				auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-				auto particles = particle_resource->Map(0, &CD3DX12_RANGE(0, 0));
-				const size_t i_max = std::min<size_t>(particle_total_num, particle_resource->Size());
-				XMVECTOR resultant;
-				const auto* cb = cpt_scene_buffer.mapped_data;
-				for (int i = 0; i < i_max; i++)
-				{
-					if (!particles[i].Alive()) continue;
-					particles[i].Update(cpt_scene_buffer.mapped_data->elapsed_time, cb);
-					(*p_counter)++;
-				}
-				particle_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-				particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+				ptc_mgr->Update();
 			}
 		}
 
@@ -865,7 +807,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		grid_buffer.mapped_data->eye_pos = camera_pos;
 	}
 
-	const auto* cb = cpt_scene_buffer.mapped_data;
+	const auto* cbp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+	auto cb = *cbp;
+	ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 	/*constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += ptc_update_time;
 	UINT spawn_num = 0u;
@@ -907,7 +851,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(ptc_update_time, &frame_particles, cb, &fireworks))
+		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &cb, &fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
@@ -928,63 +872,18 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (particle_total_num > 0)
 	{
-		next_particle_offset = std::min<size_t>(particle_total_num, particle_resource->Size()) * sizeof(Particle);
-		auto particles = particle_resource->Map(0u, &CD3DX12_RANGE(0, next_particle_offset));
-		const auto size = next_particle_offset / sizeof(Particle);
-		UINT64 alive_count = 0;
-		constexpr Particle clear_ptc_value = {};
-		for (auto idx = 0; idx < size; idx++)
-		{
-			if (particles[idx].Alive())
-			{
-				if (idx > alive_count)
-				{
-					particles[alive_count] = particles[idx];
-					particles[idx] = clear_ptc_value;
-				}
-				alive_count++;
-			}
-		}
-		particle_resource->Unmap(0u, &CD3DX12_RANGE(0, next_particle_offset));
-		next_particle_offset = sizeof(Particle) * alive_count;
+		ptc_mgr->Sort();
 	}
 
-	const size_t frame_ptc_size = frame_particles.size();
-	size_t frame_add_ptc_num = 0u;
-	if (!frame_particles.empty())
-	{
-		D3D12_RANGE range;
-		range.Begin = next_particle_offset;
-		range.End = range.Begin + sizeof(Particle) * (KGL::SCAST<SIZE_T>(frame_ptc_size));
-		const size_t offset_max = sizeof(Particle) * (particle_resource->Size());
-		const size_t bi = range.Begin / sizeof(Particle);
-		if (range.End > offset_max)
-			range.End = offset_max;
-		const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
-		auto particles = particle_resource->Map(0u, &range);
-		UINT check_count = 0u;
-		for (; check_count < check_count_max;)
-		{
-			size_t idx = bi + check_count;
-			check_count++;
-			if (particles[idx].Alive()) continue;
-			particles[idx] = frame_particles.back();
-			frame_particles.pop_back();
-			frame_add_ptc_num++;
-			if (frame_particles.empty()) break;
-		}
-		particle_resource->Unmap(0u, &range);
-		next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
-	}
+	const auto frame_ptc_size = ptc_mgr->frame_particles.size();
+	ptc_mgr->AddToFrameParticle();
 	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
 	cputime += firework_update + map_update;
 
 	{
-		auto* p_counter = particle_counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter += frame_add_ptc_num;
-		particle_total_num = *p_counter;
-		KGLDebugOutPutStringNL("\r particle : " + std::to_string(*p_counter) + std::string(10, ' '));
+		auto counter = ptc_mgr->Size();
+		KGLDebugOutPutStringNL("\r particle : " + std::to_string(counter) + std::string(10, ' '));
 		if (use_gui)
 		{
 			if (ImGui::Begin("Particle"))
@@ -997,8 +896,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
-				ct_particle = std::max<UINT64>(ct_particle, *p_counter);
-				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", *p_counter, ct_particle);
+				ct_particle = std::max<UINT64>(ct_particle, counter);
+				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_particle);
 				ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
 				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
 				ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
@@ -1067,7 +966,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 			ImGui::End();
 		}
-		particle_counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 
 	{
@@ -1140,7 +1038,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		}
 
 		// パーティクル描画
-		if (particle_total_num > 0)
+		const auto ptc_size = ptc_mgr->Size();
+		if (ptc_size > 0)
 		{
 			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 			board_renderer->SetState(cmd_list);
@@ -1155,7 +1054,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			}
 
 			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
-			cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
+			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 
 			if (dof_flg)
 			{
@@ -1168,7 +1067,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 				}
 				cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
-				cmd_list->DrawInstanced(SCAST<UINT>(particle_total_num), 1, 0, 0);
+				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 			}
 		}
 

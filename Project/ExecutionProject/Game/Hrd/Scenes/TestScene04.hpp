@@ -25,6 +25,7 @@
 #include "../Camera.hpp"
 #include "../DepthOfField.hpp"
 #include "../FireworkCerialManager.hpp"
+#include "../ParticleManager.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -36,7 +37,6 @@ class TestScene04 : public SceneBase
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
 	float										ptc_key_spawn_counter;
-	UINT64										particle_total_num;
 	float										time_scale;
 	bool										use_gpu;
 	bool										spawn_fireworks;
@@ -44,7 +44,7 @@ private:
 
 	DirectX::XMFLOAT4X4							proj;
 
-	SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
+	//SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
 	std::shared_ptr<FPSCamera>					camera;
 	DirectX::XMFLOAT2							camera_angle;
@@ -88,13 +88,8 @@ private:
 	std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_textures;
 	std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
 
-	std::shared_ptr<KGL::Resource<Particle>>	particle_resource;
-	std::vector<Particle>						frame_particles;
-	std::shared_ptr<KGL::Resource<UINT32>>		particle_counter_res;
-	std::shared_ptr<KGL::DescriptorManager>		particle_desc_mgr;
+	std::shared_ptr<ParticleManager>			ptc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
-	KGL::DescriptorHandle						particle_begin_handle;
-	size_t										next_particle_offset;
 	float										spawn_counter;
 
 	std::vector<Fireworks>						fireworks;
