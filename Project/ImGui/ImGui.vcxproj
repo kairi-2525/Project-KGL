@@ -172,6 +172,7 @@
     <ClCompile Include="Src\imgui_widgets.cpp" />
     <ClCompile Include="Src\imgui_stdlib.cpp" />
     <ClCompile Include="Src\binary_to_compressed_c.cpp" />
+    <ClCompile Include="Src\JIS_X_0208.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\imconfig.h" />
@@ -185,6 +186,7 @@
     <ClInclude Include="Inc\imgui_stdlib.h" />
     <ClInclude Include="Inc\imgui_freetype.h" />
     <ClInclude Include="Inc\imgui_single_file.h" />
+    <ClInclude Include="Inc\JIS_X_0208.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

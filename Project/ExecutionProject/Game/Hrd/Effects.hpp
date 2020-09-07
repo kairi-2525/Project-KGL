@@ -15,6 +15,7 @@ struct FireworksDesc
 	DirectX::XMFLOAT3	velocity;
 	float				mass;
 	float				resistivity;
+	float				speed;
 
 	std::vector<EffectDesc>	effects;
 };

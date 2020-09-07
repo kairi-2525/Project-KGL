@@ -470,9 +470,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	auto input = desc.input;
 
-	if (input->IsKeyPressed(KGL::KEYS::ENTER))
+	if (input->IsKeyPressed(KGL::KEYS::ENTER) && input->IsKeyHold(KGL::KEYS::LCONTROL))
 	{
-		return Init(desc);;
+		return Init(desc);
 	}
 
 	ImGui_ImplDX12_NewFrame();
@@ -484,12 +484,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	camera->GetPos().y = std::max(grid_pos.y + 1, camera->GetPos().y);
 	const auto& view = camera->GetView();
 	const auto& camera_pos = camera->GetPos();
+	const auto& camera_front = camera->GetFront();
 
 	if (desc.input->IsKeyPressed(KGL::KEYS::F1))
 		use_gui = !use_gui;
 
 	if (use_gui)
 	{
+		fc_mgr->ImGuiUpdate();
 		if (ImGui::Begin("Info"))
 		{
 			ImGui::Text("FPS");
@@ -839,9 +841,21 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					break;
 				}
 			}
-			
+
 			fireworks.emplace_back(desc);
 			ptc_key_spawn_counter -= key_spawn_time;
+		}
+		// プレイヤーショット
+		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
+		{
+			auto desc = fc_mgr->GetSelectDesc();
+			if (desc)
+			{
+				desc->pos = camera_pos;
+				XMVECTOR xm_xmfront = XMLoadFloat3(&camera_front);
+				XMStoreFloat3(&desc->velocity, XMVector3Normalize(xm_xmfront) * desc->speed);
+				fireworks.emplace_back(*desc);
+			}
 		}
 
 		scene_buffer.mapped_data->view = view;

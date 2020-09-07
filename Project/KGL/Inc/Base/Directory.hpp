@@ -14,9 +14,9 @@ namespace KGL
 			std::filesystem::path	m_path;
 			Files					m_files;
 		private:
-			HRESULT Load(const std::filesystem::path dir, std::filesystem::path sub_dir = std::filesystem::path());
+			HRESULT Load(std::filesystem::path dir, std::filesystem::path sub_dir = std::filesystem::path());
 		public:
-			Directory(const std::filesystem::path dir);
+			Directory(const std::filesystem::path& dir);
 			HRESULT Reload();
 			const std::filesystem::path& GetPath() const noexcept { return m_path; }
 			const Files& GetFiles() const noexcept { return m_files; };

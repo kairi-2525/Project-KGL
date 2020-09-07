@@ -21,6 +21,7 @@ public:
 		return KGL::CAMERA::GetView(*this);
 	}
 	DirectX::XMFLOAT3& GetPos() noexcept { return eye; };
+	DirectX::XMFLOAT3& GetFront() noexcept { return focus_vec; };
 	const DirectX::XMFLOAT3& GetPos() const noexcept { return eye; };
 	void SetPos(const DirectX::XMFLOAT3& pos) noexcept { eye = pos; };
 };

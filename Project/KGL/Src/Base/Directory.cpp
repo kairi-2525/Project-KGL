@@ -4,7 +4,7 @@
 
 using namespace KGL;
 
-Directory::Directory(const std::filesystem::path dir)
+Directory::Directory(const std::filesystem::path& dir)
 {
 	m_path = dir;
 	Reload();
@@ -27,12 +27,14 @@ HRESULT Directory::Load(const std::filesystem::path dir, std::filesystem::path s
 		[&](const path& p) {
 			if (is_regular_file(p)) { // ファイルなら...
 				m_files.push_back(sub_dir.string() + p.filename().string());
+				//return S_OK;
 			}
 			else if (is_directory(p)) { // ディレクトリなら...
 				std::string directory = sub_dir.string() + p.string();
-				hr = Load(dir.string() + p.string(), directory);
-				RCHECK_HRSTR(hr, directory + "の読み込みに失敗", "フォルダの読み込みに失敗");
+				Load(dir.string() + p.string(), directory);
+				//RCHECK_HRSTR(hr, directory + "の読み込みに失敗", "フォルダの読み込みに失敗");
 			}
+			//return E_FAIL;
 		}
 	);
 	return S_OK;

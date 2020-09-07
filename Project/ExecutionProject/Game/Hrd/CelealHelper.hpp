@@ -14,21 +14,21 @@ namespace DirectX
     // XMFLOAT
     template<class Archive>
     void serialize(Archive& archive,
-        const XMFLOAT2& m)
+        XMFLOAT2& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMFLOAT3& m)
+        XMFLOAT3& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMFLOAT4& m)
+        XMFLOAT4& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z), KGL_NVP("w", m.w));
     }
@@ -36,21 +36,21 @@ namespace DirectX
     // XMINT
     template<class Archive>
     void serialize(Archive& archive,
-        const XMINT2& m)
+        XMINT2& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMINT3& m)
+        XMINT3& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMINT4& m)
+        XMINT4& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z), KGL_NVP("w", m.w));
     }
@@ -58,21 +58,21 @@ namespace DirectX
     // XMUINT
     template<class Archive>
     void serialize(Archive& archive,
-        const XMUINT2& m)
+        XMUINT2& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMUINT3& m)
+        XMUINT3& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z));
     }
 
     template<class Archive>
     void serialize(Archive& archive,
-        const XMUINT4& m)
+        XMUINT4& m)
     {
         archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y), KGL_NVP("z", m.z), KGL_NVP("w", m.w));
     }

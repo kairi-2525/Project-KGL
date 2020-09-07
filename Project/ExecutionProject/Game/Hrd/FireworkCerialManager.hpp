@@ -24,7 +24,7 @@
 
 template<class Archive>
 void serialize(Archive& archive,
-	const EffectDesc& m, std::uint32_t const version)
+	EffectDesc& m, std::uint32_t const version)
 {
 	using namespace DirectX;
 	archive(
@@ -59,11 +59,12 @@ CEREAL_CLASS_VERSION(EffectDesc, 1);
 
 template<class Archive>
 void serialize(Archive& archive,
-	const FireworksDesc& m, std::uint32_t const version)
+	FireworksDesc& m, std::uint32_t const version)
 {
 	archive(
 		KGL_NVP("mass", m.mass),
 		KGL_NVP("resistivity", m.resistivity),
+		KGL_NVP("speed", m.speed),
 		KGL_NVP("effects", m.effects)
 	);
 	if (1 <= version) {
@@ -78,16 +79,27 @@ private:
 	using Desc = std::pair<const std::string, std::shared_ptr<FireworksDesc>>;
 private:
 	std::shared_ptr<KGL::Directory>								directory;
-	std::shared_ptr<Desc>										select_desc;
+	std::string													select_name;
+	std::shared_ptr<FireworksDesc>								select_desc;
 	std::map<const std::string, std::shared_ptr<FireworksDesc>>	desc_list;
 private:
 	HRESULT ReloadDesc() noexcept;
+	void Create() noexcept;
+	static void FWDescImGuiUpdate(FireworksDesc* desc);
 public:
-	static void DescImGuiUpdate(std::shared_ptr<Desc> desc);
-	static HRESULT Export(const Desc& desc) noexcept;
-
+	void DescImGuiUpdate(Desc* desc);
+	static HRESULT Export(const std::filesystem::path& path, const Desc& desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
+	~FCManager() = default;
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
 	HRESULT ImGuiUpdate() noexcept;
+	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
+};
+
+class FC
+{
+public:
+	FC() = default;
+	~FC() = default;
 };

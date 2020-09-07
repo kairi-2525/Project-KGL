@@ -18,6 +18,7 @@
 #include <imgui.h>
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
+#include <JIS_X_0208.h>
 #include <Dx12/DescriptorHeap.hpp>
 
 #ifdef _DEBUG
@@ -90,8 +91,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 					window->SetUserProc(&WindowProc);
 
-					//auto& style = ImGui::GetStyle();
-					//style.Colors[ImGuiCol_WindowBg] = { 1.f, 1.f, 1.f, 1.f };
+					ImGuiIO& io = ImGui::GetIO();
+					io.Fonts->AddFontFromFileTTF("./Assets/Fonts/APJapanesefont.ttf", 20.0f, nullptr, glyphRangesJapanese);
 				}
 
 				SceneManager scene_mgr;
@@ -105,7 +106,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				HRESULT scene_hr = S_OK;
 				while (window->Update())
 				{
-					input->Update();
+					auto io = ImGui::GetIO();
+					input->Update(!io.WantCaptureKeyboard, !io.WantCaptureMouse);
 					fps_counter.Update();
 					window->SetTitle("FPS : [" + std::to_string(fps_counter.GetRefreshRate()) + "]");
 					scene_hr = scene_mgr.Update(scene_desc, fps_counter.GetElpasedTime());
