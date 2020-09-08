@@ -7,6 +7,8 @@
 #include <imgui.h>
 #include <fstream>
 #include "../Hrd/Particle.hpp"
+#include <DirectXTex/d3dx12.h>
+#include <Helper/Cast.hpp>
 
 static void HelpMarker(const char* desc)
 {
@@ -23,6 +25,9 @@ static void HelpMarker(const char* desc)
 
 FCManager::FCManager(const std::filesystem::path& directory)
 {
+	demo_frame_number = 0;
+	select_demo_number = 0;
+
 	Load(directory);
 }
 
@@ -104,56 +109,84 @@ float FCManager::GetMaxTime(const FireworksDesc& desc)
 	return max_time_count;
 }
 
-void FCManager::CreateDemo(const ParticleParent* p_parent) noexcept
+
+FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity)
 {
-	if (select_desc)
+	resource = std::make_shared<KGL::Resource<Particle>>(device, capacity);
+
+	vbv.BufferLocation = resource->Data()->GetGPUVirtualAddress();
+	vbv.SizeInBytes = resource->SizeInBytes();
+	vbv.StrideInBytes = sizeof(Particle);
+}
+
+void FCManager::DemoData::SetResource(UINT num)
+{
+	if (ptcs.size() > num)
 	{
-		const float max_time_count = GetMaxTime(*select_desc);
+		auto* particles = resource->Map(0, &CD3DX12_RANGE(0, 0));
+		ZeroMemory(particles, resource->SizeInBytes());
+		std::copy(ptcs[num].begin(), ptcs[num].end(), particles);
+		resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
+}
+
+void FCManager::DemoData::Build(const ParticleParent* p_parent)
+{
+	if (fw_desc)
+	{
+		ptcs.clear();
+		const float max_time_count = GetMaxTime(*fw_desc);
 		std::vector<Fireworks> fws;
 		fws.reserve(1000u);
-		fws.emplace_back(*select_desc);
-		const float frame_time = max_time_count / 99u;
-		auto& data = demo_data.emplace_back();
-		data.fw_desc = select_desc;
-		data.ptcs.resize(100u);
-		for (UINT i = 0u; i < 100u; i++)
+		auto desc = *fw_desc;
+		desc.pos = { 0.f, 0.f, 0.f };
+		desc.velocity = { 0.f, desc.speed, 0.f };
+		fws.emplace_back(desc);
+		const float frame_time = max_time_count / SPRIT_SIZE;
+		ptcs.resize(SPRIT_SIZE);
+		auto parent = *p_parent;
+		parent.elapsed_time = frame_time;
+		for (UINT i = 0u; i < SPRIT_SIZE; i++)
 		{
-			const float update_time = frame_time * i;
 			if (i >= 1u)
 			{
 				// Particle Update
-				data.ptcs[i] = data.ptcs[i - 1u];
-				for (auto& ptc : data.ptcs[i])
+				ptcs[i] = ptcs[i - 1u];
+				for (auto& ptc : ptcs[i])
 				{
 					if (ptc.Alive())
 					{
-						ptc.Update(update_time, p_parent);
+						ptc.Update(parent.elapsed_time, &parent);
 					}
 				}
 
 				// Particle Sort
-				const auto size = data.ptcs[i].size();
+				const auto size = ptcs[i].size();
 				constexpr Particle clear_ptc_value = {};
 				UINT64 alive_count = 0;
 				for (auto pdx = 0; pdx < size; pdx++)
 				{
-					if (data.ptcs[i][pdx].Alive())
+					if (ptcs[i][pdx].Alive())
 					{
 						if (pdx > alive_count)
 						{
-							data.ptcs[i][alive_count] = data.ptcs[i][pdx];
-							data.ptcs[i][pdx] = clear_ptc_value;
+							ptcs[i][alive_count] = ptcs[i][pdx];
+							ptcs[i][pdx] = clear_ptc_value;
 						}
 						alive_count++;
 					}
 				}
+				if (alive_count != ptcs[i].size())
+				{
+					ptcs[i].erase(ptcs[i].begin() + alive_count, ptcs[i].end());
+				}
 			}
-			data.ptcs[i].reserve(10000u);
+			ptcs[i].reserve(50000u);
 
 			for (UINT idx = 0; idx < fws.size(); idx++)
 			{
 				// Fireworks Sort
-				if (!fws[idx].Update(update_time, &data.ptcs[i], p_parent, &fws))
+				if (!fws[idx].Update(parent.elapsed_time, &ptcs[i], &parent, &fws))
 				{
 					fws[idx] = fws.back();
 					fws.pop_back();
@@ -161,10 +194,21 @@ void FCManager::CreateDemo(const ParticleParent* p_parent) noexcept
 				}
 			}
 		}
+		SetResource(0u);
 	}
 }
 
-HRESULT FCManager::ImGuiUpdate() noexcept
+void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept
+{
+	if (desc)
+	{
+		auto& data = demo_data.emplace_back(device, 20000u);
+		data.fw_desc = desc;
+		data.Build(p_parent);
+	}
+}
+
+HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
 {
 	if (ImGui::Begin("Fireworks Editor", nullptr, ImGuiWindowFlags_MenuBar))
 	{
@@ -194,7 +238,39 @@ HRESULT FCManager::ImGuiUpdate() noexcept
 
 		for (auto& desc : desc_list)
 		{
-			DescImGuiUpdate(&desc);
+			DescImGuiUpdate(device, &desc, p_parent);
+		}
+
+		{
+			int gui_use_inum = SCAST<int>(demo_frame_number);
+			if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, DemoData::SPRIT_SIZE))
+			{
+				demo_frame_number = SCAST<UINT>(gui_use_inum);
+				for (auto& data : demo_data)
+				{
+					data.SetResource(demo_frame_number);
+				}
+			}
+			ImGui::SameLine(); HelpMarker(u8"終了までの時間を100分割してあります。");
+		}
+		UINT idx = 0;
+		for (auto it = demo_data.begin(); it != demo_data.end();)
+		{
+			if (select_demo_number == idx)
+			{
+				ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
+			}
+			else if (ImGui::Button(("[No." + std::to_string(idx + 1) + "]").c_str()))
+			{
+				select_demo_number = idx;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"削除"))
+			{
+				it = demo_data.erase(it);
+			}
+			else it++;
+			idx++;
 		}
 	}
 	ImGui::End();
@@ -203,7 +279,7 @@ HRESULT FCManager::ImGuiUpdate() noexcept
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
-void FCManager::DescImGuiUpdate(Desc* desc)
+void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
 {
 	if (desc && desc->second)
 	{
@@ -217,6 +293,10 @@ void FCManager::DescImGuiUpdate(Desc* desc)
 			{
 				select_desc = desc->second;
 				select_name = desc->first;
+			}
+			if (ImGui::Button(u8"デモ作成"))
+			{
+				CreateDemo(device, desc->second, p_parent);
 			}
 			FWDescImGuiUpdate(desc->second.get());
 			ImGui::TreePop();
@@ -343,4 +423,23 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 			ImGui::TreePop();
 		}
 	}
+}
+
+void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept
+{
+	if (ptcs.size() > num)
+	{
+		const auto ptcs_size = ptcs[num].size();
+		if (ptcs_size > 0)
+		{
+			cmd_list->IASetVertexBuffers(0, 1, &vbv);
+			cmd_list->DrawInstanced(SCAST<UINT>(ptcs_size), 1, 0, 0);
+		}
+	}
+}
+
+void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
+{
+	for (const auto& data : demo_data)
+		data.Render(cmd_list, demo_frame_number);
 }

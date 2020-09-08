@@ -9,6 +9,7 @@
 #undef NOMINMAX
 #include <Base/Directory.hpp>
 #include <map>
+#include <Dx12/ConstantBuffer.hpp>
 
 //struct VF2
 //{
@@ -79,8 +80,17 @@ private:
 	using Desc = std::pair<const std::string, std::shared_ptr<FireworksDesc>>;
 	struct DemoData
 	{
-		std::shared_ptr<FireworksDesc> fw_desc;
-		std::vector<std::vector<Particle>> ptcs;
+		static inline const UINT					SPRIT_SIZE = 100u;
+
+		std::shared_ptr<FireworksDesc>				fw_desc;
+		std::vector<std::vector<Particle>>			ptcs;
+		std::shared_ptr<KGL::Resource<Particle>>	resource;
+		D3D12_VERTEX_BUFFER_VIEW					vbv;
+
+		DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity);
+		void SetResource(UINT num);
+		void Build(const ParticleParent* p_parent);
+		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
 	};
 private:
 	std::shared_ptr<KGL::Directory>								directory;
@@ -88,21 +98,24 @@ private:
 	std::shared_ptr<FireworksDesc>								select_desc;
 	std::map<const std::string, std::shared_ptr<FireworksDesc>>	desc_list;
 	std::vector<DemoData>										demo_data;
+	UINT														select_demo_number;
+	UINT														demo_frame_number;
 private:
 	HRESULT ReloadDesc() noexcept;
 	void Create() noexcept;
-	void CreateDemo(const ParticleParent* p_parent) noexcept;
+	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept;
 	static void FWDescImGuiUpdate(FireworksDesc* desc);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
-	void DescImGuiUpdate(Desc* desc);
+	void DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
 	static HRESULT Export(const std::filesystem::path& path, const Desc& desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
 	~FCManager() = default;
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
-	HRESULT ImGuiUpdate() noexcept;
+	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
+	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 };
 
 class FC

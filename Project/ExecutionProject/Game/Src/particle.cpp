@@ -20,6 +20,6 @@ void Particle::Update(float time, const ParticleParent* parent)
 	vel += accs * time;
 	XMStoreFloat3(&velocity, vel);
 	XMStoreFloat3(&position, pos + vel * time);
-	XMStoreFloat4(&color, XMLoadFloat4(&color) + XMLoadFloat4(&color_speed));
+	XMStoreFloat4(&color, XMLoadFloat4(&color) + (XMLoadFloat4(&color_speed) * time));
 	exist_time -= time;
 }

@@ -467,7 +467,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gui)
 	{
-		fc_mgr->ImGuiUpdate();
+		ParticleParent pp{};
+		{
+			auto* p_pp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			pp = *p_pp;
+			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pp);
+
 		if (ImGui::Begin("Info"))
 		{
 			ImGui::Text("FPS");
@@ -559,6 +566,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		SetNextScene<TestScene03>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
 		SetNextScene<TestScene06>(desc);
+
+	if (input->IsKeyPressed(KGL::KEYS::BACKSPACE))
+	{
+		ptc_mgr->Clear();
+		pl_shot_ptc_mgr->Clear();
+		fireworks.clear();
+	}
 
 	using namespace DirectX;
 	KGL::Timer timer;
@@ -732,7 +746,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		const auto* cbp = pl_shot_ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
 		pl_shot_ptc_cb = *cbp;
-		ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+		pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 	/*constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += ptc_update_time;
@@ -785,7 +799,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	UINT64 firework_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 
 	timer.Restart();
-	if (particle_total_num > 0 && use_gpu)
+	if (use_gpu)
 	{
 		cpt_cmd_queue->Wait();
 		cpt_cmd_allocator->Reset();
@@ -963,8 +977,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		}
 
 		// パーティクル描画
-		const auto ptc_size = ptc_mgr->Size();
-		if (ptc_size > 0)
 		{
 			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 			board_renderer->SetState(cmd_list);
@@ -978,8 +990,14 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 			}
 
-			cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
-			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+			const auto ptc_size = ptc_mgr->Size();
+			if (ptc_size > 0)
+			{
+				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
+				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+			}
+
+			fc_mgr->Render(cmd_list);
 
 			if (dof_flg)
 			{
@@ -991,8 +1009,13 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
 					cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 				}
-				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
-				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+				if (ptc_size > 0)
+				{
+					cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
+					cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+				}
+
+				fc_mgr->Render(cmd_list);
 			}
 		}
 
