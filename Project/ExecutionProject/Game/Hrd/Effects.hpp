@@ -3,6 +3,10 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <memory>
+#include <random>
+#define NOMINMAX
+#include <Windows.h>
+#undef NOMINMAX
 
 struct Particle;
 struct ParticleParent;
@@ -132,4 +136,119 @@ namespace FIREWORK_EFFECTS
 			false
 		}
 	};
+
+	inline FireworksDesc Get(UINT type)
+	{
+		using namespace DirectX;
+
+		std::random_device rd;
+		std::mt19937 mt(rd());
+		std::uniform_real_distribution<float> rmd_unorm(0.f, 1.f);
+
+		FireworksDesc desc{};
+		desc.effects = FIREWORK_EFFECTS::A;
+		desc.mass = 1.f;
+		desc.resistivity = 0.1f;
+		static constexpr auto to_sec_m = [](float hour_km)->float
+		{
+			return ((hour_km * 1000.f) / 60.f) / 60.f;
+		};
+		desc.speed = to_sec_m(356.f);
+		switch (type)
+		{
+		case 0:
+		{
+			desc.effects.pop_back();
+			desc.effects[0].time = 5.f;
+			desc.effects[1].start_time = 5.f;
+			desc.effects[1].late = { 50.f, 100.f };
+			desc.effects[1].child = desc;
+			desc.effects[1].resistivity = 1.f;
+			desc.effects[1].has_child = true;
+			desc.effects[1].base_speed = { 1.f, 1.f };
+			//desc.effects[1].child.effects[0].late = { 10.f, 10.f };
+			desc.effects[1].child.effects[0].time = 2.f;
+
+			desc.effects[1].child.effects[1].alive_time = { 2.5f, 3.5f };
+			desc.effects[1].child.effects[1].late = { 10000.f, 12000.f };
+			desc.effects[1].child.effects[1].start_time = 2.f;
+			desc.effects[1].child.effects[1].time = 0.05f;
+			desc.effects[1].child.effects[1].start_accel = 1.f;
+			desc.effects[1].child.effects[1].speed = { 100.f, 100.f };
+			desc.effects[1].child.effects[1].base_speed = { 0.f, 0.f };
+			desc.effects[1].child.effects[1].scale = { 0.8f, 1.2f };
+
+			XMStoreFloat4(&desc.effects[1].child.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
+			desc.effects[1].child.effects[1].begin_color.w = 0.2f;
+			desc.effects[1].child.effects[1].end_color = desc.effects[1].child.effects[1].begin_color;
+			desc.effects[1].child.effects[1].end_color.w = 0.f;
+			desc.effects[1].child.effects[1].erase_color = desc.effects[1].child.effects[1].end_color;
+			desc.effects[1].child.effects[1].scale_back = 0.1f;
+
+			break;
+		}
+		case 1:
+		{
+			desc.effects.pop_back();
+			desc.effects[0].time = 5.f;
+			desc.effects[1].start_time = 5.f;
+			desc.effects[1].late = { 50.f, 100.f };
+			desc.effects[1].child = desc;
+			desc.effects[1].resistivity = 1.f;
+			desc.effects[1].has_child = true;
+			desc.effects[1].base_speed = { 1.f, 1.f };
+			desc.effects[1].child.effects[0].base_speed = { 0.1f, 0.3f };
+			desc.effects[1].child.effects[0].late = { 100.f, 100.f };
+			desc.effects[1].child.effects[0].time = 3.f;
+			desc.effects[1].child.effects[0].speed = { 100.f, 100.f };
+			desc.effects[1].child.effects[0].bloom = true;
+			XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
+			desc.effects[1].child.effects[0].begin_color.w = 0.2f;
+			desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
+			desc.effects[1].child.effects[0].end_color.w = 0.f;
+			desc.effects[1].child.effects[0].erase_color = desc.effects[1].child.effects[0].end_color;
+			desc.effects[1].child.effects[0].scale_back = 0.1f;
+			desc.effects[1].child.effects.pop_back();
+			break;
+		}
+		case 2:
+		{
+			desc.effects.pop_back();
+			desc.effects[0].time = 10.f;
+			desc.speed *= 1.5f;
+			desc.effects[0].late = { 300.f, 300.f };
+			desc.effects[0].spawn_space = { 0.1f, 0.5f };
+			desc.effects[1].start_time = 10.f;
+			desc.effects[1].alive_time = { 5.f, 6.f };
+			desc.effects[1].speed = { 400.f, 600.f };
+			desc.effects[1].late = { 20000.f, 20000.f };
+			desc.effects[1].scale_back = 0.2f;
+
+			XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+			desc.effects[1].begin_color.w = 0.3f;
+			desc.effects[1].end_color = desc.effects[1].begin_color;
+			desc.effects[1].erase_color = desc.effects[1].end_color;
+			desc.effects[1].erase_color.w = 0.f;
+			//desc.effects[1].end_color.w = 0.f;
+			break;
+		}
+		default:
+		{
+			XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+			desc.effects[1].begin_color.w = 0.3f;
+			desc.effects[1].end_color = desc.effects[1].begin_color;
+			desc.effects[1].end_color.w = 0.f;
+			desc.effects[1].erase_color = desc.effects[1].end_color;
+			desc.effects[2].scale_back = 0.1f;
+			XMStoreFloat4(&desc.effects[2].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
+			desc.effects[2].begin_color.w = 0.3f;
+			desc.effects[2].end_color = desc.effects[2].begin_color;
+			desc.effects[2].end_color.w = 0.f;
+			desc.effects[2].erase_color = desc.effects[2].end_color;
+			desc.effects[2].scale_back = 0.1f;
+			break;
+		}
+		}
+		return desc;
+	}
 }

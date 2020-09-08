@@ -159,25 +159,25 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 		{
 			constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
-			/*ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+			/*ptc_rtv_texs.emplace_back(std::make_shared<KGL::Texture>(
 				device, desc.app->GetRtvBuffers().at(0), clear_value));*/
 
 			D3D12_RESOURCE_DESC res_desc = desc.app->GetRtvBuffers().at(0)->GetDesc();
 			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			res_desc.MipLevels = 8u;
-			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+			ptc_rtv_texs.emplace_back(std::make_shared<KGL::Texture>(
 				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
 			res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-			ptc_rtv_textures.emplace_back(std::make_shared<KGL::Texture>(
+			ptc_rtv_texs.emplace_back(std::make_shared<KGL::Texture>(
 				device, res_desc, CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value)));
-			const auto& resources = KGL::TEXTURE::GetResources(ptc_rtv_textures);
+			const auto& resources = KGL::TEXTURE::GetResources(ptc_rtv_texs);
 			ptc_rtvs = std::make_shared<KGL::RenderTargetView>(device, resources);
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 			srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srv_desc.Texture2D.MipLevels = 1;
 			srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			for (auto& tex : ptc_rtv_textures)
+			for (auto& tex : ptc_rtv_texs)
 			{
 				auto& imgui_handle = ptc_srv_gui_handles.emplace_back();
 				imgui_handle = desc.imgui_heap_mgr->Alloc();
@@ -189,6 +189,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
+	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 100000u);
 
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -276,9 +277,13 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		b_select_srv_handle = b_tex_data[0].handle;
 	}
 	{
-		b_vbv.BufferLocation = ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
-		b_vbv.SizeInBytes = ptc_mgr->Resource()->SizeInBytes();
-		b_vbv.StrideInBytes = sizeof(Particle);
+		b_ptc_vbv.BufferLocation = ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
+		b_ptc_vbv.SizeInBytes = ptc_mgr->Resource()->SizeInBytes();
+		b_ptc_vbv.StrideInBytes = sizeof(Particle);
+
+		b_pl_shot_ptc_vbv.BufferLocation = pl_shot_ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
+		b_pl_shot_ptc_vbv.SizeInBytes = pl_shot_ptc_mgr->Resource()->SizeInBytes();
+		b_pl_shot_ptc_vbv.StrideInBytes = sizeof(Particle);
 	}
 
 	fireworks.reserve(10000u);
@@ -370,6 +375,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	XMStoreFloat4x4(&proj, proj_mat);
 	
 	ptc_mgr->Clear();
+	pl_shot_ptc_mgr->Clear();
 
 	XMMATRIX view = camera->GetView();
 	{
@@ -405,6 +411,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
+	pl_shot_ptc_mgr->SetParent(ptc_parent);
 
 	spawn_counter = 0.f;
 	ptc_key_spawn_counter = 0.f;
@@ -556,6 +563,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	using namespace DirectX;
 	KGL::Timer timer;
 	auto particle_total_num = ptc_mgr->ResetCounter();
+	auto pl_shot_particle_total_num = pl_shot_ptc_mgr->ResetCounter();
 	{
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
@@ -595,29 +603,34 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_parent->elapsed_time = ptc_update_time;
 			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-
-		timer.Restart();
-		if (particle_total_num > 0)
 		{
-			if (use_gpu)
-			{
-				particle_pipeline->SetState(cpt_cmd_list);
-				
+			auto* ptc_parent = pl_shot_ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			ptc_parent->elapsed_time = ptc_update_time;
+			pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+		timer.Restart();
+		if (use_gpu)
+		{
+			particle_pipeline->SetState(cpt_cmd_list);
+
+			if (particle_total_num > 0)
 				ptc_mgr->Dispatch(cpt_cmd_list);
+			if (pl_shot_particle_total_num > 0)
+				pl_shot_ptc_mgr->Dispatch(cpt_cmd_list);
 
-				cpt_cmd_list->Close();
-				//コマンドの実行
-				ID3D12CommandList* cmd_lists[] = {
-				   cpt_cmd_list.Get(),
-				};
+			cpt_cmd_list->Close();
+			//コマンドの実行
+			ID3D12CommandList* cmd_lists[] = {
+			   cpt_cmd_list.Get(),
+			};
 
-				cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-				cpt_cmd_queue->Signal();
-			}
-			else
-			{
+			cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
+			cpt_cmd_queue->Signal();
+		}
+		else
+		{
+			if (particle_total_num > 0)
 				ptc_mgr->Update();
-			}
 		}
 
 		float key_spawn_late = 5.f;
@@ -628,28 +641,45 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
 			ptc_key_spawn_counter += key_spawn_time;
 
-		static constexpr auto to_sec_m = [](float hour_km)->float
-		{
-			return ((hour_km * 1000.f) / 60.f) / 60.f;
-		};
-
 		while (ptc_key_spawn_counter >= key_spawn_time)
 		{
-			FireworksDesc desc;
-			desc.pos = { 0.f, 0.f, 0.f };
-
+			FireworksDesc desc{};
 			std::random_device rd;
 			std::mt19937 mt(rd());
-
-			std::uniform_real_distribution<float> rmd_unorm(0.f, 1.f);
 			std::uniform_int_distribution<UINT> rmd_int(0u, 100u);
-			std::uniform_real_distribution<float> rmd_speed(to_sec_m(330.f), to_sec_m(356.f));
-			desc.velocity = { 0.f, rmd_speed(mt), 0.f };
+			switch (rmd_int(mt))
+			{
+			case 0u: case 1u: case 2u: case 3u: case 4u:
+			case 5u: case 6u: case 7u: case 8u: case 9u:
+			{
+				desc = FIREWORK_EFFECTS::Get(0);
+				break;
+			}
+			case 10u: case 11u: case 12u: case 13u: case 14u:
+			case 15u: case 16u: case 17u: case 18u: case 19u:
+			{
+				desc = FIREWORK_EFFECTS::Get(1);
+				break;
+			}
+			case 20u: case 21u:
+			{
+				desc = FIREWORK_EFFECTS::Get(2);
+				break;
+			}
+			default:
+			{
+				desc = FIREWORK_EFFECTS::Get(3);
+				break;
+			}
+			}
+			desc.pos = { 0.f, 0.f, 0.f };
+
+			std::uniform_real_distribution<float> rmd_speed(0.9f, 1.f);
+			desc.velocity = { 0.f, desc.speed * rmd_speed(mt), 0.f };
 
 			std::uniform_real_distribution<float> rmdpos(-50.f, +50.f);
 			desc.pos.x += rmdpos(mt);
 			desc.pos.z += rmdpos(mt);
-			desc.resistivity = 0.1f;
 
 			XMFLOAT2 nmangle;
 			nmangle.x = XMConvertToRadians(0.f) / XM_PI;
@@ -670,119 +700,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
 			XMVECTOR spawn_v = XMVector3Transform(axis, R);
 			XMStoreFloat3(&desc.velocity, spawn_v * XMVector3Length(velocity));
-
-			desc.effects = FIREWORK_EFFECTS::A;
-			desc.mass = 1.f;/*
-			desc.effects[2].child = desc;
-			desc.effects[2].has_child = true;
-			desc.effects[2].child.effects[0].late = { 10.f, 10.f };
-			desc.effects[2].child.effects[0].time = 1.f;
-			desc.effects[2].child.effects[1].late = { 100.f, 100.f };
-			desc.effects[2].child.effects[1].start_time = 1.f;
-			desc.effects[2].child.effects[1].time = 0.05f;
-			desc.effects[2].child.effects[1].start_accel = 1.f;
-			desc.effects[2].child.effects[1].speed = { 50.f, 50.f };
-			desc.effects[2].child.effects[2].start_time = 1.f;
-			desc.effects[2].child.effects[2].time = 0.05f;
-			desc.effects[2].child.effects[2].speed = { 50.f, 50.f };
-			desc.effects[2].child.effects[2].late = { 100.f, 200.f };*/
-			switch (rmd_int(mt))
-			{
-				case 0u: case 1u: case 2u: case 3u: case 4u:
-				case 5u: case 6u: case 7u: case 8u: case 9u:
-				{
-					desc.effects.pop_back();
-					desc.effects[0].time = 5.f;
-					desc.effects[1].start_time = 5.f;
-					desc.effects[1].late = { 50.f, 100.f };
-					desc.effects[1].child = desc;
-					desc.effects[1].resistivity = 1.f;
-					desc.effects[1].has_child = true;
-					desc.effects[1].base_speed = { 1.f, 1.f };
-					//desc.effects[1].child.effects[0].late = { 10.f, 10.f };
-					desc.effects[1].child.effects[0].time = 2.f;
-
-					desc.effects[1].child.effects[1].alive_time = { 2.5f, 3.5f };
-					desc.effects[1].child.effects[1].late = { 10000.f, 12000.f };
-					desc.effects[1].child.effects[1].start_time = 2.f;
-					desc.effects[1].child.effects[1].time = 0.05f;
-					desc.effects[1].child.effects[1].start_accel = 1.f;
-					desc.effects[1].child.effects[1].speed = { 100.f, 100.f };
-					desc.effects[1].child.effects[1].base_speed = { 0.f, 0.f };
-					desc.effects[1].child.effects[1].scale = { 0.8f, 1.2f };
-
-					XMStoreFloat4(&desc.effects[1].child.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
-					desc.effects[1].child.effects[1].begin_color.w = 0.2f;
-					desc.effects[1].child.effects[1].end_color = desc.effects[1].child.effects[1].begin_color;
-					desc.effects[1].child.effects[1].end_color.w = 0.f;
-					desc.effects[1].child.effects[1].erase_color = desc.effects[1].child.effects[1].end_color;
-					desc.effects[1].child.effects[1].scale_back = 0.1f;
-
-					break;
-				}
-				case 10u: case 11u: case 12u: case 13u: case 14u:
-				case 15u: case 16u: case 17u: case 18u: case 19u:
-				{
-					desc.effects.pop_back();
-					desc.effects[0].time = 5.f;
-					desc.effects[1].start_time = 5.f;
-					desc.effects[1].late = { 50.f, 100.f };
-					desc.effects[1].child = desc;
-					desc.effects[1].resistivity = 1.f;
-					desc.effects[1].has_child = true;
-					desc.effects[1].base_speed = { 1.f, 1.f };
-					desc.effects[1].child.effects[0].base_speed = { 0.1f, 0.3f };
-					desc.effects[1].child.effects[0].late = { 100.f, 100.f };
-					desc.effects[1].child.effects[0].time = 3.f;
-					desc.effects[1].child.effects[0].speed = { 100.f, 100.f };
-					desc.effects[1].child.effects[0].bloom = true;
-					XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
-					desc.effects[1].child.effects[0].begin_color.w = 0.2f;
-					desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
-					desc.effects[1].child.effects[0].end_color.w = 0.f;
-					desc.effects[1].child.effects[0].erase_color = desc.effects[1].child.effects[0].end_color;
-					desc.effects[1].child.effects[0].scale_back = 0.1f;
-					desc.effects[1].child.effects.pop_back();
-					break;
-				}
-				case 20u: case 21u:
-				{
-					desc.effects.pop_back();
-					desc.effects[0].time = 10.f;
-					XMStoreFloat3(&desc.velocity, spawn_v * 1.5f * XMVector3Length(velocity));
-					desc.effects[0].late = { 300.f, 300.f };
-					desc.effects[0].spawn_space = { 0.1f, 0.5f };
-					desc.effects[1].start_time = 10.f;
-					desc.effects[1].alive_time = { 5.f, 6.f };
-					desc.effects[1].speed = { 400.f, 600.f };
-					desc.effects[1].late = { 20000.f, 20000.f };
-					desc.effects[1].scale_back = 0.2f;
-
-					XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
-					desc.effects[1].begin_color.w = 0.3f;
-					desc.effects[1].end_color = desc.effects[1].begin_color;
-					desc.effects[1].erase_color = desc.effects[1].end_color;
-					desc.effects[1].erase_color.w = 0.f;
-					//desc.effects[1].end_color.w = 0.f;
-					break;
-				}
-				default:
-				{
-					XMStoreFloat4(&desc.effects[1].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
-					desc.effects[1].begin_color.w = 0.3f;
-					desc.effects[1].end_color = desc.effects[1].begin_color;
-					desc.effects[1].end_color.w = 0.f;
-					desc.effects[1].erase_color = desc.effects[1].end_color;
-					desc.effects[2].scale_back = 0.1f;
-					XMStoreFloat4(&desc.effects[2].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.f);
-					desc.effects[2].begin_color.w = 0.3f;
-					desc.effects[2].end_color = desc.effects[2].begin_color;
-					desc.effects[2].end_color.w = 0.f;
-					desc.effects[2].erase_color = desc.effects[2].end_color;
-					desc.effects[2].scale_back = 0.1f;
-					break;
-				}
-			}
 
 			fireworks.emplace_back(desc);
 			ptc_key_spawn_counter -= key_spawn_time;
@@ -806,10 +723,17 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
 		grid_buffer.mapped_data->eye_pos = camera_pos;
 	}
-
-	const auto* cbp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
-	auto cb = *cbp;
-	ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+	ParticleParent ptc_cb, pl_shot_ptc_cb;
+	{
+		const auto* cbp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+		ptc_cb = *cbp;
+		ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
+	{
+		const auto* cbp = pl_shot_ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+		pl_shot_ptc_cb = *cbp;
+		ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+	}
 	/*constexpr float spawn_elapsed = 1.f / spawn_late;
 	spawn_counter += ptc_update_time;
 	UINT spawn_num = 0u;
@@ -851,7 +775,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &cb, &fireworks))
+		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
@@ -871,18 +795,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	timer.Restart();
 
 	if (particle_total_num > 0)
-	{
 		ptc_mgr->Sort();
-	}
+	if (pl_shot_particle_total_num > 0)
+		pl_shot_ptc_mgr->Sort();
 
-	const auto frame_ptc_size = ptc_mgr->frame_particles.size();
+	const auto frame_ptc_size = ptc_mgr->frame_particles.size() + pl_shot_ptc_mgr->frame_particles.size();
 	ptc_mgr->AddToFrameParticle();
+	pl_shot_ptc_mgr->AddToFrameParticle();
 	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 	timer.Restart();
 	cputime += firework_update + map_update;
 
 	{
-		auto counter = ptc_mgr->Size();
+		const auto counter = ptc_mgr->Size() + pl_shot_ptc_mgr->Size();
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(counter) + std::string(10, ' '));
 		if (use_gui)
 		{
@@ -1034,7 +959,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		
 		for (UINT idx = 0u; idx < rtrbs_size; idx++)
 		{
-			ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[idx]->GetClearColor(), idx);
+			ptc_rtvs->Clear(cmd_list, ptc_rtv_texs[idx]->GetClearColor(), idx);
 		}
 
 		// パーティクル描画
@@ -1053,7 +978,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 			}
 
-			cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
+			cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 
 			if (dof_flg)
@@ -1066,7 +991,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
 					cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 				}
-				cmd_list->IASetVertexBuffers(0, 1, &b_vbv);
+				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
 				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 			}
 		}
@@ -1079,7 +1004,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
 
 		ptc_rtvs->Set(cmd_list, nullptr, rtv_num);
-		ptc_rtvs->Clear(cmd_list, ptc_rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+		ptc_rtvs->Clear(cmd_list, ptc_rtv_texs[rtv_num]->GetClearColor(), rtv_num);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		high_sprite_renderer->SetState(cmd_list);

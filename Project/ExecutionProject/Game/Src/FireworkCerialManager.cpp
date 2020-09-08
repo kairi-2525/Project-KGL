@@ -1,10 +1,12 @@
 #include "../Hrd/FireworkCerialManager.hpp"
+#include "../Hrd/Fireworks.hpp"
 #include <algorithm>
 #include <Cereal/archives/binary.hpp>
 #include <Cereal/types/vector.hpp>
 #include <Cereal/types/memory.hpp>
 #include <imgui.h>
 #include <fstream>
+#include "../Hrd/Particle.hpp"
 
 static void HelpMarker(const char* desc)
 {
@@ -27,7 +29,14 @@ FCManager::FCManager(const std::filesystem::path& directory)
 HRESULT FCManager::Load(const std::filesystem::path& directory) noexcept
 {
 	this->directory = std::make_shared<KGL::Directory>(directory);
-	return ReloadDesc();
+	HRESULT hr = ReloadDesc();
+#if 1
+	desc_list["A"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(0));
+	desc_list["B"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(1));
+	desc_list["C"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(2));
+	desc_list["D"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(3));
+#endif
+	return hr;
 }
 
 HRESULT FCManager::ReloadDesc() noexcept
@@ -79,6 +88,80 @@ void FCManager::Create() noexcept
 	}
 	select_desc = desc_list[name] = std::make_shared<FireworksDesc>();
 	select_name = name;
+}
+
+float FCManager::GetMaxTime(const FireworksDesc& desc)
+{
+	float max_time_count = 0.f;
+	for (const auto& effect : desc.effects)
+	{
+		max_time_count = std::max(max_time_count, effect.start_time + effect.time + effect.alive_time.y);
+		if (effect.has_child)
+		{
+			max_time_count = std::max(max_time_count, GetMaxTime(effect.child));
+		}
+	}
+	return max_time_count;
+}
+
+void FCManager::CreateDemo(const ParticleParent* p_parent) noexcept
+{
+	if (select_desc)
+	{
+		const float max_time_count = GetMaxTime(*select_desc);
+		std::vector<Fireworks> fws;
+		fws.reserve(1000u);
+		fws.emplace_back(*select_desc);
+		const float frame_time = max_time_count / 99u;
+		auto& data = demo_data.emplace_back();
+		data.fw_desc = select_desc;
+		data.ptcs.resize(100u);
+		for (UINT i = 0u; i < 100u; i++)
+		{
+			const float update_time = frame_time * i;
+			if (i >= 1u)
+			{
+				// Particle Update
+				data.ptcs[i] = data.ptcs[i - 1u];
+				for (auto& ptc : data.ptcs[i])
+				{
+					if (ptc.Alive())
+					{
+						ptc.Update(update_time, p_parent);
+					}
+				}
+
+				// Particle Sort
+				const auto size = data.ptcs[i].size();
+				constexpr Particle clear_ptc_value = {};
+				UINT64 alive_count = 0;
+				for (auto pdx = 0; pdx < size; pdx++)
+				{
+					if (data.ptcs[i][pdx].Alive())
+					{
+						if (pdx > alive_count)
+						{
+							data.ptcs[i][alive_count] = data.ptcs[i][pdx];
+							data.ptcs[i][pdx] = clear_ptc_value;
+						}
+						alive_count++;
+					}
+				}
+			}
+			data.ptcs[i].reserve(10000u);
+
+			for (UINT idx = 0; idx < fws.size(); idx++)
+			{
+				// Fireworks Sort
+				if (!fws[idx].Update(update_time, &data.ptcs[i], p_parent, &fws))
+				{
+					fws[idx] = fws.back();
+					fws.pop_back();
+					idx--;
+				}
+			}
+		}
+	}
 }
 
 HRESULT FCManager::ImGuiUpdate() noexcept

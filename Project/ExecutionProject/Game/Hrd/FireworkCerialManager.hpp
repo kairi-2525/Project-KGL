@@ -77,15 +77,23 @@ class FCManager
 {
 private:
 	using Desc = std::pair<const std::string, std::shared_ptr<FireworksDesc>>;
+	struct DemoData
+	{
+		std::shared_ptr<FireworksDesc> fw_desc;
+		std::vector<std::vector<Particle>> ptcs;
+	};
 private:
 	std::shared_ptr<KGL::Directory>								directory;
 	std::string													select_name;
 	std::shared_ptr<FireworksDesc>								select_desc;
 	std::map<const std::string, std::shared_ptr<FireworksDesc>>	desc_list;
+	std::vector<DemoData>										demo_data;
 private:
 	HRESULT ReloadDesc() noexcept;
 	void Create() noexcept;
+	void CreateDemo(const ParticleParent* p_parent) noexcept;
 	static void FWDescImGuiUpdate(FireworksDesc* desc);
+	static float GetMaxTime(const FireworksDesc& desc);
 public:
 	void DescImGuiUpdate(Desc* desc);
 	static HRESULT Export(const std::filesystem::path& path, const Desc& desc) noexcept;

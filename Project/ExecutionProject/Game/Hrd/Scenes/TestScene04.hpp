@@ -68,7 +68,9 @@ private:
 	};
 	BoardTex									b_tex_data[2];
 
-	D3D12_VERTEX_BUFFER_VIEW					b_vbv;
+	D3D12_VERTEX_BUFFER_VIEW					b_ptc_vbv;
+	D3D12_VERTEX_BUFFER_VIEW					b_pl_shot_ptc_vbv;
+
 	std::shared_ptr<KGL::DescriptorHandle>		b_select_srv_handle;
 
 	std::shared_ptr<KGL::Resource<CbvParam>>	matrix_resource;
@@ -85,10 +87,11 @@ private:
 	std::shared_ptr<KGL::RenderTargetView>		rtvs;
 	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 	std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
-	std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_textures;
+	std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_texs;
 	std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
 
 	std::shared_ptr<ParticleManager>			ptc_mgr;
+	std::shared_ptr<ParticleManager>			pl_shot_ptc_mgr;
 	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
 	float										spawn_counter;
 

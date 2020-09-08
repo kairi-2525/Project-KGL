@@ -21,6 +21,7 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capac
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
 
+	frame_particles.reserve(capacity);
 	resource = std::make_shared<KGL::Resource<Particle>>(device, capacity, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 	counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
