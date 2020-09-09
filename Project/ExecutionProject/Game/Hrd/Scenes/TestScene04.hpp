@@ -55,7 +55,9 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			board_renderer_pos;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer_dsv;
+	std::shared_ptr<KGL::BaseRenderer>			board_renderer_dsv_pos;
 	std::shared_ptr<KGL::Board>					board;
 	std::shared_ptr<KGL::DescriptorManager>		b_cbv_descmgr;
 	KGL::DescriptorHandle						b_cbv;

@@ -131,7 +131,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.reserve(2u);
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/ParticleDepth_ps.hlsl";
 		board_renderer_dsv = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
+		board_renderer_dsv_pos = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/Particle_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BLEND::TYPE::ADD;
 		renderer_desc.blend_types[1] = KGL::BLEND::TYPE::ADD;
@@ -139,6 +142,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+
+		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
+		board_renderer_pos = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+
 		board = std::make_shared<KGL::Board>(device);
 	}
 
@@ -997,6 +1004,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 			}
 
+			board_renderer_pos->SetState(cmd_list);
 			fc_mgr->Render(cmd_list);
 
 			if (dof_flg)
@@ -1015,6 +1023,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 				}
 
+				board_renderer_dsv_pos->SetState(cmd_list);
 				fc_mgr->Render(cmd_list);
 			}
 		}

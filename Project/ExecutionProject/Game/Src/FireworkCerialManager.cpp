@@ -112,6 +112,16 @@ float FCManager::GetMaxTime(const FireworksDesc& desc)
 
 FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity)
 {
+	world_resource = std::make_shared<KGL::Resource<World>>(device, 1u);
+	world_dm = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	world_handle = world_dm->Alloc();
+	{
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
+		cbv_desc.BufferLocation = world_resource->Data()->GetGPUVirtualAddress();
+		cbv_desc.SizeInBytes = world_resource->SizeInBytes();
+		device->CreateConstantBufferView(&cbv_desc, world_handle.Cpu());
+	}
+
 	resource = std::make_shared<KGL::Resource<Particle>>(device, capacity);
 
 	vbv.BufferLocation = resource->Data()->GetGPUVirtualAddress();
@@ -271,8 +281,16 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			if (ImGui::Button((u8"íœ##" + std::to_string(idx)).c_str()))
 			{
 				it = demo_data.erase(it);
+				continue;
 			}
-			else it++;
+
+			if (select_demo_number == idx)
+			{
+				auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
+				ImGui::InputFloat3((u8"À•W##" + std::to_string(idx)).c_str(), (float*)&world->position);
+				it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+			}
+			it++;
 			idx++;
 		}
 	}
@@ -435,6 +453,9 @@ void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list
 		const auto ptcs_size = ptcs[num].size();
 		if (ptcs_size > 0)
 		{
+			cmd_list->SetDescriptorHeaps(1, world_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, world_handle.Gpu());
+
 			cmd_list->IASetVertexBuffers(0, 1, &vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(ptcs_size), 1, 0, 0);
 		}

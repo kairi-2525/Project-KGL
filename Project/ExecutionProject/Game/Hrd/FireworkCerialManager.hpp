@@ -10,6 +10,7 @@
 #include <Base/Directory.hpp>
 #include <map>
 #include <Dx12/ConstantBuffer.hpp>
+#include <Dx12/DescriptorHeap.hpp>
 
 //struct VF2
 //{
@@ -80,13 +81,19 @@ private:
 	using Desc = std::pair<const std::string, std::shared_ptr<FireworksDesc>>;
 	struct DemoData
 	{
-		static inline const float					FRAME_SECOND = 0.1f;
-
-		std::shared_ptr<FireworksDesc>				fw_desc;
-		std::vector<std::vector<Particle>>			ptcs;
-		std::shared_ptr<KGL::Resource<Particle>>	resource;
-		D3D12_VERTEX_BUFFER_VIEW					vbv;
-		bool										draw_flg;
+		static inline const float							FRAME_SECOND = 0.03f;
+		struct World
+		{
+			DirectX::XMFLOAT3							position;
+		};
+		std::shared_ptr<FireworksDesc>						fw_desc;
+		std::vector<std::vector<Particle>>					ptcs;
+		std::shared_ptr<KGL::Resource<Particle>>			resource;
+		std::shared_ptr<KGL::Resource<World>>				world_resource;
+		std::shared_ptr<KGL::DescriptorManager>				world_dm;
+		KGL::DescriptorHandle								world_handle;
+		D3D12_VERTEX_BUFFER_VIEW							vbv;
+		bool												draw_flg;
 
 		DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity);
 		void SetResource(UINT num);

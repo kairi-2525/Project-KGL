@@ -188,6 +188,7 @@
     <FxCompile Include="HLSL\2D\Bloom_ps.hlsl" />
     <FxCompile Include="HLSL\2D\DepthOfField_ps.hlsl" />
     <FxCompile Include="HLSL\3D\ParticleDepth_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\ParticlePos_vs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
