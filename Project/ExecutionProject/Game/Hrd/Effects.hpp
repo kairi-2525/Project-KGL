@@ -200,13 +200,14 @@ namespace FIREWORK_EFFECTS
 			desc.effects[1].child.effects[0].base_speed = { 0.1f, 0.3f };
 			desc.effects[1].child.effects[0].late = { 100.f, 100.f };
 			desc.effects[1].child.effects[0].time = 3.f;
-			desc.effects[1].child.effects[0].speed = { 100.f, 100.f };
+			desc.effects[1].child.effects[0].speed = { 30.f, 40.f };
 			desc.effects[1].child.effects[0].bloom = true;
+			desc.effects[1].child.effects[0].angle.x = DirectX::XMConvertToRadians(90.f);
 			XMStoreFloat4(&desc.effects[1].child.effects[0].begin_color, XMVector3Normalize(XMVectorSet(rmd_unorm(mt), rmd_unorm(mt), rmd_unorm(mt), 0.05f)) * 1.0f);
 			desc.effects[1].child.effects[0].begin_color.w = 0.2f;
 			desc.effects[1].child.effects[0].end_color = desc.effects[1].child.effects[0].begin_color;
-			desc.effects[1].child.effects[0].end_color.w = 0.f;
 			desc.effects[1].child.effects[0].erase_color = desc.effects[1].child.effects[0].end_color;
+			desc.effects[1].child.effects[0].erase_color.w = 0.f;
 			desc.effects[1].child.effects[0].scale_back = 0.1f;
 			desc.effects[1].child.effects.pop_back();
 			break;

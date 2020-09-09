@@ -80,16 +80,17 @@ private:
 	using Desc = std::pair<const std::string, std::shared_ptr<FireworksDesc>>;
 	struct DemoData
 	{
-		static inline const UINT					SPRIT_SIZE = 100u;
+		static inline const float					FRAME_SECOND = 0.1f;
 
 		std::shared_ptr<FireworksDesc>				fw_desc;
 		std::vector<std::vector<Particle>>			ptcs;
 		std::shared_ptr<KGL::Resource<Particle>>	resource;
 		D3D12_VERTEX_BUFFER_VIEW					vbv;
+		bool										draw_flg;
 
 		DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity);
 		void SetResource(UINT num);
-		void Build(const ParticleParent* p_parent);
+		void Build(const ParticleParent* p_parent, UINT set_frame_num);
 		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
 	};
 private:

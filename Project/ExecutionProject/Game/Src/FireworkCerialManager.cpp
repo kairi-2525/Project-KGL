@@ -117,6 +117,8 @@ FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity
 	vbv.BufferLocation = resource->Data()->GetGPUVirtualAddress();
 	vbv.SizeInBytes = resource->SizeInBytes();
 	vbv.StrideInBytes = sizeof(Particle);
+
+	draw_flg = true;
 }
 
 void FCManager::DemoData::SetResource(UINT num)
@@ -130,7 +132,7 @@ void FCManager::DemoData::SetResource(UINT num)
 	}
 }
 
-void FCManager::DemoData::Build(const ParticleParent* p_parent)
+void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_num)
 {
 	if (fw_desc)
 	{
@@ -142,11 +144,11 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent)
 		desc.pos = { 0.f, 0.f, 0.f };
 		desc.velocity = { 0.f, desc.speed, 0.f };
 		fws.emplace_back(desc);
-		const float frame_time = max_time_count / SPRIT_SIZE;
-		ptcs.resize(SPRIT_SIZE);
+		const UINT FRAME_COUNT = SCAST<UINT>(max_time_count / FRAME_SECOND);
+		ptcs.resize(FRAME_COUNT);
 		auto parent = *p_parent;
-		parent.elapsed_time = frame_time;
-		for (UINT i = 0u; i < SPRIT_SIZE; i++)
+		parent.elapsed_time = FRAME_SECOND;
+		for (UINT i = 0u; i < FRAME_COUNT; i++)
 		{
 			if (i >= 1u)
 			{
@@ -161,27 +163,17 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent)
 				}
 
 				// Particle Sort
-				const auto size = ptcs[i].size();
-				constexpr Particle clear_ptc_value = {};
-				UINT64 alive_count = 0;
-				for (auto pdx = 0; pdx < size; pdx++)
+				for (auto pdx = 0; pdx < ptcs[i].size(); pdx++)
 				{
-					if (ptcs[i][pdx].Alive())
+					if (!ptcs[i][pdx].Alive())
 					{
-						if (pdx > alive_count)
-						{
-							ptcs[i][alive_count] = ptcs[i][pdx];
-							ptcs[i][pdx] = clear_ptc_value;
-						}
-						alive_count++;
+						ptcs[i][pdx] = ptcs[i].back();
+						ptcs[i].pop_back();
+						pdx--;
 					}
 				}
-				if (alive_count != ptcs[i].size())
-				{
-					ptcs[i].erase(ptcs[i].begin() + alive_count, ptcs[i].end());
-				}
 			}
-			ptcs[i].reserve(50000u);
+			ptcs[i].reserve(resource->Size());
 
 			for (UINT idx = 0; idx < fws.size(); idx++)
 			{
@@ -193,8 +185,9 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent)
 					idx--;
 				}
 			}
+			ptcs[i].shrink_to_fit();
 		}
-		SetResource(0u);
+		SetResource(set_frame_num);
 	}
 }
 
@@ -202,9 +195,9 @@ void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<Fi
 {
 	if (desc)
 	{
-		auto& data = demo_data.emplace_back(device, 20000u);
+		auto& data = demo_data.emplace_back(device, 100000u);
 		data.fw_desc = desc;
-		data.Build(p_parent);
+		data.Build(p_parent, demo_frame_number);
 	}
 }
 
@@ -242,8 +235,13 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 		}
 
 		{
+			size_t max_frame_count = 0u;
+			for (auto& data : demo_data)
+			{
+				max_frame_count = std::max(max_frame_count, data.ptcs.size());
+			}
 			int gui_use_inum = SCAST<int>(demo_frame_number);
-			if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, DemoData::SPRIT_SIZE))
+			if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, max_frame_count))
 			{
 				demo_frame_number = SCAST<UINT>(gui_use_inum);
 				for (auto& data : demo_data)
@@ -265,7 +263,12 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				select_demo_number = idx;
 			}
 			ImGui::SameLine();
-			if (ImGui::Button(u8"削除"))
+			if (ImGui::Button(((it->draw_flg ? u8"非表示##" : u8"表示##") + std::to_string(idx)).c_str()))
+			{
+				it->draw_flg = !it->draw_flg;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
 			{
 				it = demo_data.erase(it);
 			}
@@ -397,7 +400,7 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 
 						ImGui::InputFloat(u8"効力", &effect.resistivity);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度");
-						ImGui::InputFloat(u8"効力S", &effect.resistivity);
+						ImGui::InputFloat(u8"効力S", &effect.scale_resistivity);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度（スケールから影響を受ける）");
 
 						ImGui::Checkbox(u8"ブルーム", &effect.bloom);
@@ -427,7 +430,7 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 
 void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept
 {
-	if (ptcs.size() > num)
+	if (ptcs.size() > num && draw_flg)
 	{
 		const auto ptcs_size = ptcs[num].size();
 		if (ptcs_size > 0)
