@@ -108,9 +108,15 @@ private:
 	std::vector<DemoData>										demo_data;
 	UINT														select_demo_number;
 	UINT														demo_frame_number;
+	bool														demo_play;
+	float														demo_play_frame;
 private:
 	HRESULT ReloadDesc() noexcept;
+	bool ChangeName(std::string before, std::string after) noexcept;
 	void Create() noexcept;
+	void PlayDemo(UINT frame_num) noexcept;
+	void StopDemo() noexcept;
+	void UpdateDemo(float update_time) noexcept;
 	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept;
 	static void FWDescImGuiUpdate(FireworksDesc* desc);
 	static float GetMaxTime(const FireworksDesc& desc);
@@ -122,6 +128,7 @@ public:
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
+	HRESULT Update(float update_time) noexcept;
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 };

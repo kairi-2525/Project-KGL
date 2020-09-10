@@ -27,6 +27,8 @@ FCManager::FCManager(const std::filesystem::path& directory)
 {
 	demo_frame_number = 0;
 	select_demo_number = 0;
+	demo_play = false;
+	demo_play_frame = 0.f;
 
 	Load(directory);
 }
@@ -35,11 +37,11 @@ HRESULT FCManager::Load(const std::filesystem::path& directory) noexcept
 {
 	this->directory = std::make_shared<KGL::Directory>(directory);
 	HRESULT hr = ReloadDesc();
-#if 1
-	desc_list["A"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(0));
-	desc_list["B"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(1));
-	desc_list["C"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(2));
-	desc_list["D"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(3));
+#if 0
+	desc_list["Pop Muluti Fireworks"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(0));
+	desc_list["Shower Fireworks"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(1));
+	desc_list["Big Firework"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(2));
+	desc_list["Small Firework"] = std::make_shared<FireworksDesc>(FIREWORK_EFFECTS::Get(3));
 #endif
 	return hr;
 }
@@ -79,6 +81,15 @@ HRESULT FCManager::Export(const std::filesystem::path& path, const Desc& desc) n
 	return S_OK;
 }
 
+bool FCManager::ChangeName(std::string before, std::string after) noexcept
+{
+	if (desc_list.count(before) == 0u || desc_list.count(after) == 1u)
+		return false;
+	desc_list[after] = desc_list[before];
+	desc_list.erase(before);
+	return true;
+}
+
 void FCManager::Create() noexcept
 {
 	const std::string title = "none";
@@ -93,6 +104,54 @@ void FCManager::Create() noexcept
 	}
 	select_desc = desc_list[name] = std::make_shared<FireworksDesc>();
 	select_name = name;
+}
+
+void FCManager::PlayDemo(UINT frame_num) noexcept
+{
+	demo_play = true;
+	demo_play_frame = SCAST<float>(frame_num);
+}
+
+void FCManager::StopDemo() noexcept
+{
+	demo_play = false;
+	demo_play_frame = 0;
+
+	for (auto& data : demo_data)
+	{
+		data.SetResource(demo_frame_number);
+	}
+}
+
+void FCManager::UpdateDemo(float update_time) noexcept
+{
+	if (demo_play)
+	{
+
+		demo_play_frame += (1.f / DemoData::FRAME_SECOND) * update_time;
+		size_t max_frame_count = 0u;
+		for (const auto& data : demo_data)
+		{
+			max_frame_count = std::max(max_frame_count, data.ptcs.size());
+		}
+
+		if (max_frame_count != 0)
+		{
+			if (demo_play_frame >= SCAST<float>(max_frame_count))
+			{
+				demo_play_frame -= SCAST<float>(SCAST<size_t>(demo_play_frame / max_frame_count) * max_frame_count);
+			}
+
+			for (auto& data : demo_data)
+			{
+				data.SetResource(SCAST<UINT>(demo_play_frame));
+			}
+		}
+		else
+		{
+			demo_play_frame = 0.f;
+		}
+	}
 }
 
 float FCManager::GetMaxTime(const FireworksDesc& desc)
@@ -211,6 +270,16 @@ void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<Fi
 	}
 }
 
+HRESULT FCManager::Update(float update_time) noexcept
+{
+	if (demo_play)
+	{
+		UpdateDemo(update_time);
+	}
+
+	return S_OK;
+}
+
 HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
 {
 	if (ImGui::Begin("Fireworks Editor", nullptr, ImGuiWindowFlags_MenuBar))
@@ -227,39 +296,65 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				{
 					ReloadDesc();
 				}
-				if (ImGui::Button(u8"書き出し"))
+				if (select_desc)
 				{
-					if (select_desc)
+					if (ImGui::Button(u8"書き出し"))
 					{
-						Export(directory->GetPath(), { select_name, select_desc });
+						if (select_desc)
+						{
+							Export(directory->GetPath(), { select_name, select_desc });
+						}
 					}
+					ImGui::SameLine();
+					ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.f }, (u8"[" + select_name + u8"]").c_str());
 				}
+
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
 		}
 
-		for (auto& desc : desc_list)
+		if (ImGui::TreeNode(u8"一覧"))
 		{
-			DescImGuiUpdate(device, &desc, p_parent);
+			for (auto& desc : desc_list)
+			{
+				DescImGuiUpdate(device, &desc, p_parent);
+			}
+
+			ImGui::TreePop();
 		}
 
 		{
+			if (ImGui::Checkbox(u8"デモ再生", &demo_play))
+			{
+				if (demo_play) PlayDemo(demo_frame_number);
+				else StopDemo();
+			}
+			ImGui::SameLine(); HelpMarker(u8"保存したデモデータを再生します。");
+
 			size_t max_frame_count = 0u;
 			for (auto& data : demo_data)
 			{
 				max_frame_count = std::max(max_frame_count, data.ptcs.size());
 			}
-			int gui_use_inum = SCAST<int>(demo_frame_number);
+			int gui_use_inum;
+			if (demo_play)
+				gui_use_inum = SCAST<int>(demo_play_frame);
+			else
+				gui_use_inum = SCAST<int>(demo_frame_number);
 			if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, max_frame_count))
 			{
 				demo_frame_number = SCAST<UINT>(gui_use_inum);
+				if (demo_play)
+				{
+					PlayDemo(demo_frame_number);
+				}
 				for (auto& data : demo_data)
 				{
 					data.SetResource(demo_frame_number);
 				}
 			}
-			ImGui::SameLine(); HelpMarker(u8"終了までの時間を100分割してあります。");
+			ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
 		}
 		UINT idx = 0;
 		for (auto it = demo_data.begin(); it != demo_data.end();)
@@ -306,6 +401,14 @@ void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 	{
 		if (ImGui::TreeNode(desc->first.c_str()))
 		{
+			static std::string s_after_name("", 64u);
+			ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(), s_after_name.data(), s_after_name.size());
+			ImGui::SameLine();
+			if (ImGui::Button(u8"名前変更"))
+			{
+				ChangeName(desc->first, s_after_name);
+			}
+
 			if (desc->second == select_desc)
 			{
 				ImGui::Text(u8"選択中");
@@ -329,25 +432,34 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 {
 	if (desc)
 	{
-		ImGui::InputFloat(u8"質量", &desc->mass);
-		ImGui::InputFloat(u8"効力", &desc->resistivity);
-		ImGui::InputFloat(u8"スピード", &desc->speed);
-		ImGui::SameLine(); HelpMarker(u8"プレイヤーから射出される場合の速度(初速)。");
+		if (ImGui::TreeNode(u8"基本パラメーター"))
+		{
+			ImGui::InputFloat(u8"質量", &desc->mass);
+			ImGui::InputFloat(u8"効力", &desc->resistivity);
+			ImGui::InputFloat(u8"スピード", &desc->speed);
+			ImGui::SameLine(); HelpMarker(u8"プレイヤーから射出される場合の速度(初速)。");
 
-		if (ImGui::Button(u8"エフェクト追加"))
-		{
-			desc->effects.emplace_back();
-		}
-		if (ImGui::TreeNode(u8"エフェクト削除"))
-		{
-			if (ImGui::Button(u8"削除する"))
-			{
-				desc->effects.pop_back();
-			}
 			ImGui::TreePop();
 		}
 		if (ImGui::TreeNode(u8"エフェクト"))
 		{
+			if (ImGui::TreeNode(u8"エフェクト作成/破棄"))
+			{
+				if (ImGui::Button(u8"エフェクト追加"))
+				{
+					desc->effects.emplace_back();
+				}
+				if (ImGui::TreeNode(u8"エフェクト削除"))
+				{
+					if (ImGui::Button(u8"削除する"))
+					{
+						desc->effects.pop_back();
+					}
+					ImGui::TreePop();
+				}
+				ImGui::TreePop();
+			}
+
 			UINT idx = 0;
 			for (auto& effect : desc->effects)
 			{
@@ -464,6 +576,18 @@ void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list
 
 void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
-	for (const auto& data : demo_data)
-		data.Render(cmd_list, demo_frame_number);
+	if (demo_play)
+	{
+		for (const auto& data : demo_data)
+		{
+			data.Render(cmd_list, SCAST<UINT>(demo_play_frame));
+		}
+	}
+	else
+	{
+		for (const auto& data : demo_data)
+		{
+			data.Render(cmd_list, demo_frame_number);
+		}
+	}
 }

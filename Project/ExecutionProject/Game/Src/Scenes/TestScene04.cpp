@@ -472,6 +472,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	if (desc.input->IsKeyPressed(KGL::KEYS::F1))
 		use_gui = !use_gui;
 
+	fc_mgr->Update(elapsed_time);
 	if (use_gui)
 	{
 		ParticleParent pp{};
