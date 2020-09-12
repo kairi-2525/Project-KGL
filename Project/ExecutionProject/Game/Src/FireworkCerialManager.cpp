@@ -9,6 +9,7 @@
 #include "../Hrd/Particle.hpp"
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
+#include <thread>
 
 static void HelpMarker(const char* desc)
 {
@@ -28,7 +29,9 @@ FCManager::FCManager(const std::filesystem::path& directory)
 	demo_frame_number = 0;
 	select_demo_number = 0;
 	demo_play = false;
+	demo_build_count = 0u;
 	demo_play_frame = 0.f;
+	demo_data.reserve(100u);
 
 	Load(directory);
 }
@@ -117,17 +120,26 @@ void FCManager::StopDemo() noexcept
 	demo_play = false;
 	demo_play_frame = 0;
 
+	{	// demo_build_count をインクリメントしてreserveされないようにする。
+		std::lock_guard<std::mutex> lock(demo_build_mutex);
+		demo_build_count++;
+	}
 	for (auto& data : demo_data)
 	{
 		data.SetResource(demo_frame_number);
 	}
+	std::lock_guard<std::mutex> lock(demo_build_mutex);
+	demo_build_count--;
 }
 
 void FCManager::UpdateDemo(float update_time) noexcept
 {
 	if (demo_play)
 	{
-
+		{	// demo_build_count をインクリメントしてreserveされないようにする。
+			std::lock_guard<std::mutex> lock(demo_build_mutex);
+			demo_build_count++;
+		}
 		demo_play_frame += (1.f / DemoData::FRAME_SECOND) * update_time;
 		size_t max_frame_count = 0u;
 		for (const auto& data : demo_data)
@@ -151,6 +163,8 @@ void FCManager::UpdateDemo(float update_time) noexcept
 		{
 			demo_play_frame = 0.f;
 		}
+		std::lock_guard<std::mutex> lock(demo_build_mutex);
+		demo_build_count--;
 	}
 }
 
@@ -169,8 +183,16 @@ float FCManager::GetMaxTime(const FireworksDesc& desc)
 }
 
 
-FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity)
+FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device,
+	std::shared_ptr<FireworksDesc> desc, UINT64 capacity)
 {
+	{
+		std::lock_guard<std::mutex> lock(build_mutex);
+		build_flg = true;
+		exist = true;
+		fw_desc = desc;
+	}
+
 	world_resource = std::make_shared<KGL::Resource<World>>(device, 1u);
 	world_dm = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	world_handle = world_dm->Alloc();
@@ -188,6 +210,27 @@ FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity
 	vbv.StrideInBytes = sizeof(Particle);
 
 	draw_flg = true;
+}
+
+FCManager::DemoData::DemoData(const DemoData& data)
+{
+	*this = data;
+}
+FCManager::DemoData& FCManager::DemoData::operator=(const DemoData& data)
+{
+	fw_desc = data.fw_desc;
+	ptcs = data.ptcs;
+	resource = data.resource;
+	world_resource = data.world_resource;
+	world_dm = data.world_dm;
+	world_handle = data.world_handle;
+	vbv = data.vbv;
+	draw_flg = data.draw_flg;
+
+	build_flg = data.build_flg;
+	exist = data.exist;
+
+	return *this;
 }
 
 void FCManager::DemoData::SetResource(UINT num)
@@ -258,15 +301,50 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 		}
 		SetResource(set_frame_num);
 	}
+	std::lock_guard<std::mutex> lock(build_mutex);
+	build_flg = false;
 }
 
 void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept
 {
 	if (desc)
 	{
-		auto& data = demo_data.emplace_back(device, 100000u);
-		data.fw_desc = desc;
+		bool guarded, capaover;
+		demo_build_mutex.lock();
+		capaover = demo_data.size() == demo_data.capacity();
+		guarded = demo_build_count > 0u && capaover;
+
+		// Whileで再度Lockを掛けるのでUnlockする。
+		if (guarded) demo_build_mutex.unlock();
+
+		// キャパシティは足りないが、ビルド中でないためそのままreserveする。
+		else if (capaover)
+		{
+			demo_data.reserve(demo_data.size() + 100u);
+		}
+
+		// キャパシティ確保するまで待機
+		while (guarded)
+		{
+			Sleep(1u);
+			demo_build_mutex.lock();
+			if (demo_build_count == 0u)
+			{
+				demo_data.reserve(demo_data.size() + 100u);
+				break;
+			}
+			demo_build_mutex.unlock();
+		}
+
+		// ここを通るときは必ずlockされた状態になっている。
+		auto& data = demo_data.emplace_back(device, desc, 100000u);
+		demo_build_count++;
+		demo_build_mutex.unlock();
+
 		data.Build(p_parent, demo_frame_number);
+
+		std::lock_guard<std::mutex> lock(demo_build_mutex);
+		demo_build_count--;
 	}
 }
 
@@ -324,6 +402,10 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			ImGui::TreePop();
 		}
 
+		{	// demo_build_count をインクリメントしてreserveされないようにする。
+			std::lock_guard<std::mutex> lock(demo_build_mutex);
+			demo_build_count++;
+		}
 		{
 			if (ImGui::Checkbox(u8"デモ再生", &demo_play))
 			{
@@ -335,7 +417,11 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			size_t max_frame_count = 0u;
 			for (auto& data : demo_data)
 			{
-				max_frame_count = std::max(max_frame_count, data.ptcs.size());
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (!data.build_flg && data.exist)
+				{
+					max_frame_count = std::max(max_frame_count, data.ptcs.size());
+				}
 			}
 			int gui_use_inum;
 			if (demo_play)
@@ -351,7 +437,11 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				}
 				for (auto& data : demo_data)
 				{
-					data.SetResource(demo_frame_number);
+					std::lock_guard<std::mutex> lock(data.build_mutex);
+					if (!data.build_flg && data.exist)
+					{
+						data.SetResource(demo_frame_number);
+					}
 				}
 			}
 			ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
@@ -359,6 +449,27 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 		UINT idx = 0;
 		for (auto it = demo_data.begin(); it != demo_data.end();)
 		{
+			{
+				it->build_mutex.lock();
+				if (it->build_flg || !it->exist)
+				{
+					if (!it->build_flg && !it->exist)
+					{
+						std::lock_guard<std::mutex> lock(demo_build_mutex);
+						if (demo_build_count == 1u) // reserveしないようインクリメントしているので1
+						{
+							it->build_mutex.unlock();
+							it = demo_data.erase(it);
+							continue;
+						}
+					}
+					
+					it->build_mutex.unlock();
+					it++;
+					continue;
+				}
+				it->build_mutex.unlock();
+			}
 			if (select_demo_number == idx)
 			{
 				ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
@@ -375,7 +486,11 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			ImGui::SameLine();
 			if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
 			{
-				it = demo_data.erase(it);
+				it->exist = false;
+
+				// 前回描画に使用された可能性があるのでこのフレームでは消さない
+				it++;
+				idx++;
 				continue;
 			}
 
@@ -388,6 +503,9 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			it++;
 			idx++;
 		}
+
+		std::lock_guard<std::mutex> lock(demo_build_mutex);
+		demo_build_count--;
 	}
 	ImGui::End();
 	return S_OK;
@@ -418,10 +536,28 @@ void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 				select_desc = desc->second;
 				select_name = desc->first;
 			}
+
+			UINT build_count = 0u;
+			for (auto& data : demo_data)
+			{
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (data.build_flg)
+				{
+					if (desc->second == data.fw_desc)
+						build_count++;
+				}
+			}
 			if (ImGui::Button(u8"デモ作成"))
 			{
-				CreateDemo(device, desc->second, p_parent);
+				std::thread th(&FCManager::CreateDemo, this, device, desc->second, p_parent);
+				th.detach();
 			}
+			if (build_count > 0u)
+			{
+				ImGui::SameLine();
+				ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.f }, (u8"[ " + std::to_string(build_count) + u8" 個作成中 ]").c_str());
+			}
+
 			FWDescImGuiUpdate(desc->second.get());
 			ImGui::TreePop();
 		}
@@ -574,20 +710,34 @@ void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list
 	}
 }
 
-void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
+void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept
 {
+	{	// demo_build_count をインクリメントしてreserveされないようにする。
+		std::lock_guard<std::mutex> lock(demo_build_mutex);
+		demo_build_count++;
+	}
 	if (demo_play)
 	{
-		for (const auto& data : demo_data)
+		for (auto& data : demo_data)
 		{
-			data.Render(cmd_list, SCAST<UINT>(demo_play_frame));
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+			{
+				data.Render(cmd_list, SCAST<UINT>(demo_play_frame));
+			}
 		}
 	}
 	else
 	{
-		for (const auto& data : demo_data)
+		for (auto& data : demo_data)
 		{
-			data.Render(cmd_list, demo_frame_number);
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+			{
+				data.Render(cmd_list, demo_frame_number);
+			}
 		}
 	}
+	std::lock_guard<std::mutex> lock(demo_build_mutex);
+	demo_build_count--;
 }

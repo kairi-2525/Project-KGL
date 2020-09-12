@@ -11,6 +11,8 @@
 #include <map>
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
+#include <mutex>
+
 
 //struct VF2
 //{
@@ -84,7 +86,7 @@ private:
 		static inline const float							FRAME_SECOND = 0.03f;
 		struct World
 		{
-			DirectX::XMFLOAT3							position;
+			DirectX::XMFLOAT3								position;
 		};
 		std::shared_ptr<FireworksDesc>						fw_desc;
 		std::vector<std::vector<Particle>>					ptcs;
@@ -94,8 +96,13 @@ private:
 		KGL::DescriptorHandle								world_handle;
 		D3D12_VERTEX_BUFFER_VIEW							vbv;
 		bool												draw_flg;
+		bool												build_flg;
+		std::mutex											build_mutex;
+		bool												exist;
 
-		DemoData(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity);
+		DemoData(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, UINT64 capacity);
+		DemoData(const DemoData& data);
+		DemoData& operator=(const DemoData& data);
 		void SetResource(UINT num);
 		void Build(const ParticleParent* p_parent, UINT set_frame_num);
 		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
@@ -110,6 +117,8 @@ private:
 	UINT														demo_frame_number;
 	bool														demo_play;
 	float														demo_play_frame;
+	UINT														demo_build_count;
+	std::mutex													demo_build_mutex;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
@@ -130,7 +139,7 @@ public:
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
 	HRESULT Update(float update_time) noexcept;
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
-	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept;
+	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
 };
 
 class FC
