@@ -29,9 +29,8 @@ FCManager::FCManager(const std::filesystem::path& directory)
 	demo_frame_number = 0;
 	select_demo_number = 0;
 	demo_play = false;
-	demo_build_count = 0u;
 	demo_play_frame = 0.f;
-	demo_data.reserve(100u);
+	//demo_data.reserve(100u);
 
 	Load(directory);
 }
@@ -120,26 +119,16 @@ void FCManager::StopDemo() noexcept
 	demo_play = false;
 	demo_play_frame = 0;
 
-	{	// demo_build_count をインクリメントしてreserveされないようにする。
-		std::lock_guard<std::mutex> lock(demo_build_mutex);
-		demo_build_count++;
-	}
 	for (auto& data : demo_data)
 	{
 		data.SetResource(demo_frame_number);
 	}
-	std::lock_guard<std::mutex> lock(demo_build_mutex);
-	demo_build_count--;
 }
 
 void FCManager::UpdateDemo(float update_time) noexcept
 {
 	if (demo_play)
 	{
-		{	// demo_build_count をインクリメントしてreserveされないようにする。
-			std::lock_guard<std::mutex> lock(demo_build_mutex);
-			demo_build_count++;
-		}
 		demo_play_frame += (1.f / DemoData::FRAME_SECOND) * update_time;
 		size_t max_frame_count = 0u;
 		for (const auto& data : demo_data)
@@ -163,8 +152,6 @@ void FCManager::UpdateDemo(float update_time) noexcept
 		{
 			demo_play_frame = 0.f;
 		}
-		std::lock_guard<std::mutex> lock(demo_build_mutex);
-		demo_build_count--;
 	}
 }
 
@@ -309,42 +296,8 @@ void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<Fi
 {
 	if (desc)
 	{
-		bool guarded, capaover;
-		demo_build_mutex.lock();
-		capaover = demo_data.size() == demo_data.capacity();
-		guarded = demo_build_count > 0u && capaover;
-
-		// Whileで再度Lockを掛けるのでUnlockする。
-		if (guarded) demo_build_mutex.unlock();
-
-		// キャパシティは足りないが、ビルド中でないためそのままreserveする。
-		else if (capaover)
-		{
-			demo_data.reserve(demo_data.size() + 100u);
-		}
-
-		// キャパシティ確保するまで待機
-		while (guarded)
-		{
-			Sleep(1u);
-			demo_build_mutex.lock();
-			if (demo_build_count == 0u)
-			{
-				demo_data.reserve(demo_data.size() + 100u);
-				break;
-			}
-			demo_build_mutex.unlock();
-		}
-
-		// ここを通るときは必ずlockされた状態になっている。
 		auto& data = demo_data.emplace_back(device, desc, 100000u);
-		demo_build_count++;
-		demo_build_mutex.unlock();
-
 		data.Build(p_parent, demo_frame_number);
-
-		std::lock_guard<std::mutex> lock(demo_build_mutex);
-		demo_build_count--;
 	}
 }
 
@@ -401,11 +354,6 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 			ImGui::TreePop();
 		}
-
-		{	// demo_build_count をインクリメントしてreserveされないようにする。
-			std::lock_guard<std::mutex> lock(demo_build_mutex);
-			demo_build_count++;
-		}
 		{
 			if (ImGui::Checkbox(u8"デモ再生", &demo_play))
 			{
@@ -455,13 +403,9 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				{
 					if (!it->build_flg && !it->exist)
 					{
-						std::lock_guard<std::mutex> lock(demo_build_mutex);
-						if (demo_build_count == 1u) // reserveしないようインクリメントしているので1
-						{
-							it->build_mutex.unlock();
-							it = demo_data.erase(it);
-							continue;
-						}
+						it->build_mutex.unlock();
+						it = demo_data.erase(it);
+						continue;
 					}
 					
 					it->build_mutex.unlock();
@@ -503,9 +447,6 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			it++;
 			idx++;
 		}
-
-		std::lock_guard<std::mutex> lock(demo_build_mutex);
-		demo_build_count--;
 	}
 	ImGui::End();
 	return S_OK;
@@ -712,10 +653,6 @@ void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list
 
 void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept
 {
-	{	// demo_build_count をインクリメントしてreserveされないようにする。
-		std::lock_guard<std::mutex> lock(demo_build_mutex);
-		demo_build_count++;
-	}
 	if (demo_play)
 	{
 		for (auto& data : demo_data)
@@ -738,6 +675,4 @@ void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept
 			}
 		}
 	}
-	std::lock_guard<std::mutex> lock(demo_build_mutex);
-	demo_build_count--;
 }

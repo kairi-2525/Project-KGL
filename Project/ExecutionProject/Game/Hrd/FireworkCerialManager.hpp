@@ -12,7 +12,7 @@
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
 #include <mutex>
-
+#include <list>
 
 //struct VF2
 //{
@@ -112,13 +112,11 @@ private:
 	std::string													select_name;
 	std::shared_ptr<FireworksDesc>								select_desc;
 	std::map<const std::string, std::shared_ptr<FireworksDesc>>	desc_list;
-	std::vector<DemoData>										demo_data;
+	std::list<DemoData>											demo_data;
 	UINT														select_demo_number;
 	UINT														demo_frame_number;
 	bool														demo_play;
 	float														demo_play_frame;
-	UINT														demo_build_count;
-	std::mutex													demo_build_mutex;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
