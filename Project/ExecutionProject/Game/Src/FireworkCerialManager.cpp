@@ -9,7 +9,6 @@
 #include "../Hrd/Particle.hpp"
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
-#include <thread>
 
 static void HelpMarker(const char* desc)
 {
@@ -31,8 +30,20 @@ FCManager::FCManager(const std::filesystem::path& directory)
 	demo_play = false;
 	demo_play_frame = 0.f;
 	//demo_data.reserve(100u);
+	demo_mg_stop = false;
 
 	Load(directory);
+}
+FCManager::~FCManager()
+{
+	if (demo_mg_th)
+	{
+		{
+			std::lock_guard<std::mutex> stop_check_lock(demo_mg_stop_mutex);
+			demo_mg_stop = true;
+		}
+		demo_mg_th->join();
+	}
 }
 
 HRESULT FCManager::Load(const std::filesystem::path& directory) noexcept
@@ -292,12 +303,17 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 	build_flg = false;
 }
 
-void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept
+void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
 {
-	if (desc)
+	std::lock_guard<std::mutex> lock(demo_mg_mutex);
+	for (auto it = add_demo_data.begin(); it != add_demo_data.end();)
 	{
-		auto& data = demo_data.emplace_back(device, desc, 100000u);
+		auto& data = demo_data.emplace_back(device, *it, 100000u);
 		data.Build(p_parent, demo_frame_number);
+		it = add_demo_data.erase(it);
+
+		std::lock_guard<std::mutex> stop_check_lock(demo_mg_stop_mutex);
+		if (demo_mg_stop) break;
 	}
 }
 
@@ -347,115 +363,130 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 		if (ImGui::TreeNode(u8"一覧"))
 		{
-			for (auto& desc : desc_list)
+			bool loop = true;
+			while (loop)
 			{
-				DescImGuiUpdate(device, &desc, p_parent);
+				for (auto& desc : desc_list)
+				{
+					loop = DescImGuiUpdate(device, &desc, p_parent);
+					if (loop) break;
+				}
 			}
 
 			ImGui::TreePop();
 		}
-		{
-			if (ImGui::Checkbox(u8"デモ再生", &demo_play))
-			{
-				if (demo_play) PlayDemo(demo_frame_number);
-				else StopDemo();
-			}
-			ImGui::SameLine(); HelpMarker(u8"保存したデモデータを再生します。");
+	}
+	ImGui::End();
 
-			size_t max_frame_count = 0u;
-			for (auto& data : demo_data)
+	if (!demo_data.empty())
+	{
+		if (ImGui::Begin("Fireworks Editor [demo]"))
+		{
 			{
-				std::lock_guard<std::mutex> lock(data.build_mutex);
-				if (!data.build_flg && data.exist)
+				if (ImGui::Checkbox(u8"デモ再生", &demo_play))
 				{
-					max_frame_count = std::max(max_frame_count, data.ptcs.size());
+					if (demo_play) PlayDemo(demo_frame_number);
+					else StopDemo();
 				}
-			}
-			int gui_use_inum;
-			if (demo_play)
-				gui_use_inum = SCAST<int>(demo_play_frame);
-			else
-				gui_use_inum = SCAST<int>(demo_frame_number);
-			if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, max_frame_count))
-			{
-				demo_frame_number = SCAST<UINT>(gui_use_inum);
-				if (demo_play)
-				{
-					PlayDemo(demo_frame_number);
-				}
+				ImGui::SameLine(); HelpMarker(u8"保存したデモデータを再生します。");
+
+				size_t max_frame_count = 0u;
 				for (auto& data : demo_data)
 				{
 					std::lock_guard<std::mutex> lock(data.build_mutex);
 					if (!data.build_flg && data.exist)
 					{
-						data.SetResource(demo_frame_number);
+						max_frame_count = std::max(max_frame_count, data.ptcs.size());
 					}
 				}
-			}
-			ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
-		}
-		UINT idx = 0;
-		for (auto it = demo_data.begin(); it != demo_data.end();)
-		{
-			{
-				it->build_mutex.lock();
-				if (it->build_flg || !it->exist)
+				int gui_use_inum;
+				if (demo_play)
+					gui_use_inum = SCAST<int>(demo_play_frame);
+				else
+					gui_use_inum = SCAST<int>(demo_frame_number);
+				gui_use_inum = std::min(gui_use_inum, SCAST<int>(max_frame_count));
+				if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, max_frame_count))
 				{
-					if (!it->build_flg && !it->exist)
+					demo_frame_number = SCAST<UINT>(gui_use_inum);
+					if (demo_play)
 					{
+						PlayDemo(demo_frame_number);
+					}
+					for (auto& data : demo_data)
+					{
+						std::lock_guard<std::mutex> lock(data.build_mutex);
+						if (!data.build_flg && data.exist)
+						{
+							data.SetResource(demo_frame_number);
+						}
+					}
+				}
+				ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
+			}
+			UINT idx = 0;
+			for (auto it = demo_data.begin(); it != demo_data.end();)
+			{
+				{
+					it->build_mutex.lock();
+					if (it->build_flg || !it->exist)
+					{
+						if (!it->build_flg && !it->exist)
+						{
+							it->build_mutex.unlock();
+							it = demo_data.erase(it);
+							continue;
+						}
+
 						it->build_mutex.unlock();
-						it = demo_data.erase(it);
+						it++;
 						continue;
 					}
-					
 					it->build_mutex.unlock();
+				}
+				if (select_demo_number == idx)
+				{
+					ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
+				}
+				else if (ImGui::Button(("[No." + std::to_string(idx + 1) + "]").c_str()))
+				{
+					select_demo_number = idx;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button(((it->draw_flg ? u8"非表示##" : u8"表示##") + std::to_string(idx)).c_str()))
+				{
+					it->draw_flg = !it->draw_flg;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
+				{
+					it->exist = false;
+
+					// 前回描画に使用された可能性があるのでこのフレームでは消さない
 					it++;
+					idx++;
 					continue;
 				}
-				it->build_mutex.unlock();
-			}
-			if (select_demo_number == idx)
-			{
-				ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
-			}
-			else if (ImGui::Button(("[No." + std::to_string(idx + 1) + "]").c_str()))
-			{
-				select_demo_number = idx;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button(((it->draw_flg ? u8"非表示##" : u8"表示##") + std::to_string(idx)).c_str()))
-			{
-				it->draw_flg = !it->draw_flg;
-			}
-			ImGui::SameLine();
-			if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
-			{
-				it->exist = false;
 
-				// 前回描画に使用された可能性があるのでこのフレームでは消さない
+				if (select_demo_number == idx)
+				{
+					auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
+					ImGui::InputFloat3((u8"座標##" + std::to_string(idx)).c_str(), (float*)&world->position);
+					it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+				}
 				it++;
 				idx++;
-				continue;
 			}
-
-			if (select_demo_number == idx)
-			{
-				auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
-				ImGui::InputFloat3((u8"座標##" + std::to_string(idx)).c_str(), (float*)&world->position);
-				it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-			}
-			it++;
-			idx++;
 		}
+		ImGui::End();
 	}
-	ImGui::End();
 	return S_OK;
 }
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
-void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
+bool FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
 {
+	bool result = false;
 	if (desc && desc->second)
 	{
 		if (ImGui::TreeNode(desc->first.c_str()))
@@ -466,6 +497,8 @@ void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 			if (ImGui::Button(u8"名前変更"))
 			{
 				ChangeName(desc->first, s_after_name);
+				ImGui::TreePop();
+				return true;
 			}
 
 			if (desc->second == select_desc)
@@ -479,19 +512,25 @@ void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 			}
 
 			UINT build_count = 0u;
-			for (auto& data : demo_data)
+			for (const auto& data : add_demo_data)
 			{
-				std::lock_guard<std::mutex> lock(data.build_mutex);
-				if (data.build_flg)
+				if (data == desc->second)
 				{
-					if (desc->second == data.fw_desc)
-						build_count++;
+					build_count++;
 				}
 			}
 			if (ImGui::Button(u8"デモ作成"))
 			{
-				std::thread th(&FCManager::CreateDemo, this, device, desc->second, p_parent);
-				th.detach();
+				add_demo_data.push_back(desc->second);
+				const bool try_lock = demo_mg_mutex.try_lock();
+				if (try_lock) demo_mg_mutex.unlock();
+
+				if (!demo_mg_th || try_lock)
+				{
+					if (demo_mg_th && try_lock)
+						demo_mg_th->join();
+					demo_mg_th = std::make_unique<std::thread>(&FCManager::CreateDemo, this, device, p_parent);
+				}
 			}
 			if (build_count > 0u)
 			{
@@ -503,6 +542,7 @@ void FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 			ImGui::TreePop();
 		}
 	}
+	return result;
 }
 
 void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)

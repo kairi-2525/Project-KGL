@@ -12,6 +12,7 @@
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
 #include <mutex>
+#include <thread>
 #include <list>
 
 //struct VF2
@@ -113,6 +114,11 @@ private:
 	std::shared_ptr<FireworksDesc>								select_desc;
 	std::map<const std::string, std::shared_ptr<FireworksDesc>>	desc_list;
 	std::list<DemoData>											demo_data;
+	std::list<std::shared_ptr<FireworksDesc>>					add_demo_data;
+	std::unique_ptr<std::thread>								demo_mg_th;
+	std::mutex													demo_mg_mutex;
+	std::mutex													demo_mg_stop_mutex;
+	bool														demo_mg_stop;
 	UINT														select_demo_number;
 	UINT														demo_frame_number;
 	bool														demo_play;
@@ -120,18 +126,19 @@ private:
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
+	void DemoDataManaged();
 	void Create() noexcept;
 	void PlayDemo(UINT frame_num) noexcept;
 	void StopDemo() noexcept;
 	void UpdateDemo(float update_time) noexcept;
-	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, const ParticleParent* p_parent) noexcept;
+	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
 	static void FWDescImGuiUpdate(FireworksDesc* desc);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
-	void DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
+	bool DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
 	static HRESULT Export(const std::filesystem::path& path, const Desc& desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
-	~FCManager() = default;
+	~FCManager();
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;

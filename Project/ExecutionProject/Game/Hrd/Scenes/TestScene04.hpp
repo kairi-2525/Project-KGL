@@ -41,12 +41,14 @@ private:
 	bool										use_gpu;
 	bool										spawn_fireworks;
 	bool										after_blooming;
+	bool										rt_gui_windowed;
+	bool										sky_gui_windowed;
 
 	DirectX::XMFLOAT4X4							proj;
 
 	//SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
 	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
-	std::shared_ptr<FPSCamera>					camera;
+	std::shared_ptr<DemoCamera>					camera;
 	DirectX::XMFLOAT2							camera_angle;
 	bool										use_gui;
 
@@ -135,6 +137,7 @@ public:
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
 	void ResetCounterMax();
+	void UpdateRenderTargetGui(const SceneDesc& desc);
 
 	TestScene04() = default;
 	~TestScene04() = default;

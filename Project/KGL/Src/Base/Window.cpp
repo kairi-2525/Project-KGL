@@ -103,11 +103,23 @@ HRESULT Window::Create() noexcept
 	RECT rc = { 0, 0, (LONG)m_desc.size.x, (LONG)m_desc.size.y };
 	if (m_desc.adjust) AdjustWindowRect(&rc, m_desc.style, FALSE);
 
+	LONG window_x = rc.right - rc.left;
+	LONG window_y = rc.bottom - rc.top;
+	LONG start_x = CW_USEDEFAULT;
+	LONG start_y = CW_USEDEFAULT;
+
+	const auto pm_size = GetPrimaryMonitorSize();
+	if (pm_size.x < window_x)
+	{
+		start_x = -((window_x - SCAST<LONG>(pm_size.x)) / 2);
+		start_y = 0;
+	}
+
 	m_hwnd = CreateWindow(
 		m_desc.title.c_str(),
 		m_desc.title.c_str(),
 		m_desc.style | WS_MINIMIZE,    //ウィンドウスタイル。とりあえずデフォルトな感じで
-		CW_USEDEFAULT, CW_USEDEFAULT,   //初期位置。適当にやってくれる。
+		start_x, start_y,   //初期位置。適当にやってくれる。
 		rc.right - rc.left, rc.bottom - rc.top,      //ウィンドウサイズ
 		nullptr,    //親ウィンドウのハンドル。特にないんで今回はNULL
 		nullptr,    //メニューハンドル。特にないので今回はNULL

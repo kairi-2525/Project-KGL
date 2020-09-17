@@ -370,7 +370,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	auto window_size = desc.window->GetClientSize();
 
-	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 10.f, -50.f));
+	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, -100.f), 1.f);
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -436,8 +436,11 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	dof_flg = true;
 
-	bloom_generator->SetKernel(6u);
+	bloom_generator->SetKernel(8u);
 	after_blooming = false;
+
+	rt_gui_windowed = false;
+	sky_gui_windowed = false;
 
 	return S_OK;
 }
@@ -445,6 +448,47 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 void TestScene04::ResetCounterMax()
 {
 	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
+}
+
+void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
+{
+	auto gui_size = ImGui::GetWindowSize();
+	ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
+	if (ImGui::TreeNode("DSV"))
+	{
+		ImGui::Image((ImTextureID)dsv_imgui_handle.Gpu().ptr, image_size);
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Particles"))
+	{
+		for (const auto& handle : ptc_srv_gui_handles)
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, image_size);
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Bloom"))
+	{
+		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+		UINT idx = 0u;
+		for (const auto& handle : bloom_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("DOF"))
+	{
+		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+		UINT idx = 0u;
+		for (const auto& handle : dof_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		ImGui::TreePop();
+	}
 }
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
@@ -506,58 +550,49 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				}
 				ImGui::TreePop();
 			}
+
+			ImGui::Checkbox("RenderTargets Window", &rt_gui_windowed);
+			if (!rt_gui_windowed)
+			{
+				if (ImGui::TreeNode("RenderTargets"))
+				{
+					UpdateRenderTargetGui(desc);
+					ImGui::TreePop();
+				}
+			}
+
+			ImGui::Checkbox("Sky Window", &sky_gui_windowed);
+			if (!sky_gui_windowed)
+			{
+				if (ImGui::TreeNode("Sky"))
+				{
+					sky_mgr->UpdateGui();
+					ImGui::TreePop();
+				}
+			}
 		}
 		ImGui::End();
 
-		if (ImGui::Begin("RenderTargets"))
+		if (rt_gui_windowed)
 		{
-			auto gui_size = ImGui::GetWindowSize();
-			ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
-			if (ImGui::TreeNode("DSV"))
+			if (ImGui::Begin("RenderTargets"))
 			{
-				ImGui::Image((ImTextureID)dsv_imgui_handle.Gpu().ptr, image_size);
-				ImGui::TreePop();
+				UpdateRenderTargetGui(desc);
 			}
-			if (ImGui::TreeNode("Particles"))
-			{
-				for (const auto& handle : ptc_srv_gui_handles)
-					ImGui::Image((ImTextureID)handle.Gpu().ptr, image_size);
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("Bloom"))
-			{
-				ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
-				UINT idx = 0u;
-				for (const auto& handle : bloom_imgui_handles)
-				{
-					ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
-					if (idx % 2 == 0) ImGui::SameLine();
-					idx++;
-				}
-				ImGui::TreePop();
-			}
-			if (ImGui::TreeNode("DOF"))
-			{
-				ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
-				UINT idx = 0u;
-				for (const auto& handle : dof_imgui_handles)
-				{
-					ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
-					if (idx % 2 == 0) ImGui::SameLine();
-					idx++;
-				}
-				ImGui::TreePop();
-			}
+			ImGui::End();
 		}
-		ImGui::End();
+		if (sky_gui_windowed)
+		{
+			if (ImGui::Begin("Sky"))
+			{
+				sky_mgr->UpdateGui();
+			}
+			ImGui::End();
+		}
 	}
-	{
-		using namespace DirectX;
-		XMVECTOR xm_camera_pos = XMLoadFloat3(&camera_pos);
-		XMFLOAT3 sky_pos;
-		XMStoreFloat3(&sky_pos, xm_camera_pos * 0.99f);
-		sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj), use_gui);
-	}
+
+	sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj));
+
 	{
 		using namespace DirectX;
 		XMMATRIX W, S, R, T;
@@ -580,6 +615,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ptc_mgr->Clear();
 		pl_shot_ptc_mgr->Clear();
 		fireworks.clear();
+	}
+	if (use_gui)
+	{
+		if (ImGui::Begin("Particle"))
+		{
+			if (ImGui::Button("Clear"))
+			{
+				ptc_mgr->Clear();
+				pl_shot_ptc_mgr->Clear();
+				fireworks.clear();
+			}
+		}
+		ImGui::End();
 	}
 
 	using namespace DirectX;
@@ -660,7 +708,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (input->IsKeyPressed(KGL::KEYS::NUMPADPLUS)) spawn_fireworks = !spawn_fireworks;
 		if (spawn_fireworks)
 			ptc_key_spawn_counter += ptc_update_time;
-		else if (input->IsKeyPressed(KGL::KEYS::SPACE))
+		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
 			ptc_key_spawn_counter += key_spawn_time;
 
 		while (ptc_key_spawn_counter >= key_spawn_time)
@@ -835,6 +883,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			if (ImGui::Begin("Particle"))
 			{
+				ImGui::Checkbox("SpawnFireworks", &spawn_fireworks);
 				bool use_gpu_log = use_gpu;
 				if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
 				ImGui::SameLine();

@@ -66,7 +66,8 @@ public:
 		const std::vector<std::pair<std::string, std::string>>& textures = TEXTURES,
 		std::string extension = ".DDS");
 	void Init(DirectX::CXMMATRIX viewproj);
-	void Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj, bool imgui);
+	void UpdateGui();
+	void Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj);
 	void SetWVP(DirectX::CXMMATRIX wvp);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
 	void Uninit(std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr);
