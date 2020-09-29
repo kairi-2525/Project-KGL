@@ -370,7 +370,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	auto window_size = desc.window->GetClientSize();
 
-	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, -100.f), 1.f);
+	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 1.f);
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -531,6 +531,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			ImGui::Text("FPS");
 			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
+			ImGui::Text("Position");
+			ImGui::Text("xyz[ %.2f, %.2f, %.2f ]", camera_pos.x, camera_pos.y, camera_pos.z);
 			ImGui::Spacing();
 
 			ImGui::Checkbox("Use DOF", &dof_flg);

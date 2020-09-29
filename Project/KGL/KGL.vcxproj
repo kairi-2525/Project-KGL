@@ -53,6 +53,7 @@
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
     <ClInclude Include="Inc\Helper\Convert.hpp" />
     <ClInclude Include="Inc\Helper\Debug.hpp" />
+    <ClInclude Include="Inc\Helper\Math.hpp" />
     <ClInclude Include="Inc\Helper\Other.hpp" />
     <ClInclude Include="Inc\Helper\Scene.hpp" />
     <ClInclude Include="Inc\Input\Direct.hpp" />

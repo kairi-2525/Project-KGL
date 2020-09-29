@@ -1,4 +1,5 @@
 #include "../Hrd/Camera.hpp"
+#include <Helper/Math.hpp>
 
 using namespace DirectX;
 
@@ -126,12 +127,12 @@ void FPSCamera::Update(const std::shared_ptr<KGL::Window>& window,
 	}
 }
 
-DemoCamera::DemoCamera(const DirectX::XMFLOAT3 pos, float timer_max) noexcept :
+DemoCamera::DemoCamera(const DirectX::XMFLOAT3 center, const DirectX::XMFLOAT3 pos, float timer_max) noexcept :
 	FPSCamera(pos)
 {
-	start_pos = pos;
 	this->timer_max = timer_max;
 	input_timer = timer_max;
+	this->center = center;
 }
 
 void DemoCamera::Update(const std::shared_ptr<KGL::Window>& window,
@@ -153,32 +154,63 @@ void DemoCamera::Update(const std::shared_ptr<KGL::Window>& window,
 
 		bool input_exist = false;
 
-		input_exist = input_exist || (move.x != 0 || move.y != 0);
+		if (mouse_update) input_exist = input_exist || (move.x != 0 || move.y != 0);
+
 		input_exist = input_exist || (move_front || move_back);
 		input_exist = input_exist || (move_right || move_left);
 		input_exist = input_exist || (move_up || move_down);
 
+		const float before_input_timer = input_timer;
+		input_timer = std::max<float>(0.f, input_timer - elapsed_time);
+
 		if (input_exist)
 		{
 			input_timer = timer_max;
+		}
+		if (input_timer > 0.f)
+		{
 			FPSCamera::Update(window, input, elapsed_time, speed, mouse_update, mouse_speed, limit_y);
 		}
 		else
 		{
-			const float before_input_timer = input_timer;
-			input_timer = std::max<float>(0.f, input_timer - elapsed_time);
-
-			if (input_timer <= 0.f)
+			if (before_input_timer > 0.f)
 			{
-				if (before_input_timer > 0.f)
-				{
-					eye = start_pos;
-					angle = {};
-				}
-				const float update_time = elapsed_time - before_input_timer;
-				AngleUpdate({ 200 * elapsed_time, 0.f }, mouse_speed, limit_y, elapsed_time);
-				MoveUpdate(false, false, false, true, false, false, speed, update_time);
+				auto v_target_vec = XMLoadFloat3(&center);
+				v_target_vec = XMVector3Normalize(XMLoadFloat3(&center) - XMLoadFloat3(&eye));
+
+				XMMATRIX vertical = XMMatrixRotationX(angle.y);
+				XMMATRIX horizontal = XMMatrixRotationY(angle.x);
+
+				static const XMVECTOR v_z_vector = XMVectorSet(0.f, 0.f, 1.f, 0.f);
+				auto v_focus_vec = XMVector3Transform(v_z_vector, vertical * horizontal);
+
+				XMFLOAT3 focus_v, target_vec;
+				XMStoreFloat3(&focus_v, v_focus_vec);
+				XMStoreFloat3(&target_vec, v_target_vec);
+
+				// ‰¡‚Ì‰ñ“]¬•ª
+				float  width_angle = KGL::CalcAngle3(
+					XMFLOAT3(focus_v.x, 0.f, focus_v.z),
+					XMFLOAT3(target_vec.x, 0.f, target_vec.z)
+				);
+
+				// ‰¡‚Ì‰ñ“]‚ğs‚¤(c‚Ì‰ñ“]‚Ì‚İc‚µ‚Äc‚Ì‰ñ“]¬•ª‚ğæ‚èo‚·‚½‚ß)
+				v_focus_vec = XMVector3Transform(v_focus_vec, XMMatrixRotationY(width_angle));
+				XMStoreFloat3(&focus_v, v_focus_vec);
+
+				// c‚Ì‰ñ“]¬•ª
+				float  height_angle = KGL::CalcAngle3(
+					XMFLOAT3(focus_v.x, 0.f, focus_v.z),
+					XMFLOAT3(target_vec.x, 0.f, target_vec.z)
+				);
+
+				// Šp“x‚ğ‘«‚·
+				angle.x += width_angle;
+				angle.y += height_angle;
 			}
+			const float update_time = elapsed_time - before_input_timer;
+			AngleUpdate({ 200 * elapsed_time, 0.f }, mouse_speed, limit_y, elapsed_time);
+			MoveUpdate(false, false, false, true, false, false, speed, update_time);
 		}
 	}
 }

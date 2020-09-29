@@ -15,7 +15,8 @@ protected:
 public:
 	explicit FPSCamera(const DirectX::XMFLOAT3 pos) noexcept;
 	virtual ~FPSCamera() = default;
-	virtual void Update(const std::shared_ptr<KGL::Window>& window,
+	virtual void Update(
+		const std::shared_ptr<KGL::Window>& window,
 		const std::shared_ptr<KGL::Input>& input,
 		float elapsed_time, float speed, bool mouse_update = true,
 		const DirectX::XMFLOAT2& mouse_speed = { 0.1f, 0.1f },
@@ -33,14 +34,20 @@ public:
 class DemoCamera : public FPSCamera
 {
 private:
-	DirectX::XMFLOAT3 start_pos;
+	DirectX::XMFLOAT3 center;
+	float rotate_angle;
 	float input_timer;
 	float timer_max;
 public:
-	explicit DemoCamera(const DirectX::XMFLOAT3 pos, float timer_max = 30.f) noexcept;
-	void Update(const std::shared_ptr<KGL::Window>& window,
+	explicit DemoCamera(
+		const DirectX::XMFLOAT3 center,
+		const DirectX::XMFLOAT3 pos,
+		float timer_max = 30.f) noexcept;
+	void Update(
+		const std::shared_ptr<KGL::Window>& window,
 		const std::shared_ptr<KGL::Input>& input,
 		float elapsed_time, float speed, bool mouse_update = true,
 		const DirectX::XMFLOAT2& mouse_speed = { 0.1f, 0.1f },
-		float limit_y = 90.f - 1.f) noexcept override;
+		float limit_y = 90.f - 1.f
+	) noexcept override;
 };
