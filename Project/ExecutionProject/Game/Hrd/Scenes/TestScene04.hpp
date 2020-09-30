@@ -26,6 +26,7 @@
 #include "../DepthOfField.hpp"
 #include "../FireworkCerialManager.hpp"
 #include "../ParticleManager.hpp"
+#include "../Debug.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -130,6 +131,7 @@ private:
 	KGL::DescriptorHandle								dsv_imgui_handle;
 
 	std::shared_ptr<FCManager>							fc_mgr;
+	std::shared_ptr<DebugManager>						debug_mgr;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

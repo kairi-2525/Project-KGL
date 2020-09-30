@@ -9,26 +9,40 @@
 class DebugManager
 {
 public:
-	struct CBuffer
+	struct TransformConstants
 	{
 		DirectX::XMFLOAT4X4 view_projection;
+		DirectX::XMFLOAT4X4 sky_projection;
+	};
+	struct ShadingConstants
+	{
+		struct Light
+		{
+			DirectX::XMFLOAT3 direction; float pad0;
+			DirectX::XMFLOAT3 radiance; float pad1;
+		} lights[3];
+		DirectX::XMFLOAT3 eye_position;
 	};
 
 	struct Vertex
 	{
 		DirectX::XMFLOAT3	pos;
-		DirectX::XMFLOAT4	color;
+		DirectX::XMFLOAT3	normal;
+		DirectX::XMFLOAT3	tangent;
+		DirectX::XMFLOAT3	bitangent;
+		DirectX::XMFLOAT2	texcoord;
 	};
 
 	struct Object
 	{
 		virtual ~Object() = default;
 		virtual size_t GetVertex(Vertex* out) const = 0;
+		virtual size_t GetVertexCount() const = 0;
 	};
 
 	struct Cube : public Object
 	{
-		static const std::vector<DirectX::XMFLOAT3> ModelVertex;
+		static const std::vector<Vertex> ModelVertex;
 
 		DirectX::XMFLOAT3	pos;
 		DirectX::XMFLOAT3	scale;
@@ -36,6 +50,7 @@ public:
 		DirectX::XMFLOAT4	color;
 
 		size_t GetVertex(Vertex* out) const override;
+		size_t GetVertexCount() const override { return ModelVertex.size(); }
 	};
 
 private:
@@ -43,17 +58,23 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_renderer;
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_wire_renderer;
 	std::shared_ptr<KGL::DescriptorManager> s_obj_descmgr;
-	KGL::DescriptorHandle					s_obj_handle;
-	std::shared_ptr<KGL::Resource<CBuffer>>	s_obj_buffer_resource;
+	KGL::DescriptorHandle					s_obj_tc_handle;
+	KGL::DescriptorHandle					s_obj_sc_handle;
+	std::shared_ptr<KGL::Resource<TransformConstants>>	s_obj_tc_resource;
+	std::shared_ptr<KGL::Resource<ShadingConstants>>	s_obj_sc_resource;
 	std::shared_ptr<KGL::Resource<Vertex>>	s_obj_vertex_resource;
 	D3D12_VERTEX_BUFFER_VIEW				s_obj_vertex_view;
-	std::vector<Object>						s_objects;
+	std::vector<std::shared_ptr<Object>>	s_objects;
 	bool									s_obj_changed;
+	UINT									s_obj_vertices_offset;
 private:
 	HRESULT UpdateStaticObjects();
 public:
 	DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc);
-	void AddStaticObjects(const std::vector<Object>& objects);
-	HRESULT Update(DirectX::CXMMATRIX view_proj);
+	void AddStaticObjects(const std::vector<std::shared_ptr<Object>>& objects);
+	void ClearStaticObjects();
+	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
+	void SetWireMode(bool wire) { s_obj_wire = wire; }
+	bool GetWireMode() { return s_obj_wire; }
 };

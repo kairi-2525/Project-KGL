@@ -357,9 +357,9 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
-	{
-		fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
-	}
+	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
+
+	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc);
 
 	return hr;
 }
@@ -370,7 +370,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	auto window_size = desc.window->GetClientSize();
 
-	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 1.f);
+	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30.f);
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -432,15 +432,46 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	ResetCounterMax();
 	time_scale = 1.f;
 	use_gpu = true;
-	spawn_fireworks = true;
+	spawn_fireworks = false;
 
-	dof_flg = true;
+	dof_flg = false;
 
 	bloom_generator->SetKernel(8u);
 	after_blooming = false;
 
 	rt_gui_windowed = false;
 	sky_gui_windowed = false;
+
+	{
+		debug_mgr->ClearStaticObjects();
+		std::vector<std::shared_ptr<DebugManager::Object>> objects;
+		std::shared_ptr<DebugManager::Cube> target_cube = std::make_shared<DebugManager::Cube>();
+		auto loop_pos = target_cube->pos = camera->center;
+		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
+		target_cube->scale = { 1.f, 1.f, 1.f };
+		target_cube->rotate = {};
+		//objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
+		objects.reserve(1000u + 1u);
+		for (UINT i = 0u; i < 10u; i++)
+		{
+			for (UINT i = 0u; i < 10u; i++)
+			{
+				for (UINT i = 0u; i < 10u; i++)
+				{
+					std::shared_ptr<DebugManager::Cube> target_cube_copy = std::make_shared<DebugManager::Cube>(*target_cube);
+					loop_pos.z += 1.5f;
+					target_cube_copy->pos = loop_pos;
+					objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube_copy));
+				}
+				loop_pos.z = target_cube->pos.z;
+				loop_pos.y += 1.5f;
+			}
+			loop_pos.y = target_cube->pos.y;
+			loop_pos.x += 1.5f;
+		}
+
+		debug_mgr->AddStaticObjects(objects);
+	}
 
 	return S_OK;
 }
@@ -508,6 +539,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	const float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
 	camera->Update(desc.window, desc.input, elapsed_time, camera_speed, input->IsMouseHold(KGL::MOUSE_BUTTONS::right));
+#if 0
+	camera->GetPos() = { 0.f, 200.f, -10.f };
+	camera->GetFront() = { 0.f, 0.f, 1.f };
+#endif
 	camera->GetPos().y = std::max(grid_pos.y + 1, camera->GetPos().y);
 	const auto& view = camera->GetView();
 	const auto& camera_pos = camera->GetPos();
@@ -536,6 +571,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Spacing();
 
 			ImGui::Checkbox("Use DOF", &dof_flg);
+			ImGui::Spacing();
+
+			bool wire_mode = debug_mgr->GetWireMode();
+			ImGui::Checkbox("WireMode", &wire_mode);
+			debug_mgr->SetWireMode(wire_mode);
 			ImGui::Spacing();
 
 			if (ImGui::TreeNode("Grid"))
@@ -982,6 +1022,26 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		matrix_resource->Unmap();
 	}
 
+	{
+		DebugManager::TransformConstants tc;
+		XMStoreFloat4x4(&tc.view_projection, view * XMLoadFloat4x4(&proj));
+		XMStoreFloat4x4(&tc.sky_projection, XMMatrixIdentity());
+
+		DebugManager::ShadingConstants sc;
+		sc.eye_position = camera->GetPos();
+		DebugManager::ShadingConstants::Light light{};
+		sc.lights[0] = light;
+		sc.lights[1] = light;
+		sc.lights[2] = light;
+
+		sc.lights[0].direction = { 0.2, -0.5f, 1.f };
+		XMStoreFloat3(&sc.lights[0].direction, XMVector3Normalize(XMLoadFloat3(&sc.lights[0].direction)));
+
+		sc.lights[0].radiance = { 1.f, 1.f, 1.f };
+
+		debug_mgr->Update(tc, sc);
+	}
+
 	return Render(desc);
 }
 
@@ -1019,6 +1079,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		// SKY•`‰æ
 		sky_mgr->Render(cmd_list);
+
+		debug_mgr->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 	}

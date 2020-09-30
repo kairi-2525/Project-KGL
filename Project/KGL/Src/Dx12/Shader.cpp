@@ -68,9 +68,9 @@ HRESULT SHADER::Load(const std::shared_ptr<DXC> dxc, const Desc& desc, ComPtr<ID
 		KGL::ComPtr<IDxcOperationResult> result;
 		LPCWSTR compile_flags[] = {
 	#if _DEBUG
-			L"Zi", L"/O0"
+			L"-Zi", L"-Od"
 	#else
-			L"/02"	// リリースビルドでは最適化
+			L"-O3"	// リリースビルドでは最適化
 	#endif
 		};
 		hr = dxc->GetCompiler()->Compile(

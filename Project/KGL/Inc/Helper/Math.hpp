@@ -6,7 +6,7 @@ namespace KGL
 {
 	inline namespace MATH
 	{
-		float CalcAngle2(DirectX::CXMVECTOR a, DirectX::CXMVECTOR b)
+		inline float CalcAngle2(DirectX::CXMVECTOR a, DirectX::CXMVECTOR b)
 		{
 			using namespace DirectX;
 			float dist2, dot;
@@ -14,7 +14,7 @@ namespace KGL
 			XMStoreFloat(&dot, XMVector2Dot(a, b));
 			return acosf(dot / dist2);
 		}
-		float CalcAngle2(DirectX::XMFLOAT2 a, DirectX::XMFLOAT2 b)
+		inline float CalcAngle2(DirectX::XMFLOAT2 a, DirectX::XMFLOAT2 b)
 		{
 			using namespace DirectX;
 			XMVECTOR xa, xb;
@@ -22,7 +22,7 @@ namespace KGL
 			xa = XMLoadFloat2(&b);
 			return CalcAngle2(xa, xb);
 		}
-		float CalcAngle3(DirectX::CXMVECTOR a, DirectX::CXMVECTOR b)
+		inline float CalcAngle3(DirectX::CXMVECTOR a, DirectX::CXMVECTOR b)
 		{
 			using namespace DirectX;
 			float dist2, dot;
@@ -30,7 +30,7 @@ namespace KGL
 			XMStoreFloat(&dot, XMVector3Dot(a, b));
 			return acosf(dot / dist2);
 		}
-		float CalcAngle3(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
+		inline float CalcAngle3(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
 		{
 			using namespace DirectX;
 			XMVECTOR xa, xb;
@@ -39,9 +39,10 @@ namespace KGL
 			return CalcAngle3(xa, xb);
 		}
 
-		DirectX::XMMATRIX CreateWorldMatrix(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, DirectX::XMFLOAT3 rotate)
+		inline DirectX::XMMATRIX CreateWorldMatrix(DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, DirectX::XMFLOAT3 rotate)
 		{
-			DirectX::XMMATRIX S, R, T;
+			using namespace DirectX;
+			XMMATRIX S, R, T;
 			S = XMMatrixScaling(scale.x, scale.y, scale.z);
 			R = XMMatrixRotationRollPitchYaw(rotate.x, rotate.y, rotate.z);
 			T = XMMatrixTranslation(pos.x, pos.y, pos.z);

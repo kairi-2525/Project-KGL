@@ -78,6 +78,12 @@
     <ClCompile Include="Src\ParticleManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Debug\Debug.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Debug\DebugObjects.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\Scene.hpp">
@@ -146,6 +152,9 @@
     <ClInclude Include="Hrd\ParticleManager.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\Debug.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
@@ -189,6 +198,8 @@
     <FxCompile Include="HLSL\2D\DepthOfField_ps.hlsl" />
     <FxCompile Include="HLSL\3D\ParticleDepth_ps.hlsl" />
     <FxCompile Include="HLSL\3D\ParticlePos_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticObject_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticObject_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -203,5 +214,6 @@
     <None Include="HLSL\3D\NearAlpha.hlsli" />
     <None Include="HLSL\Easings.hlsli" />
     <None Include="HLSL\3D\UnNormal.hlsli" />
+    <None Include="HLSL\3D\StaticObject.hlsli" />
   </ItemGroup>
 </Project>

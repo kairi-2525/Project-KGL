@@ -1,16 +1,47 @@
 #include "../../Hrd/Debug.hpp"
 #include <Helper/Math.hpp>
 
-const std::vector<DirectX::XMFLOAT3> DebugManager::Cube::ModelVertex =
+static const DirectX::XMFLOAT3 CUBE_LDB = { -0.5f, -0.5f, -0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_LUB = { -0.5f, +0.5f, -0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_LDF = { -0.5f, -0.5f, +0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_LUF = { -0.5f, +0.5f, +0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_RDB = { +0.5f, -0.5f, -0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_RUB = { +0.5f, +0.5f, -0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_RDF = { +0.5f, -0.5f, +0.5f };	// 左下奥
+static const DirectX::XMFLOAT3 CUBE_RUF = { +0.5f, +0.5f, +0.5f };	// 左下奥
+
+static const DirectX::XMFLOAT3 NORMAL_F = { +0.f, +0.f, -1.f };
+static const DirectX::XMFLOAT3 NORMAL_B = { +0.f, +0.f, +1.f };
+static const DirectX::XMFLOAT3 NORMAL_U = { +0.f, +1.f, +0.f };
+static const DirectX::XMFLOAT3 NORMAL_D = { +0.f, -1.f, +0.f };
+static const DirectX::XMFLOAT3 NORMAL_R = { +1.f, +0.f, +0.f };
+static const DirectX::XMFLOAT3 NORMAL_L = { -1.f, +0.f, +0.f };
+
+const std::vector<DebugManager::Vertex> DebugManager::Cube::ModelVertex =
 {
-	{ -0.5f, -0.5f, -0.5f },	// 左下奥
-	{ -0.5f, +0.5f, -0.5f },	// 左上奥
-	{ -0.5f, -0.5f, +0.5f },	// 左下前
-	{ -0.5f, +0.5f, +0.5f },	// 左上前
-	{ +0.5f, -0.5f, -0.5f },	// 右下奥
-	{ +0.5f, +0.5f, -0.5f },	// 右上奥
-	{ +0.5f, -0.5f, +0.5f },	// 右下前
-	{ +0.5f, +0.5f, +0.5f },	// 右上前
+	// 前面
+	{ CUBE_LUF, NORMAL_F }, { CUBE_RUF, NORMAL_F }, { CUBE_LDF, NORMAL_F },
+	{ CUBE_LDF, NORMAL_F }, { CUBE_RUF, NORMAL_F }, { CUBE_RDF, NORMAL_F },
+
+	// 背面
+	{ CUBE_LDB, NORMAL_B }, { CUBE_RUB, NORMAL_B }, { CUBE_LUB, NORMAL_B },
+	{ CUBE_RDB, NORMAL_B }, { CUBE_RUB, NORMAL_B }, { CUBE_LDB, NORMAL_B },
+
+	// 右面
+	{ CUBE_RUF, NORMAL_R }, { CUBE_RUB, NORMAL_R }, { CUBE_RDF, NORMAL_R },
+	{ CUBE_RDF, NORMAL_R }, { CUBE_RUB, NORMAL_R }, { CUBE_RDB, NORMAL_R },
+
+	// 左面
+	{ CUBE_LDF, NORMAL_L }, { CUBE_LUB, NORMAL_L }, { CUBE_LUF, NORMAL_L },
+	{ CUBE_LDB, NORMAL_L }, { CUBE_LUB, NORMAL_L }, { CUBE_LDF, NORMAL_L },
+
+	// 上面
+	{ CUBE_LUB, NORMAL_U }, { CUBE_RUB, NORMAL_U }, { CUBE_LUF, NORMAL_U },
+	{ CUBE_LUF, NORMAL_U }, { CUBE_RUB, NORMAL_U }, { CUBE_RUF, NORMAL_U },
+
+	// 下面
+	{ CUBE_LDF, NORMAL_D }, { CUBE_RDB, NORMAL_D }, { CUBE_LDB, NORMAL_D },
+	{ CUBE_RDF, NORMAL_D }, { CUBE_RDB, NORMAL_D }, { CUBE_LDF, NORMAL_D },
 };
 
 size_t DebugManager::Cube::GetVertex(DebugManager::Vertex* out) const
@@ -21,7 +52,7 @@ size_t DebugManager::Cube::GetVertex(DebugManager::Vertex* out) const
 	}
 
 	Vertex v;
-	v.color = color;
+	//v.color = color;
 
 	using namespace DirectX;
 	const XMMATRIX world = KGL::CreateWorldMatrix(pos, scale, rotate);
@@ -29,8 +60,10 @@ size_t DebugManager::Cube::GetVertex(DebugManager::Vertex* out) const
 	size_t i = 0u;
 	for (const auto& it : ModelVertex)
 	{
-		XMVECTOR local_pos = XMLoadFloat3(&it);
+		XMVECTOR local_pos = XMLoadFloat3(&it.pos);
 		XMStoreFloat3(&v.pos, XMVector3Transform(local_pos, world));
+		XMVECTOR local_normal = XMVectorSet(it.normal.x, it.normal.y, it.normal.z, 0.f);
+		XMStoreFloat3(&v.normal, XMVector4Transform(local_normal, world));
 		out[i] = v;
 		i++;
 	}

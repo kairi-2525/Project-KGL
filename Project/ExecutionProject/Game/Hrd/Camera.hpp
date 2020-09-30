@@ -34,10 +34,11 @@ public:
 class DemoCamera : public FPSCamera
 {
 private:
-	DirectX::XMFLOAT3 center;
 	float rotate_angle;
 	float input_timer;
 	float timer_max;
+public:
+	DirectX::XMFLOAT3 center;
 public:
 	explicit DemoCamera(
 		const DirectX::XMFLOAT3 center,
