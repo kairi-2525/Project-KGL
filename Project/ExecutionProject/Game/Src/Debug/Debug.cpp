@@ -1,4 +1,5 @@
 #include "../../Hrd/Debug.hpp"
+#include <imgui.h>
 #include <DirectXTex/d3dx12.h>
 
 DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc)
@@ -7,9 +8,9 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 	s_obj_changed = false;
 	s_obj_vertices_offset = 0u;
 
-	s_obj_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
-	s_obj_tc_handle = s_obj_descmgr->Alloc();
-	s_obj_sc_handle = s_obj_descmgr->Alloc();
+	s_obj_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
+	s_obj_tc_handle = s_obj_cbv_descmgr->Alloc();
+	s_obj_sc_handle = s_obj_cbv_descmgr->Alloc();
 	s_obj_tc_resource = std::make_shared<KGL::Resource<TransformConstants>>(device, 1u);
 	s_obj_sc_resource = std::make_shared<KGL::Resource<ShadingConstants>>(device, 1u);
 	s_obj_vertex_resource = std::make_shared<KGL::Resource<Vertex>>(device, 256u);
@@ -85,19 +86,14 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 
 		std::vector<D3D12_STATIC_SAMPLER_DESC> static_samplers =
 		{
-			{
-				D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0.f, 16u, D3D12_COMPARISON_FUNC_NEVER, D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-				0.f, D3D12_FLOAT32_MAX, 0u, 0u, D3D12_SHADER_VISIBILITY_PIXEL
-			},
-			{
-				D3D12_FILTER_MIN_MAG_MIP_LINEAR,
-				D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP, D3D12_TEXTURE_ADDRESS_MODE_WRAP,
-				0.f, 16u, D3D12_COMPARISON_FUNC_NEVER, D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK,
-				0.f, D3D12_FLOAT32_MAX, 1u, 0u, D3D12_SHADER_VISIBILITY_PIXEL
-			}
+			CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_ANISOTROPIC),
+			CD3DX12_STATIC_SAMPLER_DESC(1, D3D12_FILTER_MIN_MAG_MIP_LINEAR)
 		};
+		static_samplers[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+		static_samplers[1].AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		static_samplers[1].AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		static_samplers[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
 		renderer_desc.static_samplers = static_samplers;
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/StaticObject_vs.hlsl";
@@ -109,6 +105,39 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		s_obj_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+	}
+
+	{	// テクスチャ
+		s_obj_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 7u);
+
+		s_obj_albedo.tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Cubes/AwsomeBump/Albedo.png");
+		s_obj_normal.tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Cubes/AwsomeBump/Normal.png");
+		s_obj_metalness.tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Cubes/AwsomeBump/Metaric.png");
+		s_obj_roughness.tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Cubes/AwsomeBump/Roughness.png");
+		s_obj_specular.tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Cubes/AwsomeBump/Specular.png");
+		//s_obj_specular.tex = std::make_shared<KGL::Texture>(device);
+		s_obj_irradiance.tex = std::make_shared<KGL::Texture>(device);
+		s_obj_specular_brdf.tex = std::make_shared<KGL::Texture>(device);
+
+		white_texture = std::make_shared<KGL::Texture>(device);
+		black_texture = std::make_shared<KGL::Texture>(device, 0, 0, 0);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		Texture* textures[] = 
+		{ 
+			&s_obj_albedo, &s_obj_normal, &s_obj_metalness, &s_obj_roughness,
+			&s_obj_specular, &s_obj_irradiance, &s_obj_specular_brdf 
+		};
+		for (auto* tex : textures)
+		{
+			tex->handle = s_obj_srv_descmgr->Alloc();
+			srv_desc.Format = tex->tex->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex->tex->Data().Get(), &srv_desc, tex->handle.Cpu());
+		}
 	}
 }
 
@@ -165,7 +194,50 @@ HRESULT DebugManager::UpdateStaticObjects()
 	return hr;
 }
 
-HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstants& sc)
+static bool RadioButtonHelper(std::string name, int* flg)
+{
+	ImGui::Text(name.c_str());
+	int flg_log = *flg;
+	ImGui::RadioButton(("ORIGINAL##" + std::to_string(RCAST<INT_PTR>(flg))).c_str(), flg, 0);
+	ImGui::SameLine(); ImGui::RadioButton(("WIHITE##" + std::to_string(RCAST<INT_PTR>(flg))).c_str(), flg, 1);
+	ImGui::SameLine(); ImGui::RadioButton(("BLACK##" + std::to_string(RCAST<INT_PTR>(flg))).c_str(), flg, 2);
+	return flg_log != *flg;
+}
+void DebugManager::ChangeTexture(Texture* texture, int flg)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv_desc.Texture2D.MipLevels = 1;
+	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	ComPtr<ID3D12Device> device;
+	texture->tex->Data()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+	//RCHECK_HR(hr, "DebugManager::UpdateStaticObjects で GetDevice に失敗");
+
+	switch (flg)
+	{
+		case 0:
+		{
+			srv_desc.Format = texture->tex->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(texture->tex->Data().Get(), &srv_desc, texture->handle.Cpu());
+			break;
+		}
+		case 1:
+		{
+			srv_desc.Format = white_texture->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(white_texture->Data().Get(), &srv_desc, texture->handle.Cpu());
+			break;
+		}
+		case 2:
+		{
+			srv_desc.Format = black_texture->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(black_texture->Data().Get(), &srv_desc, texture->handle.Cpu());
+			break;
+		}
+	}
+}
+
+HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstants& sc, bool use_gui)
 {
 	HRESULT hr = S_OK;
 	if (s_obj_changed)
@@ -184,6 +256,36 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 		*mapped_buffer = sc;
 		s_obj_sc_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
 	}
+
+	if (use_gui)
+	{
+		if (ImGui::Begin("Debug"))
+		{
+
+			static int albedo = 0;
+			if (RadioButtonHelper("albedo", &albedo))
+				ChangeTexture(&s_obj_albedo, albedo);
+			static int normal = 0;
+			if (RadioButtonHelper("normal", &normal))
+				ChangeTexture(&s_obj_normal, normal);
+			static int metalness = 0;
+			if (RadioButtonHelper("metalness", &metalness))
+				ChangeTexture(&s_obj_metalness, metalness);
+			static int roughness = 0;
+			if (RadioButtonHelper("roughness", &roughness))
+				ChangeTexture(&s_obj_roughness, roughness);
+			static int specular = 0;
+			if (RadioButtonHelper("specular", &specular))
+				ChangeTexture(&s_obj_albedo, specular);
+			static int irradiance = 0;
+			if (RadioButtonHelper("irradiance", &irradiance))
+				ChangeTexture(&s_obj_irradiance, irradiance);
+			static int specular_brdf = 0;
+			if (RadioButtonHelper("specular_brdf", &specular_brdf))
+				ChangeTexture(&s_obj_specular_brdf, specular_brdf);
+		}
+		ImGui::End();
+	}
 	return hr;
 }
 
@@ -199,9 +301,12 @@ void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 		else
 			s_obj_renderer->SetState(cmd_list);
 
-		cmd_list->SetDescriptorHeaps(1, s_obj_descmgr->Heap().GetAddressOf());
+		cmd_list->SetDescriptorHeaps(1, s_obj_cbv_descmgr->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, s_obj_tc_handle.Gpu());
-		cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_sc_handle.Gpu());
+		//cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_sc_handle.Gpu());
+
+		cmd_list->SetDescriptorHeaps(1, s_obj_srv_descmgr->Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_albedo.handle.Gpu());
 
 		cmd_list->IASetVertexBuffers(0, 1, &s_obj_vertex_view);
 		cmd_list->DrawInstanced(s_obj_vertices_offset, 1, 0, 0);

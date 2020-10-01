@@ -151,6 +151,7 @@ HRESULT Application::CreateDevice(ComPtr<IDXGIFactory6> factory) noexcept
 						use_lv = lv;
 						max_memory_size = desc.DedicatedVideoMemory;
 						set_adapter.As(&top_adapter);
+						m_desc = desc;
 						break;
 					}
 				}

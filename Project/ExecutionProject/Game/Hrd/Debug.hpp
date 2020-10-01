@@ -4,6 +4,7 @@
 #include <Dx12/3D/Renderer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
 #include <Dx12/ConstantBuffer.hpp>
+#include <Dx12/Texture.hpp>
 #include <vector>
 
 class DebugManager
@@ -52,12 +53,18 @@ public:
 		size_t GetVertex(Vertex* out) const override;
 		size_t GetVertexCount() const override { return ModelVertex.size(); }
 	};
-
+private:
+	struct Texture
+	{
+		std::shared_ptr<KGL::Texture>		tex;
+		KGL::DescriptorHandle				handle;
+	};
 private:
 	bool									s_obj_wire;
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_renderer;
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_wire_renderer;
-	std::shared_ptr<KGL::DescriptorManager> s_obj_descmgr;
+	std::shared_ptr<KGL::DescriptorManager> s_obj_cbv_descmgr;
+	std::shared_ptr<KGL::DescriptorManager> s_obj_srv_descmgr;
 	KGL::DescriptorHandle					s_obj_tc_handle;
 	KGL::DescriptorHandle					s_obj_sc_handle;
 	std::shared_ptr<KGL::Resource<TransformConstants>>	s_obj_tc_resource;
@@ -67,13 +74,24 @@ private:
 	std::vector<std::shared_ptr<Object>>	s_objects;
 	bool									s_obj_changed;
 	UINT									s_obj_vertices_offset;
+
+	std::shared_ptr<KGL::Texture>			white_texture;
+	std::shared_ptr<KGL::Texture>			black_texture;
+	Texture									s_obj_albedo;
+	Texture									s_obj_normal;
+	Texture									s_obj_metalness;
+	Texture									s_obj_roughness;
+	Texture									s_obj_specular;
+	Texture									s_obj_irradiance;
+	Texture									s_obj_specular_brdf;
 private:
 	HRESULT UpdateStaticObjects();
+	void ChangeTexture(Texture* texture, int flg);
 public:
 	DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc);
 	void AddStaticObjects(const std::vector<std::shared_ptr<Object>>& objects);
 	void ClearStaticObjects();
-	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc);
+	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc, bool use_gui);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
 	void SetWireMode(bool wire) { s_obj_wire = wire; }
 	bool GetWireMode() { return s_obj_wire; }

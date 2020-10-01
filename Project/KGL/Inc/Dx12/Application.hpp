@@ -36,6 +36,7 @@ namespace KGL
 			bool									m_dxr_support;
 			UINT									m_max_quality_level;
 			UINT									m_max_sample_count;
+			DXGI_ADAPTER_DESC1						m_desc;
 		public:
 			static bool CheckTearingSupport();
 			static bool CheckDXRSupport(ComPtrC<ID3D12Device> device);
@@ -82,6 +83,7 @@ namespace KGL
 			{
 				return m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()];
 			}
+			const DXGI_ADAPTER_DESC1& GetDesc() const noexcept { return m_desc; };
 		};
 
 		using App = Application;

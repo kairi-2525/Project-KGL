@@ -359,7 +359,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
-	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc);
+	//debug_mgr = std::make_shared<DebugManager>(device, desc.dxc);
 
 	return hr;
 }
@@ -443,14 +443,16 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	sky_gui_windowed = false;
 
 	{
-		debug_mgr->ClearStaticObjects();
+		//debug_mgr->ClearStaticObjects();
 		std::vector<std::shared_ptr<DebugManager::Object>> objects;
 		std::shared_ptr<DebugManager::Cube> target_cube = std::make_shared<DebugManager::Cube>();
 		auto loop_pos = target_cube->pos = camera->center;
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
-		target_cube->scale = { 1.f, 1.f, 1.f };
+		target_cube->scale = { 100.f, 100.f, 100.f };
 		target_cube->rotate = {};
-		//objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
+#if 1
+		objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
+#else
 		objects.reserve(1000u + 1u);
 		for (UINT i = 0u; i < 10u; i++)
 		{
@@ -469,8 +471,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 			loop_pos.y = target_cube->pos.y;
 			loop_pos.x += 1.5f;
 		}
-
-		debug_mgr->AddStaticObjects(objects);
+#endif
+		//debug_mgr->AddStaticObjects(objects);
 	}
 
 	return S_OK;
@@ -573,9 +575,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Checkbox("Use DOF", &dof_flg);
 			ImGui::Spacing();
 
-			bool wire_mode = debug_mgr->GetWireMode();
-			ImGui::Checkbox("WireMode", &wire_mode);
-			debug_mgr->SetWireMode(wire_mode);
+			//bool wire_mode = debug_mgr->GetWireMode();
+			//ImGui::Checkbox("WireMode", &wire_mode);
+			//debug_mgr->SetWireMode(wire_mode);
 			ImGui::Spacing();
 
 			if (ImGui::TreeNode("Grid"))
@@ -1025,7 +1027,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		DebugManager::TransformConstants tc;
 		XMStoreFloat4x4(&tc.view_projection, view * XMLoadFloat4x4(&proj));
-		XMStoreFloat4x4(&tc.sky_projection, XMMatrixIdentity());
+		XMStoreFloat4x4(&tc.sky_projection, view * XMLoadFloat4x4(&proj));
 
 		DebugManager::ShadingConstants sc;
 		sc.eye_position = camera->GetPos();
@@ -1034,12 +1036,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		sc.lights[1] = light;
 		sc.lights[2] = light;
 
-		sc.lights[0].direction = { 0.2, -0.5f, 1.f };
+		sc.lights[0].direction = { 0.5f, -1.f, -0.8f };
 		XMStoreFloat3(&sc.lights[0].direction, XMVector3Normalize(XMLoadFloat3(&sc.lights[0].direction)));
 
 		sc.lights[0].radiance = { 1.f, 1.f, 1.f };
 
-		debug_mgr->Update(tc, sc);
+		//debug_mgr->Update(tc, sc, use_gui);
 	}
 
 	return Render(desc);
@@ -1080,7 +1082,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		// SKY•`‰æ
 		sky_mgr->Render(cmd_list);
 
-		debug_mgr->Render(cmd_list);
+		//debug_mgr->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 	}

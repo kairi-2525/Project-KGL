@@ -4,8 +4,10 @@ Texture2D albedo_texture : register(t0);
 Texture2D normal_texture : register(t1);
 Texture2D metalness_texture : register(t2);
 Texture2D roughness_texture : register(t3);
-TextureCube specular_texture : register(t4);
-TextureCube irradiance_texture : register(t5);
+Texture2D specular_texture : register(t4);
+Texture2D irradiance_texture : register(t5);
+//TextureCube specular_texture : register(t4);
+//TextureCube irradiance_texture : register(t5);
 Texture2D specular_brdf_lut : register(t6);
 
 SamplerState default_sampler : register(s0);
@@ -133,7 +135,8 @@ float4 PSMain(PSInput input) : SV_TARGET
 		float3 specularIrradiance = specular_texture.SampleLevel(default_sampler, Lr, roughness * specularTextureLevels).rgb;
 
 		// Cook-Torrance‹¾–ÊBRDF‚Ì•ªŠ„˜a‹ß—ŒW”B
-		float2 specularBRDF = specular_brdf_lut.Sample(sp_brdf_sampler, float2(cosLo, roughness)).rg;
+		//float2 specularBRDF = specular_brdf_lut.Sample(sp_brdf_sampler, float2(cosLo, roughness)).rg;
+		float2 specularBRDF = specular_texture.Sample(sp_brdf_sampler, float2(cosLo, roughness)).rg;
 
 		// ‹¾–Ê”½ËIBL‚ÌŠñ—^‚Ì‡ŒvB
 		float3 specularIBL = (F0 * specularBRDF.x + specularBRDF.y) * specularIrradiance;

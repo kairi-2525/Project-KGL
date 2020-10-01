@@ -73,6 +73,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{
 			HRESULT hr = S_OK;
 			std::shared_ptr<KGL::App> app = std::make_shared<KGL::App>(window->GetHWND(), DEBUG_LAYER, false);
+#if _CONSOLE
+			{
+				std::filesystem::path path = app->GetDesc().Description;
+				KGLDebugOutPutString("アダプター情報 : " + path.string());
+			}
+#endif
 			device = app->GetDevice();
 			{
 				std::shared_ptr<KGL::DescriptorManager> imgui_heap;

@@ -1,17 +1,10 @@
 // https://github.com/Nadrin/PBR/blob/master/data/shaders/hlsl/pbr.hlsl
-//物理ベースのレンダリング
-
-//物理ベースのシェーディングモデル：Lambetrtian拡散BRDF + Cook-TorranceマイクロファセットスペキュラーBRDF +アンビエント用IBL。
-
-//この実装は、EpicGamesによる「UnrealEngine4のリアルシェーディング」SIGGRAPH2013コースノートに基づいています。
-//参照：http://blog.selfshadow.com/publications/s2013-shading-course/karis/s2013_pbs_epic_notes_v2.pdf
 
 static const float PI = 3.141592;
 static const float Epsilon = 0.00001;
 
 static const uint NumLights = 3;
 
-// すべての誘電体の一定の垂直入射フレネル係数。
 static const float3 Fdielectric = 0.04;
 
 cbuffer TransformConstants : register(b0)
