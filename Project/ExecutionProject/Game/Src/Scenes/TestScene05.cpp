@@ -120,6 +120,8 @@ HRESULT TestScene05::Update(const SceneDesc& desc, float elapsed_time)
 
 HRESULT TestScene05::Render(const SceneDesc& desc)
 {
+
+
 	if (desc.app->IsTearingSupport())
 		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 	else

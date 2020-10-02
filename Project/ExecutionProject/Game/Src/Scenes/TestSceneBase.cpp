@@ -15,38 +15,15 @@ HRESULT TestSceneBase::Load(const SceneDesc& desc)
 	const auto& device = desc.app->GetDevice();
 
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	cmd_allocator->SetName(L"Main CA");
+	cmd_list->SetName(L"Main CL");
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
-
-	pmd_data = std::make_shared<KGL::PMD_Loader>("./Assets/Models/初音ミク.pmd");
-	vmd_data = std::make_shared<KGL::VMD_Loader>("./Assets/Motions/motion.vmd");
-	pmd_toon_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), "./Assets/Toons", &tex_mgr);
-	pmd_model = std::make_shared<KGL::PMD_Model>(device, pmd_data->GetDesc(), &tex_mgr);
-	pmd_renderer = std::make_shared<KGL::PMD_Renderer>(device, desc.dxc);
-
-	models.resize(1, { device, *pmd_model });
-	for (auto& model : models)
-	{
-		model.SetAnimation(vmd_data->GetDesc());
-	}
 
 	return hr;
 }
 
 HRESULT TestSceneBase::Init(const SceneDesc& desc)
 {
-	using namespace DirectX;
-
-	auto window_size = desc.window->GetClientSize();
-
-	camera.eye = { 0.f, 10.f, -15.f };
-	camera.focus_vec = { 0.f, 0.f, 15.f };
-	camera.up = { 0.f, 1.f, 0.f };
-
-	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
-		XMConvertToRadians(70.f),	// FOV
-		static_cast<float>(window_size.x) / static_cast<float>(window_size.y),	// アスペクト比
-		1.0f, 100.0f // near, far
-	);
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
 
@@ -55,18 +32,6 @@ HRESULT TestSceneBase::Init(const SceneDesc& desc)
 
 HRESULT TestSceneBase::Update(const SceneDesc& desc, float elapsed_time)
 {
-	using namespace DirectX;
-
-	for (auto& model : models)
-	{
-		//model.position.x -= elapsed_time * ((rand() % (20 + 1)) - 10);
-		//model.position.z -= elapsed_time * ((rand() % (20 + 1)) - 10);
-		model.MotionSetup(elapsed_time, true);
-		model.MotionMatrixUpdate();
-		model.Update(elapsed_time);
-		//model.UpdateWVP();
-	}
-
 	return Render(desc);
 }
 
@@ -90,28 +55,10 @@ HRESULT TestSceneBase::Render(const SceneDesc& desc)
 		window_size.x, window_size.y
 	);
 
-	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
+	{
 		desc.app->SetRtvDsv(cmd_list);
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->ClearRtvDsv(cmd_list, clear_color);
-
-		cmd_list->RSSetViewports(1, &viewport);
-		cmd_list->RSSetScissorRects(1, &scissorrect);
-
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		pmd_renderer->SetState(cmd_list);
-		for (auto& model : models)
-		{
-			model.Render(cmd_list);
-
-			hr = pmd_toon_model->Render(
-				desc.app->GetDevice(),
-				cmd_list
-			);
-			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
-		}
-
 		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
 	}
 
