@@ -30,6 +30,7 @@ namespace KGL
 				DirectX::XMUINT2	size;
 				DWORD				style;
 				bool				adjust;
+				HICON				icon;
 			};
 		public:
 			static const DWORD		WINDOWED_STYLE;
@@ -40,6 +41,7 @@ namespace KGL
 			static const Desc		HD_WINDOWED_DESC;
 			static const Desc		FULLHD_WINDOWED_ADJ_DESC;
 			static const Desc		HD_WINDOWED_ADJ_DESC;
+			static const WORD		DEFAULT_ICON_NUMBER;
 		private:
 			Desc					m_desc;
 			HWND					m_hwnd;

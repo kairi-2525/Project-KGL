@@ -6,7 +6,8 @@ using namespace KGL;
 RenderTargetView::RenderTargetView(
 	ComPtr<ID3D12Device> device,
 	const std::vector<ComPtr<ID3D12Resource>>& resources,
-	const std::shared_ptr<KGL::DescriptorManager>& rtv_desc_mgr
+	const std::shared_ptr<KGL::DescriptorManager>& rtv_desc_mgr,
+	D3D12_SRV_DIMENSION srv_dimension
 ) noexcept
 {
 	m_buffers = resources;
@@ -39,6 +40,7 @@ RenderTargetView::RenderTargetView(
 		heap_desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		heap_desc.NumDescriptors = SCAST<UINT>(size);
 		heap_desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+
 		hr = device->CreateDescriptorHeap(
 			&heap_desc,
 			IID_PPV_ARGS(m_srv_heap.GetAddressOf())
@@ -51,7 +53,7 @@ RenderTargetView::RenderTargetView(
 
 	// SRV—pDesc
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv_desc.ViewDimension = srv_dimension;
 	srv_desc.Texture2D.MipLevels = 1;
 	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 

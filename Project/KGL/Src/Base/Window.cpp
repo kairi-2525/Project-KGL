@@ -1,6 +1,10 @@
 #include <Base/Window.hpp>
 #include <Helper/Cast.hpp>
 #include <Helper/ThrowAssert.hpp>
+#include <atlcomcli.h>
+#ifdef DEBUG
+#undef DEBUG
+#endif
 
 using namespace KGL;
 
@@ -25,6 +29,8 @@ const Window::Desc Window::FULLHD_WINDOWED_ADJ_DESC =
 	{ "no title", { 1920u, 1080u }, WINDOWED_STYLE,		true };
 const Window::Desc Window::HD_WINDOWED_ADJ_DESC =
 	{ "no title", { 1280u, 720u },	WINDOWED_STYLE,		true };
+
+const WORD Window::DEFAULT_ICON_NUMBER = 333;
 
 LRESULT CALLBACK Window::BaseWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) noexcept
 {
@@ -83,8 +89,20 @@ HRESULT Window::Create() noexcept
 	wcex.lpszMenuName = nullptr;    //メニューの名前。使わないならとりあえずNULLでOK
 	wcex.style = CS_VREDRAW | CS_HREDRAW;
 	wcex.hCursor = ::LoadCursor(h_instance, IDC_ARROW);      //カーソルアイコン
-	wcex.hIcon = ::LoadIcon(h_instance, IDI_APPLICATION);    //プログラムアイコン
-	wcex.hIconSm = ::LoadIcon(h_instance, IDI_APPLICATION);  //プログラムアイコン（小）::タイトルバーに使われるやつ？
+
+	if (m_desc.icon)
+	{
+		wcex.hIcon = m_desc.icon;    //プログラムアイコン
+		wcex.hIconSm = m_desc.icon;  //プログラムアイコン（小）::タイトルバーに使われるやつ？
+	}
+	else
+	{
+		wcex.hIcon = LoadIcon(h_instance, MAKEINTRESOURCE(DEFAULT_ICON_NUMBER));    //プログラムアイコン
+		if (!wcex.hIcon) wcex.hIcon = ::LoadIcon(h_instance, IDI_APPLICATION);
+		wcex.hIconSm = LoadIcon(h_instance, MAKEINTRESOURCE(DEFAULT_ICON_NUMBER));  //プログラムアイコン（小）::タイトルバーに使われるやつ？
+		if (!wcex.hIconSm) wcex.hIconSm = ::LoadIcon(h_instance, IDI_APPLICATION);
+	}
+
 	wcex.hbrBackground = (HBRUSH)::GetStockObject(NULL_BRUSH);      //クライアント領域の塗りつぶし色（ブラシ）
 	if (!RegisterClassEx(&wcex)) {
 		const DWORD error_code = GetLastError();

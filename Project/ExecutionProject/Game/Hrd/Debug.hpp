@@ -63,6 +63,8 @@ private:
 	bool									s_obj_wire;
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_renderer;
 	std::shared_ptr<KGL::BaseRenderer>		s_obj_wire_renderer;
+	std::shared_ptr<KGL::BaseRenderer>		s_obj_msaa_renderer;
+	std::shared_ptr<KGL::BaseRenderer>		s_obj_msaa_wire_renderer;
 	std::shared_ptr<KGL::DescriptorManager> s_obj_cbv_descmgr;
 	std::shared_ptr<KGL::DescriptorManager> s_obj_srv_descmgr;
 	KGL::DescriptorHandle					s_obj_tc_handle;
@@ -92,7 +94,7 @@ public:
 	void AddStaticObjects(const std::vector<std::shared_ptr<Object>>& objects);
 	void ClearStaticObjects();
 	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc, bool use_gui);
-	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
+	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, bool msaa);
 	void SetWireMode(bool wire) { s_obj_wire = wire; }
 	bool GetWireMode() { return s_obj_wire; }
 };

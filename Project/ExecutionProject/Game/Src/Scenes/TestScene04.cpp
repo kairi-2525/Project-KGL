@@ -25,11 +25,12 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
+	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cpt_cmd_allocator, &cpt_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
-	{
+	{	// コンピュート用
 		// コマンドキューの生成
 		D3D12_COMMAND_QUEUE_DESC cmd_queue_desc = {};
 		cmd_queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -42,7 +43,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 
-	{
+	{	// スプライト用PSOの作成(半透明、加算、高輝度抽出)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
@@ -56,7 +57,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		sprite = std::make_shared<KGL::Sprite>(device);
 	}
 
-	{
+	{	// パーティクル用PSOを作成(描画用)
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
 		//renderer_desc.depth_desc = {};
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
@@ -266,7 +267,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 		grid_buffer.Load(desc);
 	}
-	{
+	{	// パーティクルのテクスチャ用SRVを作成
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Format = b_tex_data[0].tex->Data()->GetDesc().Format;
@@ -316,7 +317,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
-	{
+	{	// 被写界深度
 		dof_generator = std::make_shared<DOFGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
 
 		const auto& tex = dof_generator->GetTextures();
@@ -360,6 +361,20 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc);
+
+	// MSAA用レンダーターゲットを作成
+	{
+		const auto& render_target = desc.app->GetRtvBuffers()[0];
+		auto rs_desc = render_target->GetDesc();
+		DirectX::XMFLOAT4 clear_color(0.f, 0.f, 0.f, 0.f);
+		D3D12_CLEAR_VALUE clear_value = CD3DX12_CLEAR_VALUE(rs_desc.Format, (float*)&clear_color);
+		rs_desc.SampleDesc.Count = 8;
+		msaa_render_target = std::make_shared<KGL::Texture>(device, rs_desc, clear_value);
+		
+		std::vector<ComPtr<ID3D12Resource>> resources;
+		resources.push_back(msaa_render_target->Data());
+		msaa_rtv = std::make_shared<KGL::RenderTargetView>(device, resources, nullptr, D3D12_SRV_DIMENSION_TEXTURE2DMS);
+	}
 
 	return hr;
 }
@@ -442,13 +457,13 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	rt_gui_windowed = false;
 	sky_gui_windowed = false;
 
-	{
+	{	// キューブを簡易描画するマネージャー(キューブ以外のものも対応予定)
 		debug_mgr->ClearStaticObjects();
 		std::vector<std::shared_ptr<DebugManager::Object>> objects;
 		std::shared_ptr<DebugManager::Cube> target_cube = std::make_shared<DebugManager::Cube>();
 		auto loop_pos = target_cube->pos = camera->center;
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
-		target_cube->scale = { 100.f, 100.f, 100.f };
+		target_cube->scale = { 10.f, 10.f, 10.f };
 		target_cube->rotate = {};
 #if 1
 		objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
@@ -474,6 +489,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 #endif
 		debug_mgr->AddStaticObjects(objects);
 	}
+
+	msaa = false;
 
 	return S_OK;
 }
@@ -573,6 +590,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Spacing();
 
 			ImGui::Checkbox("Use DOF", &dof_flg);
+			ImGui::Spacing();
+
+			ImGui::Checkbox("Use MSAA", &msaa);
 			ImGui::Spacing();
 
 			bool wire_mode = debug_mgr->GetWireMode();
@@ -1079,12 +1099,62 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
 		desc.app->ClearDsv(cmd_list);
 
-		// SKY描画
-		sky_mgr->Render(cmd_list);
+		if (msaa)
+		{
+			{	// MSAA用RTをRT用にバリア
+				D3D12_RESOURCE_BARRIER barriers[] =
+				{
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_render_target->Data().Get(),
+						D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+						D3D12_RESOURCE_STATE_RENDER_TARGET)
+				};
+				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+			}
 
-		debug_mgr->Render(cmd_list);
+			msaa_rtv->Set(cmd_list, nullptr, 0);
+			msaa_rtv->Clear(cmd_list, msaa_render_target->GetClearColor());
 
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+			sky_mgr->Render(cmd_list);
+			debug_mgr->Render(cmd_list, true);
+
+			{	// MSAA用RTを元リソース用にバリア / RTVSのRTを先リソース用にバリア
+				D3D12_RESOURCE_BARRIER barriers[2] =
+				{
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_render_target->Data().Get(),
+						D3D12_RESOURCE_STATE_RENDER_TARGET,
+						D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						rtvs->GetResources()[rtv_num].Get(),
+						D3D12_RESOURCE_STATE_RENDER_TARGET,
+						D3D12_RESOURCE_STATE_RESOLVE_DEST)
+				};
+				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+			}
+
+			cmd_list->ResolveSubresource(
+				rtvs->GetResources()[rtv_num].Get(), 0,
+				msaa_render_target->Data().Get(), 0,
+				msaa_render_target->Data()->GetDesc().Format
+			);
+			{	// RTVSのRTをシェーダーリソース用にバリア
+				D3D12_RESOURCE_BARRIER barriers[] =
+				{
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						rtvs->GetResources()[rtv_num].Get(),
+						D3D12_RESOURCE_STATE_RESOLVE_DEST,
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+				};
+				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+			}
+		}
+		else
+		{
+			sky_mgr->Render(cmd_list);
+			debug_mgr->Render(cmd_list, false);
+			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+		}
 	}
 	{
 		const auto& rtrbs = ptc_rtvs->GetRtvResourceBarriers(true);

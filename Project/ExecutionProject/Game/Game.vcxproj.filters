@@ -216,4 +216,9 @@
     <None Include="HLSL\3D\UnNormal.hlsli" />
     <None Include="HLSL\3D\StaticObject.hlsli" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="KGL_ICON.rc">
+      <Filter>リソース ファイル</Filter>
+    </ResourceCompile>
+  </ItemGroup>
 </Project>

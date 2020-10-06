@@ -22,7 +22,8 @@ namespace KGL
 			explicit RenderTargetView(
 				ComPtr<ID3D12Device> device,
 				const std::vector<ComPtr<ID3D12Resource>>& resources,
-				const std::shared_ptr<KGL::DescriptorManager>& rtv_desc_mgr = nullptr
+				const std::shared_ptr<KGL::DescriptorManager>& rtv_desc_mgr = nullptr,
+				D3D12_SRV_DIMENSION srv_dimension = D3D12_SRV_DIMENSION_TEXTURE2D
 			) noexcept;
 			~RenderTargetView();
 			const ComPtr<ID3D12DescriptorHeap>& GetRTVHeap() const noexcept { return m_rtv_heap; };
@@ -31,6 +32,7 @@ namespace KGL
 			D3D12_GPU_DESCRIPTOR_HANDLE GetRTVGPUHandle(UINT num = 0u) const noexcept;
 			D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCPUHandle(UINT num = 0u) const noexcept;
 			D3D12_GPU_DESCRIPTOR_HANDLE GetSRVGPUHandle(UINT num = 0u) const noexcept;
+			const std::vector<ComPtr<ID3D12Resource>>& GetResources() const noexcept { return m_buffers; }
 
 			HRESULT Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 				const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle, UINT num = 0u) const noexcept;

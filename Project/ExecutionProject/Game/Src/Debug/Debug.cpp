@@ -102,9 +102,14 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 		renderer_desc.rastarizer_desc.FrontCounterClockwise = TRUE;
 		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
 		s_obj_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		s_obj_msaa_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		s_obj_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		s_obj_msaa_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 	}
 
 	{	// テクスチャ
@@ -289,17 +294,27 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 	return hr;
 }
 
-void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
+void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, bool msaa)
 {
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// スタティックオブジェクトの描画
 	if (s_obj_vertices_offset > 0u)
 	{
-		if (s_obj_wire)
-			s_obj_wire_renderer->SetState(cmd_list);
+		if (msaa)
+		{
+			if (s_obj_wire)
+				s_obj_msaa_wire_renderer->SetState(cmd_list);
+			else
+				s_obj_msaa_renderer->SetState(cmd_list);
+		}
 		else
-			s_obj_renderer->SetState(cmd_list);
+		{
+			if (s_obj_wire)
+				s_obj_wire_renderer->SetState(cmd_list);
+			else
+				s_obj_renderer->SetState(cmd_list);
+		}
 
 		cmd_list->SetDescriptorHeaps(1, s_obj_cbv_descmgr->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, s_obj_tc_handle.Gpu());

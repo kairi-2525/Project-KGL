@@ -132,6 +132,10 @@ private:
 
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
+
+	bool												msaa;
+	std::shared_ptr<KGL::RenderTargetView>				msaa_rtv;
+	std::shared_ptr<KGL::Texture>						msaa_render_target;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

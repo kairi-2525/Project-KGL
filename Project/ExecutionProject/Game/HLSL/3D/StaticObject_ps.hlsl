@@ -150,5 +150,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 	//return float4(directLighting + ambientLighting, 1.0);
 
 	//return float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+
 	return float4(albedo_texture.Sample(default_sampler, input.texcoord).rgb, 1.0);
 }
