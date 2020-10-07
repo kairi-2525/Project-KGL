@@ -136,6 +136,9 @@ private:
 	bool												msaa;
 	std::shared_ptr<KGL::RenderTargetView>				msaa_rtv;
 	std::shared_ptr<KGL::Texture>						msaa_render_target;
+	std::shared_ptr<KGL::DescriptorManager>				msaa_dsv_descriptor;
+	KGL::DescriptorHandle								msaa_dsv_handle;
+	std::shared_ptr<KGL::Texture>						msaa_depth_stencil;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

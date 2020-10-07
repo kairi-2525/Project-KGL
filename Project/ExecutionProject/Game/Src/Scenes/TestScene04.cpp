@@ -375,6 +375,34 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		resources.push_back(msaa_render_target->Data());
 		msaa_rtv = std::make_shared<KGL::RenderTargetView>(device, resources, nullptr, D3D12_SRV_DIMENSION_TEXTURE2DMS);
 	}
+	{	// MSAA用 深度テクスチャとDSVを作成
+		// テクスチャ作成
+		D3D12_CLEAR_VALUE depth_clear_value = {};
+		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
+		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
+		auto texture_desc = desc.app->GetDsvBuffer()->GetDesc();
+		texture_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		texture_desc.SampleDesc.Count = 8;
+		texture_desc.MipLevels = 1;
+		msaa_depth_stencil =
+			std::make_shared<KGL::Texture>(device,
+				texture_desc,
+				depth_clear_value,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE
+			);
+
+		// DSV作成
+		msaa_dsv_descriptor = std::make_shared<KGL::DescriptorManager>(
+				device, 1u, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+			);
+		msaa_dsv_handle = msaa_dsv_descriptor->Alloc();
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
+		device->CreateDepthStencilView(msaa_depth_stencil->Data().Get(), &dsv_desc, msaa_dsv_handle.Cpu());
+	}
 
 	return hr;
 }
@@ -1112,8 +1140,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 			}
 
-			msaa_rtv->Set(cmd_list, nullptr, 0);
+			msaa_rtv->Set(cmd_list, &msaa_dsv_handle.Cpu(), 0);
 			msaa_rtv->Clear(cmd_list, msaa_render_target->GetClearColor());
+			cmd_list->ClearDepthStencilView(msaa_dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 			sky_mgr->Render(cmd_list);
 			debug_mgr->Render(cmd_list, true);

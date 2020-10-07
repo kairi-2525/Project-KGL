@@ -103,12 +103,15 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
 		s_obj_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		renderer_desc.other_desc.sample_desc.Count = 8u;
 		s_obj_msaa_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
+		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		s_obj_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		renderer_desc.other_desc.sample_desc.Count = 8u;
 		s_obj_msaa_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
 	}
 
