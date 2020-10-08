@@ -335,29 +335,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
-	{
-		dsv_srv_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-		dsv_srv_handle = dsv_srv_desc_mgr->Alloc();
-		dsv_imgui_handle = desc.imgui_heap_mgr->Alloc();
-		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC res_desc = {};
-			res_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-			res_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			res_desc.Texture2D.MipLevels = 1;
-			res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			device->CreateShaderResourceView(
-				desc.app->GetDsvBuffer().Get(),
-				&res_desc,
-				dsv_srv_handle.Cpu()
-			);
-			device->CreateShaderResourceView(
-				desc.app->GetDsvBuffer().Get(),
-				&res_desc,
-				dsv_imgui_handle.Cpu()
-			);
-		}
-	}
-
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel());
@@ -380,15 +357,42 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			);
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
-		depth_clear_value.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;	// 32ビットfloat値としてクリア
+		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;	// 32ビットfloat値としてクリア
 		auto dsv_rs_desc = desc.app->GetDsvBuffer()->GetDesc();
 		dsv_rs_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
 		dsv_rs_desc.SampleDesc.Count = 1;
 		dsv_rs_desc.MipLevels = 1;
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-		dsv_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
 		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
+
+		// SRV用
+		depth_srv_desc_mgr = std::make_shared<KGL::DescriptorManager>(device, SCAST<UINT>(msaa_selector->GetMaxScale() + 1u));
+		depth_srv_handle = depth_srv_desc_mgr->Alloc();
+		depth_srv_imgui_handle = desc.imgui_heap_mgr->Alloc();
+		{	// MSAA off　用のSRVは先に作っておく
+			D3D12_SHADER_RESOURCE_VIEW_DESC rs_desc = {};
+
+			rs_desc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+			rs_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			rs_desc.Texture2D.MipLevels = 1;
+			rs_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			device->CreateShaderResourceView(
+				desc.app->GetDsvBuffer().Get(),
+				&rs_desc,
+				depth_srv_handle.Cpu()
+			);
+			device->CreateShaderResourceView(
+				desc.app->GetDsvBuffer().Get(),
+				&rs_desc,
+				depth_srv_imgui_handle.Cpu()
+			);
+		}
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_rs_desc = {};
+		srv_rs_desc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+		srv_rs_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2DMS;
+		srv_rs_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 		// 作成
 		std::vector<ComPtr<ID3D12Resource>> resources;
@@ -406,7 +410,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			it.render_target->Data()->SetName((L"RenderTarget MSAAx" + std::to_wstring(rtv_rs_desc.SampleDesc.Count)).c_str());
 			
 			// 深度テクスチャ
-			dsv_rs_desc.SampleDesc.Count *= 2;
+			dsv_rs_desc.SampleDesc.Count = rtv_rs_desc.SampleDesc.Count;
 			it.depth_stencil = std::make_shared<KGL::Texture>(device,
 				dsv_rs_desc,
 				depth_clear_value,
@@ -419,6 +423,20 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			it.dsv_handle = msaa_dsv_descriptor->Alloc();
 			device->CreateDepthStencilView(it.depth_stencil->Data().Get(), &dsv_desc, it.dsv_handle.Cpu());
 			
+			// SRV作成(Imgui用も作成)
+			it.depth_srv_handle = depth_srv_desc_mgr->Alloc();
+			it.depth_srv_imgui_handle = desc.imgui_heap_mgr->Alloc();
+			device->CreateShaderResourceView(
+				it.depth_stencil->Data().Get(),
+				&srv_rs_desc,
+				it.depth_srv_handle.Cpu()
+			);
+			device->CreateShaderResourceView(
+				it.depth_stencil->Data().Get(),
+				&srv_rs_desc,
+				it.depth_srv_imgui_handle.Cpu()
+			);
+
 			// Combo用text
 			msaa_combo_texts.push_back("x" + std::to_string(rtv_rs_desc.SampleDesc.Count));
 		}
@@ -559,7 +577,18 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 	ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
 	if (ImGui::TreeNode("DSV"))
 	{
-		ImGui::Image((ImTextureID)dsv_imgui_handle.Gpu().ptr, image_size);
+		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
+		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
+		
+		auto msaa_scale = SCAST<UINT>(msaa_selector->GetScale());
+		if (msaa_scale == 0u)
+		{
+			ImGui::Image((ImTextureID)depth_srv_imgui_handle.Gpu().ptr, image_size);
+		}
+		else
+		{
+			ImGui::Image((ImTextureID)msaa_textures[msaa_scale - 1u].depth_srv_imgui_handle.Gpu().ptr, image_size);
+		}
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
@@ -1070,7 +1099,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					for (auto& it : b_tex_data)
 					{
 						const ImVec2 image_size = { 90, 90 };
-						ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr, image_size);
+						ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr,
+							image_size, ImVec2(0, 0), ImVec2(1, 1));
 						ImGui::SameLine();
 						const auto imgui_window_child_size = ImGui::GetWindowSize();
 						std::string path = it.tex->GetPath().string();
@@ -1215,14 +1245,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					CD3DX12_RESOURCE_BARRIER::Transition(
 						rtvs->GetResources()[rtv_num].Get(),
 						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-						D3D12_RESOURCE_STATE_RESOLVE_DEST),
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.depth_stencil->Data().Get(),
-						D3D12_RESOURCE_STATE_DEPTH_WRITE,
-						D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						desc.app->GetDsvBuffer().Get(),
-						D3D12_RESOURCE_STATE_DEPTH_WRITE,
 						D3D12_RESOURCE_STATE_RESOLVE_DEST)
 				};
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
@@ -1234,11 +1256,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				msaa_tex.render_target->Data().Get(), 0,
 				msaa_tex.render_target->Data()->GetDesc().Format
 			);
-			cmd_list->ResolveSubresource(
-				desc.app->GetDsvBuffer().Get(), 0,
-				msaa_tex.depth_stencil->Data().Get(), 0,
-				DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-			);
 
 			{	// RTVSのRTをシェーダーリソース用にバリア
 				D3D12_RESOURCE_BARRIER barriers[] =
@@ -1246,15 +1263,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 					CD3DX12_RESOURCE_BARRIER::Transition(
 						rtvs->GetResources()[rtv_num].Get(),
 						D3D12_RESOURCE_STATE_RESOLVE_DEST,
-						D3D12_RESOURCE_STATE_RENDER_TARGET),
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.depth_stencil->Data().Get(),
-						D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
-						D3D12_RESOURCE_STATE_DEPTH_WRITE),
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						desc.app->GetDsvBuffer().Get(),
-						D3D12_RESOURCE_STATE_RESOLVE_DEST,
-						D3D12_RESOURCE_STATE_DEPTH_WRITE)
+						D3D12_RESOURCE_STATE_RENDER_TARGET)
 				};
 
 
@@ -1392,7 +1401,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		if (dof_flg)
 		{
 			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-			dof_generator->Render(cmd_list, dsv_srv_handle.Heap(), dsv_srv_handle.Gpu());
+			dof_generator->Render(cmd_list, depth_srv_handle.Heap(), depth_srv_handle.Gpu());
 		}
 		else
 		{
@@ -1421,7 +1430,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 			desc.app->SetRtv(cmd_list);
 		}
-
 		ImGui::Render();
 		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());

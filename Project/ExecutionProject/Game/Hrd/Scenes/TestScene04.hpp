@@ -127,9 +127,9 @@ private:
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
 
-	std::shared_ptr<KGL::DescriptorManager>				dsv_srv_desc_mgr;
-	KGL::DescriptorHandle								dsv_srv_handle;
-	KGL::DescriptorHandle								dsv_imgui_handle;
+	KGL::DescriptorHandle								depth_srv_handle;
+	KGL::DescriptorHandle								depth_srv_imgui_handle;
+	std::shared_ptr<KGL::DescriptorManager>				depth_srv_desc_mgr;
 
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
@@ -139,6 +139,8 @@ private:
 		std::shared_ptr<KGL::Texture>				render_target;
 		KGL::DescriptorHandle						dsv_handle;
 		std::shared_ptr<KGL::Texture>				depth_stencil;
+		KGL::DescriptorHandle						depth_srv_handle;
+		KGL::DescriptorHandle						depth_srv_imgui_handle;
 	};
 	std::vector<MSAARTTextures>							msaa_textures;
 	std::shared_ptr<KGL::RenderTargetView>				msaa_rtvs;
