@@ -341,7 +341,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		dsv_imgui_handle = desc.imgui_heap_mgr->Alloc();
 		{
 			D3D12_SHADER_RESOURCE_VIEW_DESC res_desc = {};
-			res_desc.Format = DXGI_FORMAT_R32_FLOAT;
+			res_desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 			res_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			res_desc.Texture2D.MipLevels = 1;
 			res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -360,48 +360,72 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
-	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc);
+	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel());
 
-	// MSAA用レンダーターゲットを作成
+	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
+	msaa_combo_texts.push_back("OFF");
+
+	// MSAA用レンダーターゲット / 深度テクスチャ / DSV を作成
 	{
+		// レンダーターゲットテクスチャ用
 		const auto& render_target = desc.app->GetRtvBuffers()[0];
-		auto rs_desc = render_target->GetDesc();
+		auto rtv_rs_desc = render_target->GetDesc();
 		DirectX::XMFLOAT4 clear_color(0.f, 0.f, 0.f, 0.f);
-		D3D12_CLEAR_VALUE clear_value = CD3DX12_CLEAR_VALUE(rs_desc.Format, (float*)&clear_color);
-		rs_desc.SampleDesc.Count = 8;
-		msaa_render_target = std::make_shared<KGL::Texture>(device, rs_desc, clear_value);
-		
-		std::vector<ComPtr<ID3D12Resource>> resources;
-		resources.push_back(msaa_render_target->Data());
-		msaa_rtv = std::make_shared<KGL::RenderTargetView>(device, resources, nullptr, D3D12_SRV_DIMENSION_TEXTURE2DMS);
-	}
-	{	// MSAA用 深度テクスチャとDSVを作成
-		// テクスチャ作成
+		D3D12_CLEAR_VALUE clear_value = CD3DX12_CLEAR_VALUE(rtv_rs_desc.Format, (float*)&clear_color);
+		rtv_rs_desc.SampleDesc.Count = 1;
+
+		// 深度テクスチャ用
+		msaa_dsv_descriptor = std::make_shared<KGL::DescriptorManager>(
+			device, SCAST<UINT>(msaa_selector->GetMaxScale()), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE
+			);
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
-		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
-		auto texture_desc = desc.app->GetDsvBuffer()->GetDesc();
-		texture_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		texture_desc.SampleDesc.Count = 8;
-		texture_desc.MipLevels = 1;
-		msaa_depth_stencil =
-			std::make_shared<KGL::Texture>(device,
-				texture_desc,
-				depth_clear_value,
-				D3D12_RESOURCE_STATE_DEPTH_WRITE
-			);
-
-		// DSV作成
-		msaa_dsv_descriptor = std::make_shared<KGL::DescriptorManager>(
-				device, 1u, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE
-			);
-		msaa_dsv_handle = msaa_dsv_descriptor->Alloc();
-
+		depth_clear_value.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;	// 32ビットfloat値としてクリア
+		auto dsv_rs_desc = desc.app->GetDsvBuffer()->GetDesc();
+		dsv_rs_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		dsv_rs_desc.SampleDesc.Count = 1;
+		dsv_rs_desc.MipLevels = 1;
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
 		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
-		device->CreateDepthStencilView(msaa_depth_stencil->Data().Get(), &dsv_desc, msaa_dsv_handle.Cpu());
+
+		// 作成
+		std::vector<ComPtr<ID3D12Resource>> resources;
+		for (; rtv_rs_desc.SampleDesc.Count < desc.app->GetMaxSampleCount();)
+		{
+			// RT用テクスチャ
+			rtv_rs_desc.SampleDesc.Count *= 2;
+			auto& it = msaa_textures.emplace_back();
+			it.render_target = std::make_shared<KGL::Texture>(
+					device, rtv_rs_desc, clear_value,
+					D3D12_RESOURCE_STATE_RESOLVE_SOURCE
+				);
+			resources.push_back(it.render_target->Data());
+
+			it.render_target->Data()->SetName((L"RenderTarget MSAAx" + std::to_wstring(rtv_rs_desc.SampleDesc.Count)).c_str());
+			
+			// 深度テクスチャ
+			dsv_rs_desc.SampleDesc.Count *= 2;
+			it.depth_stencil = std::make_shared<KGL::Texture>(device,
+				dsv_rs_desc,
+				depth_clear_value,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE
+				);
+
+			it.depth_stencil->Data()->SetName((L"DepthStencil MSAAx" + std::to_wstring(dsv_rs_desc.SampleDesc.Count)).c_str());
+
+			// DSV作成
+			it.dsv_handle = msaa_dsv_descriptor->Alloc();
+			device->CreateDepthStencilView(it.depth_stencil->Data().Get(), &dsv_desc, it.dsv_handle.Cpu());
+			
+			// Combo用text
+			msaa_combo_texts.push_back("x" + std::to_string(rtv_rs_desc.SampleDesc.Count));
+		}
+		
+		// RTVを作成
+		msaa_rtvs = std::make_shared<KGL::RenderTargetView>(device, resources, nullptr, D3D12_SRV_DIMENSION_TEXTURE2DMS);
+	
 	}
 
 	return hr;
@@ -491,9 +515,9 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		std::shared_ptr<DebugManager::Cube> target_cube = std::make_shared<DebugManager::Cube>();
 		auto loop_pos = target_cube->pos = camera->center;
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
-		target_cube->scale = { 10.f, 10.f, 10.f };
+		target_cube->scale = { 1.f, 1.f, 1.f };
 		target_cube->rotate = {};
-#if 1
+#if 0
 		objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
 #else
 		objects.reserve(1000u + 1u);
@@ -518,7 +542,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		debug_mgr->AddStaticObjects(objects);
 	}
 
-	msaa = false;
+	// MSAAをのセレクターに最大値をセット
+	msaa_selector->SetScale(msaa_selector->GetMaxScale());
 
 	return S_OK;
 }
@@ -567,6 +592,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		}
 		ImGui::TreePop();
 	}
+
 }
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
@@ -620,7 +646,25 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Checkbox("Use DOF", &dof_flg);
 			ImGui::Spacing();
 
-			ImGui::Checkbox("Use MSAA", &msaa);
+			{
+				std::string select_msaa = msaa_combo_texts[SCAST<UINT>(msaa_selector->GetScale())];
+
+				// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
+				if (ImGui::BeginCombo("MSAA", select_msaa.c_str()))
+				{
+					for (int n = 0; n < msaa_combo_texts.size(); n++)
+					{
+						// オブジェクトの外側または内側に、選択内容を好きなように保存できます
+						bool is_selected = (select_msaa == msaa_combo_texts[n]);
+						if (ImGui::Selectable(msaa_combo_texts[n].c_str(), is_selected))
+							msaa_selector->SetScale(SCAST<MSAASelector::TYPE>(n));
+						if (is_selected)
+							// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
+							ImGui::SetItemDefaultFocus();
+					}
+					ImGui::EndCombo();
+				}
+			}
 			ImGui::Spacing();
 
 			bool wire_mode = debug_mgr->GetWireMode();
@@ -1121,67 +1165,104 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	{
 		const UINT rtv_num = 0u;
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
-		const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		rtvs->Set(cmd_list, dsv_handle, rtv_num);
-		rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
-		desc.app->ClearDsv(cmd_list);
+		//cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
+		//const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		//rtvs->Set(cmd_list, dsv_handle, rtv_num);
+		//rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+		//desc.app->ClearDsv(cmd_list);
 
-		if (msaa)
+		//sky_mgr->Render(cmd_list);
+
+		if (msaa_selector->GetScale() == MSAASelector::TYPE::MSAA_OFF)
 		{
+			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
+			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+			rtvs->Set(cmd_list, dsv_handle, rtv_num);
+			rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
+			desc.app->ClearDsv(cmd_list);
+			debug_mgr->Render(cmd_list, false);
+			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
+		}
+		else
+		{
+			const UINT msaa_rtv_num = msaa_selector->GetScale() - 1u;
+			const auto& msaa_tex = msaa_textures[msaa_rtv_num];
+
 			{	// MSAA用RTをRT用にバリア
 				D3D12_RESOURCE_BARRIER barriers[] =
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_render_target->Data().Get(),
+						msaa_tex.render_target->Data().Get(),
 						D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
 						D3D12_RESOURCE_STATE_RENDER_TARGET)
 				};
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 			}
 
-			msaa_rtv->Set(cmd_list, &msaa_dsv_handle.Cpu(), 0);
-			msaa_rtv->Clear(cmd_list, msaa_render_target->GetClearColor());
-			cmd_list->ClearDepthStencilView(msaa_dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			msaa_rtvs->Set(cmd_list, &msaa_tex.dsv_handle.Cpu(), msaa_rtv_num);
+			msaa_rtvs->Clear(cmd_list, msaa_tex.render_target->GetClearColor(), msaa_rtv_num);
+			cmd_list->ClearDepthStencilView(msaa_tex.dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-			sky_mgr->Render(cmd_list);
-			debug_mgr->Render(cmd_list, true);
+			debug_mgr->Render(cmd_list, msaa_selector->GetScale());
 
-			{	// MSAA用RTを元リソース用にバリア / RTVSのRTを先リソース用にバリア
-				D3D12_RESOURCE_BARRIER barriers[2] =
+			{	// MSAA用RTを元リソース用にバリア / RTVSのRTを宛先リソース用にバリア
+				D3D12_RESOURCE_BARRIER barriers[] =
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_render_target->Data().Get(),
+						msaa_tex.render_target->Data().Get(),
 						D3D12_RESOURCE_STATE_RENDER_TARGET,
 						D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
 					CD3DX12_RESOURCE_BARRIER::Transition(
 						rtvs->GetResources()[rtv_num].Get(),
-						D3D12_RESOURCE_STATE_RENDER_TARGET,
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+						D3D12_RESOURCE_STATE_RESOLVE_DEST),
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_tex.depth_stencil->Data().Get(),
+						D3D12_RESOURCE_STATE_DEPTH_WRITE,
+						D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						desc.app->GetDsvBuffer().Get(),
+						D3D12_RESOURCE_STATE_DEPTH_WRITE,
 						D3D12_RESOURCE_STATE_RESOLVE_DEST)
 				};
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 			}
 
+			// コピー
 			cmd_list->ResolveSubresource(
 				rtvs->GetResources()[rtv_num].Get(), 0,
-				msaa_render_target->Data().Get(), 0,
-				msaa_render_target->Data()->GetDesc().Format
+				msaa_tex.render_target->Data().Get(), 0,
+				msaa_tex.render_target->Data()->GetDesc().Format
 			);
+			cmd_list->ResolveSubresource(
+				desc.app->GetDsvBuffer().Get(), 0,
+				msaa_tex.depth_stencil->Data().Get(), 0,
+				DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+			);
+
 			{	// RTVSのRTをシェーダーリソース用にバリア
 				D3D12_RESOURCE_BARRIER barriers[] =
 				{
 					CD3DX12_RESOURCE_BARRIER::Transition(
 						rtvs->GetResources()[rtv_num].Get(),
 						D3D12_RESOURCE_STATE_RESOLVE_DEST,
-						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+						D3D12_RESOURCE_STATE_RENDER_TARGET),
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_tex.depth_stencil->Data().Get(),
+						D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+						D3D12_RESOURCE_STATE_DEPTH_WRITE),
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						desc.app->GetDsvBuffer().Get(),
+						D3D12_RESOURCE_STATE_RESOLVE_DEST,
+						D3D12_RESOURCE_STATE_DEPTH_WRITE)
 				};
+
+
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 			}
-		}
-		else
-		{
-			sky_mgr->Render(cmd_list);
-			debug_mgr->Render(cmd_list, false);
+
+			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+			rtvs->Set(cmd_list, dsv_handle, rtv_num);
 			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
 		}
 	}

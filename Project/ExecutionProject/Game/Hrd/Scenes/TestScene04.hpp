@@ -27,6 +27,7 @@
 #include "../FireworkCerialManager.hpp"
 #include "../ParticleManager.hpp"
 #include "../Debug.hpp"
+#include "../MSAA.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -133,12 +134,17 @@ private:
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
 
-	bool												msaa;
-	std::shared_ptr<KGL::RenderTargetView>				msaa_rtv;
-	std::shared_ptr<KGL::Texture>						msaa_render_target;
+	struct MSAARTTextures
+	{
+		std::shared_ptr<KGL::Texture>				render_target;
+		KGL::DescriptorHandle						dsv_handle;
+		std::shared_ptr<KGL::Texture>				depth_stencil;
+	};
+	std::vector<MSAARTTextures>							msaa_textures;
+	std::shared_ptr<KGL::RenderTargetView>				msaa_rtvs;
 	std::shared_ptr<KGL::DescriptorManager>				msaa_dsv_descriptor;
-	KGL::DescriptorHandle								msaa_dsv_handle;
-	std::shared_ptr<KGL::Texture>						msaa_depth_stencil;
+	std::shared_ptr<MSAASelector>						msaa_selector;
+	std::vector<std::string>							msaa_combo_texts;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

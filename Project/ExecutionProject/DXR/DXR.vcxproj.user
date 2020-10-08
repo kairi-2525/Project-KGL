@@ -3,4 +3,28 @@
   <PropertyGroup>
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+  </PropertyGroup>
 </Project>

@@ -86,7 +86,7 @@ namespace KGL
 				{
 					D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 					{ 1u, 0u },
-					DXGI_FORMAT_D32_FLOAT,
+					DXGI_FORMAT_D24_UNORM_S8_UINT,
 					D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED
 				};
 				static inline const Desc DEFAULT_DESC =

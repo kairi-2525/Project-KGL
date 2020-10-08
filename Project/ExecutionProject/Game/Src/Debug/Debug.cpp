@@ -2,7 +2,8 @@
 #include <imgui.h>
 #include <DirectXTex/d3dx12.h>
 
-DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc)
+DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc,
+	UINT max_sample_count, UINT max_sample_quarity)
 {
 	s_obj_wire = false;
 	s_obj_changed = false;
@@ -101,18 +102,25 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 
 		renderer_desc.rastarizer_desc.FrontCounterClockwise = TRUE;
 		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
-		s_obj_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+		s_obj_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
-		renderer_desc.other_desc.sample_desc.Count = 8u;
-		s_obj_msaa_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+		// MSAA用
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			s_obj_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
+		}
 
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		s_obj_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
-		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
-		renderer_desc.other_desc.sample_desc.Count = 8u;
-		s_obj_msaa_wire_renderer = std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc);
+		s_obj_wire_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
+		// MSAA用
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			s_obj_wire_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
+		}
 	}
 
 	{	// テクスチャ
@@ -297,27 +305,18 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 	return hr;
 }
 
-void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, bool msaa)
+void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_count)
 {
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// スタティックオブジェクトの描画
-	if (s_obj_vertices_offset > 0u)
+
+	if (s_obj_renderers.size() > SCAST<UINT>(msaa_count))
 	{
-		if (msaa)
-		{
-			if (s_obj_wire)
-				s_obj_msaa_wire_renderer->SetState(cmd_list);
-			else
-				s_obj_msaa_renderer->SetState(cmd_list);
-		}
+		if (s_obj_wire)
+			s_obj_wire_renderers[msaa_count]->SetState(cmd_list);
 		else
-		{
-			if (s_obj_wire)
-				s_obj_wire_renderer->SetState(cmd_list);
-			else
-				s_obj_renderer->SetState(cmd_list);
-		}
+			s_obj_renderers[msaa_count]->SetState(cmd_list);
 
 		cmd_list->SetDescriptorHeaps(1, s_obj_cbv_descmgr->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, s_obj_tc_handle.Gpu());

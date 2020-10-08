@@ -280,7 +280,7 @@ HRESULT Application::CreateHeaps() noexcept
 		depth_res_desc.Width = swc_desc.Width;								// 幅と高さはレンダーターゲットと同じ
 		depth_res_desc.Height = swc_desc.Height;
 		depth_res_desc.DepthOrArraySize = 1;								// テクスチャ配列でも３D配列でもない
-		depth_res_desc.Format = DXGI_FORMAT_R32_TYPELESS;					// 深度値書き込み用フォーマット
+		depth_res_desc.Format = DXGI_FORMAT_R24G8_TYPELESS;					// 深度値書き込み用フォーマット
 		depth_res_desc.SampleDesc.Count = 1;								// サンプルは１ピクセル当たり１つ
 		depth_res_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;		// デプスステンシルとして使用
 
@@ -293,7 +293,7 @@ HRESULT Application::CreateHeaps() noexcept
 		//CD3DX12_CLEAR_VALUE depth_clear_value(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
-		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
+		depth_clear_value.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;	// 32ビットfloat値としてクリア
 
 		hr = m_dev->CreateCommittedResource(
 			&depth_heap_prop,
@@ -318,7 +318,7 @@ HRESULT Application::CreateHeaps() noexcept
 
 		// 深度ビュー
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
 
