@@ -55,6 +55,13 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		sprite = std::make_shared<KGL::Sprite>(device);
+
+		renderer_desc.render_targets.clear();
+		renderer_desc.depth_desc.DepthEnable = TRUE;
+		renderer_desc.depth_desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		renderer_desc.depth_desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		renderer_desc.ps_desc.hlsl = "./HLSL/2D/DepthWriteTextureMS_ps.hlsl";
+		depth_sprite_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 	}
 
 	{	// パーティクル用PSOを作成(描画用)
@@ -425,16 +432,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			
 			// SRV作成(Imgui用も作成)
 			it.depth_srv_handle = depth_srv_desc_mgr->Alloc();
-			it.depth_srv_imgui_handle = desc.imgui_heap_mgr->Alloc();
 			device->CreateShaderResourceView(
 				it.depth_stencil->Data().Get(),
 				&srv_rs_desc,
 				it.depth_srv_handle.Cpu()
-			);
-			device->CreateShaderResourceView(
-				it.depth_stencil->Data().Get(),
-				&srv_rs_desc,
-				it.depth_srv_imgui_handle.Cpu()
 			);
 
 			// Combo用text
@@ -580,15 +581,8 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 		
-		auto msaa_scale = SCAST<UINT>(msaa_selector->GetScale());
-		if (msaa_scale == 0u)
-		{
-			ImGui::Image((ImTextureID)depth_srv_imgui_handle.Gpu().ptr, image_size);
-		}
-		else
-		{
-			ImGui::Image((ImTextureID)msaa_textures[msaa_scale - 1u].depth_srv_imgui_handle.Gpu().ptr, image_size);
-		}
+		ImGui::Image((ImTextureID)depth_srv_imgui_handle.Gpu().ptr, image_size);
+
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
@@ -1230,6 +1224,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			}
 
 			msaa_rtvs->Set(cmd_list, &msaa_tex.dsv_handle.Cpu(), msaa_rtv_num);
+			desc.app->ClearDsv(cmd_list);
 			msaa_rtvs->Clear(cmd_list, msaa_tex.render_target->GetClearColor(), msaa_rtv_num);
 			cmd_list->ClearDepthStencilView(msaa_tex.dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
@@ -1257,19 +1252,40 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				msaa_tex.render_target->Data()->GetDesc().Format
 			);
 
-			{	// RTVSのRTをシェーダーリソース用にバリア
+			{
 				D3D12_RESOURCE_BARRIER barriers[] =
-				{
+				{	// RTVSのRTをシェーダーリソース用にバリア
 					CD3DX12_RESOURCE_BARRIER::Transition(
 						rtvs->GetResources()[rtv_num].Get(),
 						D3D12_RESOURCE_STATE_RESOLVE_DEST,
-						D3D12_RESOURCE_STATE_RENDER_TARGET)
+						D3D12_RESOURCE_STATE_RENDER_TARGET),
+					// Depthをピクセルシェーダー用にバリア
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_tex.depth_stencil->Data().Get(),
+						D3D12_RESOURCE_STATE_DEPTH_WRITE,
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
 				};
-
-
 				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 			}
 
+			// 深度値をコピーする
+			desc.app->SetDsv(cmd_list);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			depth_sprite_renderer->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, depth_srv_desc_mgr->Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, msaa_tex.depth_srv_handle.Gpu());
+			sprite->Render(cmd_list);
+			
+			{
+				D3D12_RESOURCE_BARRIER barriers[] =
+				{	// DepthをDSV用にバリア
+					CD3DX12_RESOURCE_BARRIER::Transition(
+						msaa_tex.depth_stencil->Data().Get(),
+						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+						D3D12_RESOURCE_STATE_DEPTH_WRITE)
+				};
+				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+			}
 			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 			rtvs->Set(cmd_list, dsv_handle, rtv_num);
 			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));

@@ -124,6 +124,10 @@ HRESULT SHADER::Load(const std::shared_ptr<DXC> dxc, const Desc& desc, ComPtr<ID
 	}
 	else
 	{
+		UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+		flags |= D3DCOMPILE_DEBUG;
+#endif
 		ComPtr<ID3DBlob> error_blob;
 		hr = D3DCompileFromFile(
 			desc.hlsl.c_str(),
@@ -131,7 +135,7 @@ HRESULT SHADER::Load(const std::shared_ptr<DXC> dxc, const Desc& desc, ComPtr<ID
 			D3D_COMPILE_STANDARD_FILE_INCLUDE,
 			desc.entry_point.c_str(),
 			desc.version.c_str(),
-			0, 0,
+			flags, 0,
 			code->ReleaseAndGetAddressOf(),
 			error_blob.GetAddressOf()
 		);

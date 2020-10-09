@@ -57,6 +57,7 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			high_sprite_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
+	std::shared_ptr<KGL::BaseRenderer>			depth_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			board_renderer_pos;
@@ -140,7 +141,6 @@ private:
 		KGL::DescriptorHandle						dsv_handle;
 		std::shared_ptr<KGL::Texture>				depth_stencil;
 		KGL::DescriptorHandle						depth_srv_handle;
-		KGL::DescriptorHandle						depth_srv_imgui_handle;
 	};
 	std::vector<MSAARTTextures>							msaa_textures;
 	std::shared_ptr<KGL::RenderTargetView>				msaa_rtvs;

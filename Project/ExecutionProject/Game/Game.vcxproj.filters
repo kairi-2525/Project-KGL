@@ -206,6 +206,7 @@
     <FxCompile Include="HLSL\3D\ParticlePos_vs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticObject_vs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticObject_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\DepthWriteTextureMS_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
