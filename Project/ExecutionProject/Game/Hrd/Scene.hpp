@@ -81,7 +81,7 @@ struct SceneBufferDx12
 	std::shared_ptr<KGL::DescriptorManager>	desc_mgr;
 	KGL::DescriptorHandle					handle;
 	KGL::ComPtr<ID3D12Resource>				buff;
-	_Ty*									mapped_data;
+	_Ty* mapped_data;
 private:
 	UINT64 size_in_bytes;
 public:

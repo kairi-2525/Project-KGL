@@ -6,7 +6,8 @@
 
 SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 	const std::shared_ptr<KGL::DXC>& dxc,
-	std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr, std::string folder,
+	std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
+	UINT max_sample_count, UINT max_sample_quarity, std::string folder,
 	const std::vector<std::pair<std::string, std::string>>& textures,
 	std::string extension)
 {
@@ -105,7 +106,14 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 
 	auto& sampler = renderer_desc.static_samplers[0];
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-	renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
+	renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
+	renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+	// MSAA—p
+	for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+	{
+		renderer_desc.other_desc.sample_desc.Count *= 2;
+		renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
+	}
 
 	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, CUBE::NUM * tex_data.size() + 1);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
@@ -198,10 +206,11 @@ void SkyManager::SetWVP(DirectX::CXMMATRIX wvp)
 	buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
-void SkyManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
+void SkyManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale)
 {
+	RCHECK(SCAST<size_t>(msaa_scale) >= renderers.size(), "msaa_scale ‚ª‘å‚«‚·‚¬‚Ü‚·");
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	renderer->SetState(cmd_list);
+	renderers[msaa_scale]->SetState(cmd_list);
 	cmd_list->SetDescriptorHeaps(1, desc_mgr->Heap().GetAddressOf());
 	cmd_list->SetGraphicsRootDescriptorTable(0, buffer_handle.Gpu());
 	for (int i = 0; i < CUBE::NUM; i++)

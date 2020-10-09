@@ -1,5 +1,6 @@
-#include "../../Hrd/Scenes/Scenes.hpp"
-
+#include "../../Hrd/Scenes/TestScene00.hpp"
+#include "../../Hrd/Scenes/TestScene01.hpp"
+#include "../../Hrd/Scenes/TestScene02.hpp"
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>

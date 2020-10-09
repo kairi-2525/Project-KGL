@@ -51,7 +51,7 @@ private:
 	std::array<D3D12_VERTEX_BUFFER_VIEW, CUBE::NUM>				vbv;
 	std::map<std::string, std::shared_ptr<Tex>>					tex_data;
 	std::shared_ptr<KGL::Resource<Vertex>>						vbr;
-	std::shared_ptr<KGL::BaseRenderer>							renderer;
+	std::vector<std::shared_ptr<KGL::BaseRenderer>>				renderers;
 	std::shared_ptr<KGL::Resource<DirectX::XMFLOAT4X4>>			buffer;
 	std::shared_ptr<KGL::DescriptorManager>						desc_mgr;
 	KGL::DescriptorHandle										buffer_handle;
@@ -62,6 +62,7 @@ public:
 	SkyManager(KGL::ComPtrC<ID3D12Device> device,
 		const std::shared_ptr<KGL::DXC>& dxc, 
 		std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
+		UINT max_sample_count, UINT max_sample_quarity,
 		std::string folder = "./Assets/Textures/Sky/",
 		const std::vector<std::pair<std::string, std::string>>& textures = TEXTURES,
 		std::string extension = ".DDS");
@@ -69,6 +70,6 @@ public:
 	void UpdateGui();
 	void Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewproj);
 	void SetWVP(DirectX::CXMMATRIX wvp);
-	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
+	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale);
 	void Uninit(std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr);
 };

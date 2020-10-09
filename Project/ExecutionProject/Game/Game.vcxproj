@@ -213,7 +213,6 @@
     <ClInclude Include="Hrd\ParticleManager.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />
-    <ClInclude Include="Hrd\Scenes\Scenes.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene00.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene01.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene02.hpp" />

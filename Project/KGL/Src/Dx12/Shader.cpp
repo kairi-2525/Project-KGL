@@ -172,34 +172,34 @@ Shader::Shader(
 		if (!vs.hlsl.empty())
 		{
 			hr = Load(dxc, vs, &m_vs);
-			RCHECK(FAILED(hr), "VSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + vs.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs", "VSÇÃê∂ê¨Ç…é∏îs");
 		}
 		// PS
 		if (!ps.hlsl.empty())
 		{
 			// PS
 			hr = Load(dxc, ps, &m_ps);
-			RCHECK(FAILED(hr), "PSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + ps.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs","PSÇÃê∂ê¨Ç…é∏îs");
 		}
 		// DS
 		if (!ds.hlsl.empty())
 		{
 			hr = Load(dxc, ds, &m_ds);
-			RCHECK(FAILED(hr), "DSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + ds.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs", "DSÇÃê∂ê¨Ç…é∏îs");
 		}
 		// HS
 		if (!hs.hlsl.empty())
 		{
 			// HS
 			hr = Load(dxc, hs, &m_hs);
-			RCHECK(FAILED(hr), "HSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + hs.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs", "HSÇÃê∂ê¨Ç…é∏îs");
 		}
 		// GS
 		if (!gs.hlsl.empty())
 		{
 			// GS
 			hr = Load(dxc, gs, &m_gs);
-			RCHECK(FAILED(hr), "GSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + gs.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs", "GSÇÃê∂ê¨Ç…é∏îs");
 		}
 	}
 	catch (std::runtime_error& exception)
@@ -225,7 +225,7 @@ ShaderCS::ShaderCS(const std::shared_ptr<DXC> dxc, const SHADER::Desc& cs) noexc
 		{
 			// CS
 			hr = Load(dxc, cs, &m_cs);
-			RCHECK(FAILED(hr), "CSÇÃê∂ê¨Ç…é∏îs");
+			RCHECK_STR(FAILED(hr), "[" + cs.hlsl.string() + "] ÇÃê∂ê¨Ç…é∏îs", "CSÇÃê∂ê¨Ç…é∏îs");
 		}
 	}
 	catch (std::runtime_error& exception)

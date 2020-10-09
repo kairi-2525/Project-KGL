@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../Scene.hpp"
 #include <Dx12/Texture.hpp>
 #include <Loader/PMDLoader.hpp>
 #include <Loader/VMDLoader.hpp>
@@ -28,6 +27,7 @@
 #include "../ParticleManager.hpp"
 #include "../Debug.hpp"
 #include "../MSAA.hpp"
+#include "../Scene.hpp"
 
 class TestScene04 : public SceneBase
 {
@@ -35,6 +35,14 @@ class TestScene04 : public SceneBase
 	{
 		DirectX::XMFLOAT4X4 mat;
 		DirectX::XMFLOAT4 color;
+	};
+	struct RenderTargetResource
+	{
+		std::vector<std::shared_ptr<KGL::Texture>>	render_targets;
+		std::shared_ptr<KGL::RenderTargetView>		rtvs;
+		KGL::DescriptorHandle						dsv_handle;
+		std::shared_ptr<KGL::Texture>				depth_stencil;
+		KGL::DescriptorHandle						depth_srv_handle;
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
@@ -91,11 +99,11 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
 	std::shared_ptr<KGL::CommandQueue>			cpt_cmd_queue;
 
-	std::shared_ptr<KGL::RenderTargetView>		rtvs;
-	std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
-	std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
-	std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_texs;
-	std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
+	//std::shared_ptr<KGL::RenderTargetView>		rtvs;
+	//std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
+	//std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
+	//std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_texs;
+	//std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
 
 	std::shared_ptr<ParticleManager>			ptc_mgr;
 	std::shared_ptr<ParticleManager>			pl_shot_ptc_mgr;
@@ -135,18 +143,11 @@ private:
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
 
-	struct MSAARTTextures
-	{
-		std::shared_ptr<KGL::Texture>				render_target;
-		KGL::DescriptorHandle						dsv_handle;
-		std::shared_ptr<KGL::Texture>				depth_stencil;
-		KGL::DescriptorHandle						depth_srv_handle;
-	};
-	std::vector<MSAARTTextures>							msaa_textures;
-	std::shared_ptr<KGL::RenderTargetView>				msaa_rtvs;
+	std::vector<RenderTargetResource>					rt_resources;
 	std::shared_ptr<KGL::DescriptorManager>				msaa_dsv_descriptor;
 	std::shared_ptr<MSAASelector>						msaa_selector;
 	std::vector<std::string>							msaa_combo_texts;
+	bool												msaa_depth_draw;	// MSAA描画時に深度テクスチャをチェックしている際に使用されます。
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

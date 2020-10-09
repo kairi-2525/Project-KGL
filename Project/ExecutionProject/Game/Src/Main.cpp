@@ -10,8 +10,8 @@
 #include <Base/Input.hpp>
 
 #include "../Hrd/Scene.hpp"
-#include "../Hrd/Scenes/TestSceneBase.hpp"
-#include "../Hrd/Scenes/Scenes.hpp"
+#include "../Hrd/Scenes/TestScene04.hpp"
+
 
 #include "../Hrd/SceneGame.hpp"
 

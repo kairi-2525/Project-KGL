@@ -1,4 +1,6 @@
-#include "../../Hrd/Scenes/Scenes.hpp"
+#include "../../Hrd/Scenes/TestScene01.hpp"
+#include "../../Hrd/Scenes/TestScene02.hpp"
+#include "../../Hrd/Scenes/TestScene03.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -73,9 +75,9 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 	{
 		D3D12_CLEAR_VALUE depth_clear_value = {};
 		depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
-		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT;	// 32ビットfloat値としてクリア
+		depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;	// 32ビットfloat値としてクリア
 		auto texture_desc = CD3DX12_RESOURCE_DESC::Tex2D(
-			DXGI_FORMAT_R32_TYPELESS,
+			DXGI_FORMAT_R32G8X24_TYPELESS,
 			SHADOW_DIFINITION, SHADOW_DIFINITION
 		);
 		texture_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
@@ -91,7 +93,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 			device, 1u, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		light_dsv_handle = light_dsv_desc_mgr->Alloc();
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT;
+		dsv_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 		dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
 		device->CreateDepthStencilView(light_dsv->Data().Get(), &dsv_desc, light_dsv_handle.Cpu());
@@ -100,7 +102,7 @@ HRESULT TestScene02::Load(const SceneDesc& desc)
 	dsv_srv_handle = dsv_srv_desc_mgr->Alloc();
 	{
 		D3D12_SHADER_RESOURCE_VIEW_DESC res_desc = {};
-		res_desc.Format = DXGI_FORMAT_R32_FLOAT;
+		res_desc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
 		res_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		res_desc.Texture2D.MipLevels = 1;
 		res_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;

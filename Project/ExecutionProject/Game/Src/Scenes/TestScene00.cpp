@@ -1,9 +1,12 @@
-#include "../../Hrd/Scenes/Scenes.hpp"
+#include "../../Hrd/Scene.hpp"
+#include "../../Hrd/Scenes/TestScene04.hpp"
+#include "../../Hrd/Scenes/TestScene00.hpp"
+#include "../../Hrd/Scenes/TestScene01.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
-#include <Dx12/BlendState.hpp>A
+#include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
 
@@ -151,7 +154,7 @@ HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
 	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
-		SetNextScene<SceneBack>(desc);
+		SetNextScene<TestScene04>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
 		SetNextScene<TestScene01>(desc);
 
