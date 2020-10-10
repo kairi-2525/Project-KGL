@@ -18,6 +18,8 @@ private:
 	TYPE max_scale;
 	TYPE set_scale;
 public:
+	static UINT TypeToCount(TYPE scale);
+public:
 	MSAASelector(UINT max_sample_count);
 	TYPE GetMaxScale() const { return max_scale; }
 	void SetScale(TYPE scale);

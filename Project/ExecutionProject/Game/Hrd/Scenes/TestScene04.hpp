@@ -31,6 +31,13 @@
 
 class TestScene04 : public SceneBase
 {
+	enum RT : UINT
+	{
+		NON_BLOOM,
+		BLOOM,
+		PTC_BLOOM,
+		PTC_NON_BLOOM
+	};
 	struct CbvParam
 	{
 		DirectX::XMFLOAT4X4 mat;
@@ -38,11 +45,17 @@ class TestScene04 : public SceneBase
 	};
 	struct RenderTargetResource
 	{
-		std::vector<std::shared_ptr<KGL::Texture>>	render_targets;
+		struct Texture
+		{
+			std::shared_ptr<KGL::Texture>		tex;
+			KGL::DescriptorHandle				gui_srv_handle;
+		};
+		std::vector<Texture>						render_targets;
 		std::shared_ptr<KGL::RenderTargetView>		rtvs;
 		KGL::DescriptorHandle						dsv_handle;
 		std::shared_ptr<KGL::Texture>				depth_stencil;
 		KGL::DescriptorHandle						depth_srv_handle;
+		KGL::DescriptorHandle						depth_gui_srv_handle;
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
@@ -103,7 +116,6 @@ private:
 	//std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
 	//std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
 	//std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_texs;
-	//std::vector<KGL::DescriptorHandle>			ptc_srv_gui_handles;
 
 	std::shared_ptr<ParticleManager>			ptc_mgr;
 	std::shared_ptr<ParticleManager>			pl_shot_ptc_mgr;
@@ -136,18 +148,18 @@ private:
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
 
-	KGL::DescriptorHandle								depth_srv_handle;
-	KGL::DescriptorHandle								depth_srv_imgui_handle;
-	std::shared_ptr<KGL::DescriptorManager>				depth_srv_desc_mgr;
-
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
 
 	std::vector<RenderTargetResource>					rt_resources;
-	std::shared_ptr<KGL::DescriptorManager>				msaa_dsv_descriptor;
+	std::shared_ptr<KGL::DescriptorManager>				depth_dsv_descriptor;
+	std::shared_ptr<KGL::DescriptorManager>				depth_srv_descriptor;
 	std::shared_ptr<MSAASelector>						msaa_selector;
 	std::vector<std::string>							msaa_combo_texts;
 	bool												msaa_depth_draw;	// MSAA描画時に深度テクスチャをチェックしている際に使用されます。
+private:
+	// レンダーターゲットとデプスステンシルを作成します。
+	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
