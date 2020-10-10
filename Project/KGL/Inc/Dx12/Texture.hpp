@@ -33,9 +33,10 @@ namespace KGL
 		class Texture
 		{
 		private:
-			std::filesystem::path m_path;
-			ComPtr<ID3D12Resource> m_buffer;
-			std::unique_ptr<DirectX::XMFLOAT4> m_clear_value;
+			std::filesystem::path				m_path;
+			ComPtr<ID3D12Resource>				m_buffer;
+			std::unique_ptr<DirectX::XMFLOAT4>	m_clear_value;
+			D3D12_RESOURCE_STATES				m_resource_state;
 		public:
 			Texture() = default;
 			const Texture& operator=(const Texture& tex) noexcept
@@ -117,6 +118,8 @@ namespace KGL
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
 			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
 			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }
+			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept;
+			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES after) noexcept { return RB(m_resource_state, after); }
 		};
 		
 		namespace TEXTURE

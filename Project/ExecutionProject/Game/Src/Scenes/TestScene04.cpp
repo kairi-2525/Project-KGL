@@ -44,7 +44,8 @@ HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC samp
 	rtrc.render_targets.push_back({ std::make_shared<KGL::Texture>(
 		device, res_desc, CD3DX12_CLEAR_VALUE(res_desc.Format, (float*)&clear_value)) });
 
-	std::vector<ComPtr<ID3D12Resource>> resources(rtrc.render_targets.size());
+	std::vector<ComPtr<ID3D12Resource>> resources;
+	resources.reserve(rtrc.render_targets.size());
 	for (auto& it : rtrc.render_targets) resources.push_back(it.tex->Data());
 	rtrc.rtvs = std::make_shared<KGL::RenderTargetView>(device, resources, nullptr,
 		sample_desc.Count == 1 ? D3D12_SRV_DIMENSION_TEXTURE2D : D3D12_SRV_DIMENSION_TEXTURE2DMS);
@@ -148,8 +149,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
-	const auto max_sample_count = desc.app->GetMaxSampleCount();
-	const auto max_sample_quality = desc.app->GetMaxQualityLevel();
+	DXGI_SAMPLE_DESC max_sample_desc = { desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel() };
 
 	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
@@ -389,7 +389,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fireworks.reserve(10000u);
 
 	
-	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_count, max_sample_quality);
+	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
 
 	{
 		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
@@ -429,10 +429,9 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
-	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_count, max_sample_quality);
+	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_desc);
 
 	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
-	msaa_combo_texts.push_back("OFF");
 
 	// 深度DSV用
 	depth_dsv_descriptor = 
@@ -452,7 +451,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		PrepareRTAndDS(desc, sample_desc);
 		sample_desc.Count *= 2;
 	}
-
 	return hr;
 }
 
@@ -568,7 +566,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	}
 
 	// MSAAをのセレクターに最大値をセット
-	msaa_selector->SetScale(msaa_selector->GetMaxScale());
+	// msaa_selector->SetScale(msaa_selector->GetMaxScale());
 
 	return S_OK;
 }
@@ -1489,29 +1487,73 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 #else
 HRESULT TestScene04::Render(const SceneDesc& desc)
 {
-	//using KGL::SCAST;
-	//HRESULT hr = S_OK;
+	using KGL::SCAST;
+	HRESULT hr = S_OK;
 
-	//auto window_size = desc.window->GetClientSize();
-	//const DirectX::XMFLOAT2 window_sizef = { SCAST<FLOAT>(window_size.x), SCAST<FLOAT>(window_size.y) };
-	//
-	//// ビューとシザーをセット
-	//D3D12_VIEWPORT viewport = 
-	//	CD3DX12_VIEWPORT(window_sizef.x, window_sizef.y, 0.f, 0.f);
-	//auto scissorrect = 
-	//	CD3DX12_RECT(0, 0, window_size.x, window_size.y);
-	//cmd_list->RSSetViewports(1, &viewport);
-	//cmd_list->RSSetScissorRects(1, &scissorrect);
+	auto window_size = desc.window->GetClientSize();
+	const DirectX::XMFLOAT2 window_sizef = { SCAST<FLOAT>(window_size.x), SCAST<FLOAT>(window_size.y) };
+	
+	// ビューとシザーをセット
+	D3D12_VIEWPORT viewport = 
+		CD3DX12_VIEWPORT(0.f, 0.f, window_sizef.x, window_sizef.y);
+	auto scissorrect = 
+		CD3DX12_RECT(0, 0, window_size.x, window_size.y);
+	cmd_list->RSSetViewports(1, &viewport);
+	cmd_list->RSSetScissorRects(1, &scissorrect);
 
-	//// MSAA識別用
-	//const UINT msaa_scale = msaa_selector->GetScale();
-	//const bool msaa = msaa_scale != 0u;
+	// MSAA識別用
+	const UINT msaa_scale = msaa_selector->GetScale();
+	const bool msaa = msaa_scale != 0u;
 
-	//{
-
-	//}
+	const auto& rtrc = rt_resources[msaa_scale];
 
 	ImGui::Render();
+
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::NON_BLOOM));
+	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::NON_BLOOM);
+	rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::NON_BLOOM].tex->GetClearColor(), RT::NON_BLOOM);
+	desc.app->ClearDsv(cmd_list);
+	sky_mgr->Render(cmd_list, msaa_scale);
+	debug_mgr->Render(cmd_list, msaa_scale);
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::NON_BLOOM));
+
+	if (msaa)
+	{
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->SetRtv(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+	}
+	else
+	{
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->SetRtv(cmd_list);
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		sprite_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtrc.rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::NON_BLOOM));
+		sprite->Render(cmd_list);
+
+		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
+		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+	}
+	
+	cmd_list->Close();
+	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+	desc.app->GetQueue()->Signal();
+	desc.app->GetQueue()->Wait();
+
+	cmd_allocator->Reset();
+	cmd_list->Reset(cmd_allocator.Get(), nullptr);
+
+	if (desc.app->IsTearingSupport())
+		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+	else
+		desc.app->GetSwapchain()->Present(1, 1);
 
 	return S_OK;
 }

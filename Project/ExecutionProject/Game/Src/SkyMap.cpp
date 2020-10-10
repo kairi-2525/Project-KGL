@@ -7,7 +7,7 @@
 SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 	const std::shared_ptr<KGL::DXC>& dxc,
 	std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
-	UINT max_sample_count, UINT max_sample_quarity, std::string folder,
+	DXGI_SAMPLE_DESC max_sample_desc, std::string folder,
 	const std::vector<std::pair<std::string, std::string>>& textures,
 	std::string extension)
 {
@@ -109,7 +109,7 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 	renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
 	renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 	// MSAA—p
-	for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+	for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 	{
 		renderer_desc.other_desc.sample_desc.Count *= 2;
 		renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));

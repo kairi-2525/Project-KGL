@@ -74,6 +74,7 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	const std::filesystem::path& path, TextureManager* mgr) noexcept
 {
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	m_path = path;
 	TexMetadata metadata = {};
 	ScratchImage scratch_img = {};
@@ -168,6 +169,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR r, UCHAR g, UCHAR b, UCHAR a, TextureManager* mgr) noexcept
 {
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	{
 #pragma warning( disable : 4293 )
 		std::stringstream ss;
@@ -238,6 +240,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
 	UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height, TextureManager* mgr) noexcept
 {
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	{
 #pragma warning( disable : 4293 )
 		std::stringstream ss;
@@ -320,6 +323,7 @@ HRESULT Texture::Create(
 	D3D12_RESOURCE_STATES res_state
 ) noexcept
 {
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	if (m_path.empty()) m_path = "noname";
 
 	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -342,6 +346,7 @@ HRESULT Texture::Create(
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 {
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	if (m_path.empty()) m_path = "noname";
 	HRESULT hr = S_OK;
 	RCHECK(!resource, "ïsê≥Ç»ResourceÇ™ìnÇ≥ÇÍÇ‹ÇµÇΩ", E_FAIL);
@@ -362,4 +367,10 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	);
 	RCHECK(FAILED(hr), "CreateCommittedResourceÇ…é∏îs", hr);
 	return hr;
+}
+
+D3D12_RESOURCE_BARRIER Texture::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept
+{
+	m_resource_state = after;
+	return CD3DX12_RESOURCE_BARRIER::Transition(m_buffer.Get(), m_resource_state, after);
 }

@@ -62,7 +62,7 @@ public:
 	SkyManager(KGL::ComPtrC<ID3D12Device> device,
 		const std::shared_ptr<KGL::DXC>& dxc, 
 		std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr,
-		UINT max_sample_count, UINT max_sample_quarity,
+		DXGI_SAMPLE_DESC max_sample_desc,
 		std::string folder = "./Assets/Textures/Sky/",
 		const std::vector<std::pair<std::string, std::string>>& textures = TEXTURES,
 		std::string extension = ".DDS");

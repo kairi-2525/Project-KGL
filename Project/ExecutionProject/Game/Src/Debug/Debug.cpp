@@ -3,7 +3,7 @@
 #include <DirectXTex/d3dx12.h>
 
 DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc,
-	UINT max_sample_count, UINT max_sample_quarity)
+	DXGI_SAMPLE_DESC max_sample_desc)
 {
 	s_obj_wire = false;
 	s_obj_changed = false;
@@ -105,7 +105,7 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 		s_obj_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		// MSAA—p
-		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
 			s_obj_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
@@ -116,7 +116,7 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		s_obj_wire_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
 		// MSAA—p
-		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_count;)
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
 			s_obj_wire_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, dxc, renderer_desc));
