@@ -92,7 +92,7 @@ HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC samp
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_rs_desc = {};
 		srv_rs_desc.Format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
 		srv_rs_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		if (sample_desc.Count <= 1u)
+		if (sample_desc.Count == 1u)
 		{
 			dsv_resource = desc.app->GetDsvBuffer();
 			srv_rs_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -151,6 +151,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	const auto& device = desc.app->GetDevice();
 	DXGI_SAMPLE_DESC max_sample_desc = { desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel() };
 
+	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
+
 	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
@@ -191,6 +193,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	{	// パーティクル用PSOを作成(描画用)
+		board_renderers.resize(msaa_selector->GetMaxScale() + 1u);
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
 		//renderer_desc.depth_desc = {};
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
@@ -264,9 +267,32 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.clear();
 		renderer_desc.render_targets.reserve(2u);
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/ParticleDepth_ps.hlsl";
-		board_renderer_dsv = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].dsv 
+			= std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		UINT idx = 1u;
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			board_renderers[idx++].dsv = 
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		}
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
+		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
-		board_renderer_dsv_pos = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].dsv_add_pos = 
+			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		idx = 1u;
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			board_renderers[idx++].dsv_add_pos = 
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		}
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
+		renderer_desc.other_desc.sample_desc.Count = 1u;
+
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/Particle_ps.hlsl";
@@ -275,10 +301,31 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.depth_desc = {};
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
-		board_renderer = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].simple =
+			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		idx = 1u;
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			board_renderers[idx++].simple =
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		}
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
+		renderer_desc.other_desc.sample_desc.Count = 1u;
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
-		board_renderer_pos = std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].add_pos =
+			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		idx = 1u;
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			board_renderers[idx++].add_pos =
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		}
 
 		board = std::make_shared<KGL::Board>(device);
 	}
@@ -430,8 +477,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_desc);
-
-	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
 
 	// 深度DSV用
 	depth_dsv_descriptor = 
@@ -585,7 +630,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 		
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].depth_srv_handle.Gpu().ptr, image_size);
+		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].depth_gui_srv_handle.Gpu().ptr, image_size);
 		msaa_depth_draw = true;
 		ImGui::TreePop();
 	}
@@ -1509,6 +1554,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	ImGui::Render();
 
+	// Sky と Debug を RT::NON_BLOOM に描画
 	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::NON_BLOOM));
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::NON_BLOOM);
@@ -1517,6 +1563,61 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	sky_mgr->Render(cmd_list, msaa_scale);
 	debug_mgr->Render(cmd_list, msaa_scale);
 	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::NON_BLOOM));
+
+	
+	{	// パーティクルを描画
+		const UINT rt_num = 2u;
+		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
+		cmd_list->ResourceBarrier(rtrbs.size(), rtrbs.data());
+		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
+		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);
+
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
+		board_renderers[msaa_scale].simple->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+		if (b_select_srv_handle)
+		{
+			cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
+		}
+
+		const auto ptc_size = ptc_mgr->Size();
+		if (ptc_size > 0)
+		{
+			cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
+			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+		}
+
+		board_renderers[msaa_scale].add_pos->SetState(cmd_list);
+		fc_mgr->Render(cmd_list);
+
+		// 被写界深度用にパーティクルの深度値を書き込む
+		if (dof_flg)
+		{
+			board_renderers[msaa_scale].dsv->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
+			if (b_select_srv_handle)
+			{
+				cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
+				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
+			}
+			if (ptc_size > 0)
+			{
+				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
+				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+			}
+
+			board_renderers[msaa_scale].dsv_add_pos->SetState(cmd_list);
+			fc_mgr->Render(cmd_list);
+		}
+
+		const auto& prrbs = rtrc.rtvs->GetRtvResourceBarriers(false, RT::PTC_NON_BLOOM, rt_num);
+		cmd_list->ResourceBarrier(prrbs.size(), prrbs.data());
+	}
+
+	//bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport);
 
 	if (msaa)
 	{

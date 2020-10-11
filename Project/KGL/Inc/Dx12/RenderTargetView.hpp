@@ -35,16 +35,18 @@ namespace KGL
 			const std::vector<ComPtr<ID3D12Resource>>& GetResources() const noexcept { return m_buffers; }
 
 			HRESULT Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-				const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle, UINT num = 0u) const noexcept;
+				const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle, UINT start_num = 0u, UINT count = 1u) const noexcept;
 			HRESULT SetAll(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
 				const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle) const noexcept;
 			HRESULT Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-				const DirectX::XMFLOAT4& clear_color, UINT num = 0u) const noexcept
-			{ return Clear(cmd_list, (const float*)&clear_color, num); }
+				const DirectX::XMFLOAT4& clear_color, UINT start_num = 0u, UINT count = 1u) const noexcept
+			{ return Clear(cmd_list, (const float*)&clear_color, start_num, count); }
 			HRESULT Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-				const float* clear_color, UINT num = 0u) const noexcept;
+				const float* clear_color, UINT start_num = 0u, UINT count = 1u) const noexcept;
 			D3D12_RESOURCE_BARRIER GetRtvResourceBarrier(bool render_target, UINT num = 0u) noexcept;
-			std::vector<D3D12_RESOURCE_BARRIER> GetRtvResourceBarriers(bool render_target) noexcept;
+			std::vector<D3D12_RESOURCE_BARRIER> GetRtvResourceBarriers(bool render_target) noexcept
+			{ return GetRtvResourceBarriers(render_target, 0u, SCAST<UINT>(m_buffers.size())); }
+			std::vector<D3D12_RESOURCE_BARRIER> GetRtvResourceBarriers(bool render_target, UINT start_num, UINT count) noexcept;
 		};
 	}
 }

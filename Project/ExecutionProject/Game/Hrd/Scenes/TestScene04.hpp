@@ -35,8 +35,8 @@ class TestScene04 : public SceneBase
 	{
 		NON_BLOOM,
 		BLOOM,
-		PTC_BLOOM,
-		PTC_NON_BLOOM
+		PTC_NON_BLOOM,
+		PTC_BLOOM
 	};
 	struct CbvParam
 	{
@@ -56,6 +56,13 @@ class TestScene04 : public SceneBase
 		std::shared_ptr<KGL::Texture>				depth_stencil;
 		KGL::DescriptorHandle						depth_srv_handle;
 		KGL::DescriptorHandle						depth_gui_srv_handle;
+	};
+	struct BoardRenderers
+	{
+		std::shared_ptr<KGL::BaseRenderer>			simple;
+		std::shared_ptr<KGL::BaseRenderer>			add_pos;
+		std::shared_ptr<KGL::BaseRenderer>			dsv;
+		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
@@ -80,10 +87,7 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
 	std::shared_ptr<KGL::BaseRenderer>			depth_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
-	std::shared_ptr<KGL::BaseRenderer>			board_renderer;
-	std::shared_ptr<KGL::BaseRenderer>			board_renderer_pos;
-	std::shared_ptr<KGL::BaseRenderer>			board_renderer_dsv;
-	std::shared_ptr<KGL::BaseRenderer>			board_renderer_dsv_pos;
+	std::vector<BoardRenderers>					board_renderers;
 	std::shared_ptr<KGL::Board>					board;
 	std::shared_ptr<KGL::DescriptorManager>		b_cbv_descmgr;
 	KGL::DescriptorHandle						b_cbv;

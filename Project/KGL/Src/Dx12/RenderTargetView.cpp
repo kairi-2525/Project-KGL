@@ -134,13 +134,22 @@ HRESULT RenderTargetView::GetDevice(ComPtr<ID3D12Device>* p_device) const noexce
 }
 
 HRESULT RenderTargetView::Set(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle, UINT num) const noexcept
+	const D3D12_CPU_DESCRIPTOR_HANDLE* p_dsv_handle, UINT start_num, UINT count) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list ‚ª nullptr", E_FAIL);
-	RCHECK(num >= m_buffers.size(), "num ‚Ì’l‚ª‘å‚«‚·‚¬‚Ü‚·", E_FAIL);
+	RCHECK(start_num + count > m_buffers.size(), "“n‚³‚ê‚½’l‚ª‘å‚«‚·‚¬‚Ü‚·", E_FAIL);
+	RCHECK(count == 0u, "“n‚³‚ê‚½’l‚ª¬‚³‚·‚¬‚Ü‚·", E_FAIL);
+
+	std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> handles(count);
+	UINT idx = 0u;
+	for (auto& handle : handles)
+	{
+		handle = GetRTVCPUHandle(start_num + idx);
+		idx++;
+	}
 
 	cmd_list->OMSetRenderTargets(
-		1, &GetRTVCPUHandle(num), false,
+		count, handles.data(), false,
 		p_dsv_handle
 	);
 
@@ -185,13 +194,17 @@ HRESULT RenderTargetView::SetAll(const ComPtr<ID3D12GraphicsCommandList>& cmd_li
 }
 
 HRESULT RenderTargetView::Clear(const ComPtr<ID3D12GraphicsCommandList>& cmd_list,
-	const float* clear_color, UINT num) const noexcept
+	const float* clear_color, UINT start_num, UINT count) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list ‚ª nullptr", E_FAIL);
-	RCHECK(num >= m_buffers.size(), "num ‚Ì’l‚ª‘å‚«‚·‚¬‚Ü‚·", E_FAIL);
+	RCHECK(start_num + count > m_buffers.size(), "“n‚³‚ê‚½’l‚ª‘å‚«‚·‚¬‚Ü‚·", E_FAIL);
+	RCHECK(count == 0u, "“n‚³‚ê‚½’l‚ª¬‚³‚·‚¬‚Ü‚·", E_FAIL);
 	RCHECK(!clear_color, "clear_color ‚ª nullptr", E_FAIL);
 
-	cmd_list->ClearRenderTargetView(GetRTVCPUHandle(num), clear_color, 0, nullptr);
+	for (UINT i = 0u; i < count; i++)
+	{
+		cmd_list->ClearRenderTargetView(GetRTVCPUHandle(start_num + i), clear_color, 0, nullptr);
+	}
 
 	return S_OK;
 }
@@ -213,13 +226,15 @@ D3D12_RESOURCE_BARRIER RenderTargetView::GetRtvResourceBarrier(bool render_targe
 		);
 }
 
-std::vector<D3D12_RESOURCE_BARRIER> RenderTargetView::GetRtvResourceBarriers(bool render_target) noexcept
+std::vector<D3D12_RESOURCE_BARRIER> RenderTargetView::GetRtvResourceBarriers(bool render_target, UINT start_num, UINT count) noexcept
 {
+	RCHECK(SCAST<size_t>(start_num) + count > m_buffers.size(), "“n‚³‚ê‚½’l‚ª‘å‚«‚·‚¬‚Ü‚·", {});
+	RCHECK(count == 0, "“n‚³‚ê‚½’l‚ª¬‚³‚·‚¬‚Ü‚·", {});
 	const size_t buffer_num = m_buffers.size();
-	std::vector<D3D12_RESOURCE_BARRIER> rbs(buffer_num);
-	for (auto i = 0; i < buffer_num; i++)
+	std::vector<D3D12_RESOURCE_BARRIER> rbs(count);
+	for (auto i = 0; i < count; i++)
 	{
-		rbs[i] = GetRtvResourceBarrier(render_target, i);
+		rbs[i] = GetRtvResourceBarrier(render_target, start_num + i);
 	}
 	return std::move(rbs);
 }
