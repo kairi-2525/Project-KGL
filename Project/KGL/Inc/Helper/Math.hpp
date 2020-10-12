@@ -49,5 +49,26 @@ namespace KGL
 
 			return  S * R * T;
 		}
+
+		// ‰~‚Ì–ÊÏ
+		inline float CircleArea(float radius)
+		{
+			return (DirectX::XM_PI * radius) * (DirectX::XM_PI * radius);
+		}
+		// ‰~ü‚Ì’·‚³
+		inline float Circumferencelength(float radius)
+		{
+			return DirectX::XM_2PI * radius;
+		}
+		// îŒ`‚ÌŒÊ‚Ì–ÊÏ
+		inline float ArcArea(float radius, float radian)
+		{
+			return CircleArea(radius) * (radian / DirectX::XM_2PI);
+		}
+		// îŒ`‚ÌŒÊ‚Ì’·‚³
+		inline float ArcLength(float radius, float radian)
+		{
+			return Circumferencelength(radius) * (radian / DirectX::XM_2PI);
+		}
 	}
 }
