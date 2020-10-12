@@ -85,6 +85,9 @@ namespace KGL
 				return m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()];
 			}
 			const DXGI_ADAPTER_DESC1& GetDesc() const noexcept { return m_desc; };
+			DXGI_SWAP_CHAIN_DESC GetSCDesc() const noexcept { DXGI_SWAP_CHAIN_DESC desc{}; m_swapchain->GetDesc(&desc); return desc; }
+			DXGI_SWAP_CHAIN_DESC1 GetSCDesc1() const noexcept { DXGI_SWAP_CHAIN_DESC1 desc{}; m_swapchain->GetDesc1(&desc); return desc; }
+			DirectX::XMUINT2 GetResolution() const noexcept { const auto& desc = GetSCDesc().BufferDesc; return { desc.Width, desc.Height }; }
 		};
 
 		using App = Application;

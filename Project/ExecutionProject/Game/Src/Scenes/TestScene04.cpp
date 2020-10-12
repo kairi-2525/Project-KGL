@@ -439,7 +439,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
 
 	{
-		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
+		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0), max_sample_desc);
 		
 		const auto& tex = bloom_generator->GetTextures();
 		UINT idx = 0u;
@@ -504,14 +504,15 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	using namespace DirectX;
 
 	auto window_size = desc.window->GetClientSize();
+	auto resolution = desc.app->GetResolution();
 
-	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30.f);
+	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30000.f);
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
-		static_cast<float>(window_size.x) / static_cast<float>(window_size.y),	// アスペクト比
+		static_cast<float>(resolution.x) / static_cast<float>(resolution.y),	// アスペクト比
 		1.0f, 1000.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
@@ -699,6 +700,15 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		use_gui = !use_gui;
 
 	fc_mgr->Update(elapsed_time);
+
+	{
+		auto msaa_scale = SCAST<UINT>(msaa_selector->GetScale());
+		if (input->IsKeyPressed(KGL::KEYS::NUMPAD8))
+			msaa_scale++;
+		if (input->IsKeyPressed(KGL::KEYS::NUMPAD2))
+			msaa_scale--;
+		msaa_selector->SetScale(SCAST<MSAASelector::TYPE>(msaa_scale));
+	}
 	if (use_gui)
 	{
 		ParticleParent pp{};
@@ -1535,14 +1545,15 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
-	auto window_size = desc.window->GetClientSize();
-	const DirectX::XMFLOAT2 window_sizef = { SCAST<FLOAT>(window_size.x), SCAST<FLOAT>(window_size.y) };
+	//auto window_size = desc.window->GetClientSize();
+	auto resolution = desc.app->GetResolution();
+	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
 	
 	// ビューとシザーをセット
 	D3D12_VIEWPORT viewport = 
-		CD3DX12_VIEWPORT(0.f, 0.f, window_sizef.x, window_sizef.y);
+		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
 	auto scissorrect = 
-		CD3DX12_RECT(0, 0, window_size.x, window_size.y);
+		CD3DX12_RECT(0, 0, resolution.x, resolution.y);
 	cmd_list->RSSetViewports(1, &viewport);
 	cmd_list->RSSetScissorRects(1, &scissorrect);
 
@@ -1551,6 +1562,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	const bool msaa = msaa_scale != 0u;
 
 	const auto& rtrc = rt_resources[msaa_scale];
+	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
 
 	ImGui::Render();
 
@@ -1559,7 +1571,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::NON_BLOOM);
 	rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::NON_BLOOM].tex->GetClearColor(), RT::NON_BLOOM);
-	desc.app->ClearDsv(cmd_list);
+	cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	sky_mgr->Render(cmd_list, msaa_scale);
 	debug_mgr->Render(cmd_list, msaa_scale);
 	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::NON_BLOOM));
@@ -1617,30 +1629,47 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(prrbs.size(), prrbs.data());
 	}
 
-	//bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport);
+	//bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, msaa_scale);
 
 	if (msaa)
 	{
-		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->SetRtv(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
-		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
-	}
-	else
-	{
-		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
-		desc.app->SetRtv(cmd_list);
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		sprite_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, rtrc.rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::NON_BLOOM));
-		sprite->Render(cmd_list);
+		// MSAA用RTを元リソース用にバリア / RTVSのRTを宛先リソース用にバリア
+		{
+			D3D12_RESOURCE_BARRIER barriers[] =
+			{
+				rtrc.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+				rtrc_off.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_DEST)
+			};
+			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+		}
+		// コピー
+		cmd_list->ResolveSubresource(
+			rtrc_off.render_targets[RT::NON_BLOOM].tex->Data().Get(), 0,
+			rtrc.render_targets[RT::NON_BLOOM].tex->Data().Get(), 0,
+			rtrc_off.render_targets[RT::NON_BLOOM].tex->Data()->GetDesc().Format
+		);
+		{
 
-		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
-		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+			D3D12_RESOURCE_BARRIER barriers[] =
+			{
+				rtrc.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+				rtrc_off.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+			};
+			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
+		}
 	}
+
+	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+	desc.app->SetRtv(cmd_list);
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	sprite_renderer->SetState(cmd_list);
+	cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::NON_BLOOM));
+	sprite->Render(cmd_list);
+
+	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
+	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
 	
 	cmd_list->Close();
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };

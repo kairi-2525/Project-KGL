@@ -372,5 +372,5 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 D3D12_RESOURCE_BARRIER Texture::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept
 {
 	m_resource_state = after;
-	return CD3DX12_RESOURCE_BARRIER::Transition(m_buffer.Get(), m_resource_state, after);
+	return CD3DX12_RESOURCE_BARRIER::Transition(m_buffer.Get(), before, after);
 }

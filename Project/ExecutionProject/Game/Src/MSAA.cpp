@@ -1,8 +1,8 @@
 #include "../Hrd/MSAA.hpp"
 
-UINT MSAASelector::TypeToCount(TYPE scale)
+UINT MSAASelector::TypeToCount(TYPE type)
 {
-	switch (scale)
+	switch (type)
 	{
 		case TYPE::MSAA_OFF: return 1u;
 		case TYPE::MSAAx2: return 2u;
@@ -12,6 +12,20 @@ UINT MSAASelector::TypeToCount(TYPE scale)
 		case TYPE::MSAAx32: return 32u;
 	}
 	return 0;
+}
+
+MSAASelector::TYPE MSAASelector::CountToType(UINT count)
+{
+	switch (count)
+	{
+		case 1u: return TYPE::MSAA_OFF;
+		case 2u: return TYPE::MSAAx2;
+		case 4u: return TYPE::MSAAx4;
+		case 8u: return TYPE::MSAAx8;
+		case 16u: return TYPE::MSAAx16;
+		case 32u: return TYPE::MSAAx32;
+	}
+	return TYPE::MSAA_OFF;
 }
 
 MSAASelector::MSAASelector(UINT max_sample_count)

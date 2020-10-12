@@ -116,7 +116,7 @@ void FPSCamera::Update(const std::shared_ptr<KGL::Window>& window,
 		const bool move_right = input->IsKeyHold(KEYS::D);
 		const bool move_left = input->IsKeyHold(KEYS::A);
 		const bool move_up = input->IsKeyHold(KEYS::SPACE);
-		const bool move_down = input->IsKeyHold(KEYS::LCONTROL);
+		const bool move_down = input->IsKeyHold(KEYS::C);
 
 		MoveUpdate(
 			move_front, move_back,
@@ -150,7 +150,7 @@ void DemoCamera::Update(const std::shared_ptr<KGL::Window>& window,
 		const bool move_right = input->IsKeyHold(KEYS::D);
 		const bool move_left = input->IsKeyHold(KEYS::A);
 		const bool move_up = input->IsKeyHold(KEYS::SPACE);
-		const bool move_down = input->IsKeyHold(KEYS::LCONTROL);
+		const bool move_down = input->IsKeyHold(KEYS::C);
 
 		bool input_exist = false;
 
