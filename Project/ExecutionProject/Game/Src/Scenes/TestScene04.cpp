@@ -515,6 +515,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
 
+	dof_generator->SetRtvNum(3u);
+
 	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30000.f);
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
@@ -580,7 +582,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	use_gpu = true;
 	spawn_fireworks = false;
 
-	dof_flg = false;
+	dof_flg = true;
 
 	bloom_generator->SetKernel(8u);
 	after_blooming = false;
@@ -630,6 +632,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 void TestScene04::ResetCounterMax()
 {
 	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
+	ct_update = ct_update_max = ct_render = ct_render_max = 0;
 }
 
 void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
@@ -680,6 +683,8 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
+	KGL::Timer update_timer;
+
 	msaa_depth_draw = false;
 
 	const float ptc_update_time = stop_time ? 0.f : elapsed_time * time_scale;
@@ -738,6 +743,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Spacing();
 
 			ImGui::Checkbox("Use DOF", &dof_flg);
+			auto dof_rtv_num = SCAST<int>(dof_generator->GetRtvNum());
+			if (ImGui::SliderInt("Scale", &dof_rtv_num, 1, 8))
+			{
+				dof_generator->SetRtvNum(SCAST<UINT8>(dof_rtv_num));
+			}
 			ImGui::Spacing();
 
 			{
@@ -1126,6 +1136,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ImGui::Checkbox("Time Stop", &stop_time);
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
+				ct_update_max = std::max<UINT64>(ct_update, ct_update_max);
+				ImGui::Text("Update Count Total [ %5d ] : [ %5d ]", ct_update, ct_update_max);
+				ct_render_max = std::max<UINT64>(ct_render, ct_render_max);
+				ImGui::Text("Render Count Total [ %5d ] : [ %5d ]", ct_render, ct_render_max);
 				ct_particle = std::max<UINT64>(ct_particle, counter);
 				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_particle);
 				ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
@@ -1234,6 +1248,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		debug_mgr->Update(tc, sc, use_gui);
 	}
+
+	ct_update = update_timer.GetTime();
 
 	return Render(desc);
 }
@@ -1544,6 +1560,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
+	KGL::Timer render_timer;
+
 	//auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
@@ -1575,7 +1593,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	debug_mgr->Render(cmd_list, msaa_scale);
 	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
-	
+	const auto ptc_size = ptc_mgr->Size();
+	const auto fc_mgr_size = fc_mgr->Size();
+	const bool ptc_render = ptc_size + fc_mgr_size > 0;
+	if (ptc_render)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
@@ -1593,7 +1614,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
 		}
 
-		const auto ptc_size = ptc_mgr->Size();
 		if (ptc_size > 0)
 		{
 			cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
@@ -1601,7 +1621,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		}
 
 		board_renderers[msaa_scale].add_pos->SetState(cmd_list);
-		fc_mgr->Render(cmd_list);
+
+		if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 
 		// 被写界深度用にパーティクルの深度値を書き込む
 		if (dof_flg)
@@ -1621,28 +1642,25 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			}
 
 			board_renderers[msaa_scale].dsv_add_pos->SetState(cmd_list);
-			fc_mgr->Render(cmd_list);
+			if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 		}
 
 		const auto& prrbs = rtrc.rtvs->GetRtvResourceBarriers(false, RT::PTC_NON_BLOOM, rt_num);
 		cmd_list->ResourceBarrier(prrbs.size(), prrbs.data());
+
+		// パーティクルをメインRTに描画（ブルームはまだ）
+		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		// パーティクルは加算合成描画
+		add_sprite_renderers[msaa_scale]->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtrc.rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_NON_BLOOM));
+		sprite->Render(cmd_list);
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM));
+		sprite->Render(cmd_list);
+		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 	}
-
-	// ブルームをかけるレンダーターゲットを渡す
-	// bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, msaa_scale);
-
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
-	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	// パーティクルは加算合成描画
-	add_sprite_renderers[msaa_scale]->SetState(cmd_list);
-	cmd_list->SetDescriptorHeaps(1, rtrc.rtvs->GetSRVHeap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_NON_BLOOM));
-	sprite->Render(cmd_list);
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM));
-	sprite->Render(cmd_list);
-	//bloom_generator->Render(cmd_list, msaa_scale);
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
 	if (msaa)
 	{
@@ -1680,19 +1698,46 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			};
 			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 		}
+		if (dof_flg || msaa_depth_draw)
+		{	// 深度値をコピーする
+			desc.app->SetDsv(cmd_list);
+			desc.app->ClearDsv(cmd_list);
+			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+			depth_sprite_renderer->SetState(cmd_list);
+			cmd_list->SetDescriptorHeaps(1, rtrc.depth_srv_handle.Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.depth_srv_handle.Gpu());
+			sprite->Render(cmd_list);
+		}
 	}
 
-	bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, 0u);
+	if (ptc_render)
+	{
+		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, 0u);
+		// ブルームはMSAAで行わない
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
+		bloom_generator->Render(cmd_list, 0u);
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+	}
 
+	// DOFの場合はGeneratorから描画させ、そうでない場合はSpriteで描画する
 	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
-	desc.app->SetRtv(cmd_list);
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	sprite_renderer->SetState(cmd_list);
-	cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
-	sprite->Render(cmd_list);
-
-	bloom_generator->Render(cmd_list, 0u);
+	if (dof_flg)
+	{
+		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), viewport);
+		desc.app->SetRtv(cmd_list);
+		desc.app->ClearRtv(cmd_list, { 0.f, 0.f, 0.f, 0.f });
+		dof_generator->Render(cmd_list, rtrc_off.depth_srv_handle.Heap(), rtrc_off.depth_srv_handle.Gpu());
+	}
+	else
+	{
+		desc.app->SetRtv(cmd_list);
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		sprite_renderer->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
+		sprite->Render(cmd_list);
+	}
 
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
@@ -1702,6 +1747,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
 	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
 	desc.app->GetQueue()->Signal();
+
+	ct_render = render_timer.GetTime();
 	desc.app->GetQueue()->Wait();
 
 	cmd_allocator->Reset();

@@ -60,6 +60,7 @@ private:
 		KGL::DescriptorHandle				handle;
 	};
 private:
+	bool									render_flg;
 	bool									s_obj_wire;
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>		s_obj_renderers;
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>		s_obj_wire_renderers;
@@ -95,4 +96,6 @@ public:
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_count);
 	void SetWireMode(bool wire) { s_obj_wire = wire; }
 	bool GetWireMode() { return s_obj_wire; }
+	void SetRenderFlg(bool render_flg) { this->render_flg = render_flg; }
+	bool GetRenderFlg() const { return render_flg; }
 };

@@ -691,28 +691,39 @@ void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list
 	}
 }
 
+size_t FCManager::DemoData::Size(UINT num) const
+{
+	if (ptcs.size() > num && draw_flg)
+	{
+		return ptcs[num].size();
+	}
+	return 0u;
+}
+
 void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept
 {
-	if (demo_play)
+	const UINT frame_num = demo_play ? SCAST<UINT>(demo_play_frame) : demo_frame_number;
+	for (auto& data : demo_data)
 	{
-		for (auto& data : demo_data)
+		std::lock_guard<std::mutex> lock(data.build_mutex);
+		if (!data.build_flg && data.exist)
 		{
-			std::lock_guard<std::mutex> lock(data.build_mutex);
-			if (!data.build_flg && data.exist)
-			{
-				data.Render(cmd_list, SCAST<UINT>(demo_play_frame));
-			}
+			data.Render(cmd_list, frame_num);
 		}
 	}
-	else
+}
+
+size_t FCManager::Size() const
+{
+	const UINT frame_num = demo_play ? SCAST<UINT>(demo_play_frame) : demo_frame_number;
+	size_t total_size = 0u;
+
+	for (const auto& data : demo_data)
 	{
-		for (auto& data : demo_data)
+		if (!data.build_flg && data.exist)
 		{
-			std::lock_guard<std::mutex> lock(data.build_mutex);
-			if (!data.build_flg && data.exist)
-			{
-				data.Render(cmd_list, demo_frame_number);
-			}
+			total_size += data.Size(frame_num);
 		}
 	}
+	return total_size;
 }

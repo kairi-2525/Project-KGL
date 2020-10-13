@@ -66,6 +66,7 @@ class TestScene04 : public SceneBase
 	};
 private:
 	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
+	UINT64 ct_update, ct_update_max, ct_render, ct_render_max;
 	float										ptc_key_spawn_counter;
 	float										time_scale;
 	bool										use_gpu;

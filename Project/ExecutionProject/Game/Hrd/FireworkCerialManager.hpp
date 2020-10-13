@@ -107,6 +107,7 @@ private:
 		void SetResource(UINT num);
 		void Build(const ParticleParent* p_parent, UINT set_frame_num);
 		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
+		size_t Size(UINT num) const;
 	};
 private:
 	std::shared_ptr<KGL::Directory>								directory;
@@ -145,6 +146,7 @@ public:
 	HRESULT Update(float update_time) noexcept;
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
+	size_t Size() const;
 };
 
 class FC

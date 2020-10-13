@@ -277,6 +277,8 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 	{
 		if (ImGui::Begin("Debug"))
 		{
+			ImGui::Checkbox("Render", &render_flg);
+			ImGui::Spacing();
 
 			static int albedo = 0;
 			if (RadioButtonHelper("albedo", &albedo))
@@ -307,25 +309,28 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 
 void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_count)
 {
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-	// スタティックオブジェクトの描画
-
-	if (s_obj_renderers.size() > SCAST<UINT>(msaa_count))
+	if (render_flg)
 	{
-		if (s_obj_wire)
-			s_obj_wire_renderers[msaa_count]->SetState(cmd_list);
-		else
-			s_obj_renderers[msaa_count]->SetState(cmd_list);
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		cmd_list->SetDescriptorHeaps(1, s_obj_cbv_descmgr->Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, s_obj_tc_handle.Gpu());
-		//cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_sc_handle.Gpu());
+		// スタティックオブジェクトの描画
 
-		cmd_list->SetDescriptorHeaps(1, s_obj_srv_descmgr->Heap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_albedo.handle.Gpu());
+		if (s_obj_renderers.size() > SCAST<UINT>(msaa_count))
+		{
+			if (s_obj_wire)
+				s_obj_wire_renderers[msaa_count]->SetState(cmd_list);
+			else
+				s_obj_renderers[msaa_count]->SetState(cmd_list);
 
-		cmd_list->IASetVertexBuffers(0, 1, &s_obj_vertex_view);
-		cmd_list->DrawInstanced(s_obj_vertices_offset, 1, 0, 0);
+			cmd_list->SetDescriptorHeaps(1, s_obj_cbv_descmgr->Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(0, s_obj_tc_handle.Gpu());
+			//cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_sc_handle.Gpu());
+
+			cmd_list->SetDescriptorHeaps(1, s_obj_srv_descmgr->Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(1, s_obj_albedo.handle.Gpu());
+
+			cmd_list->IASetVertexBuffers(0, 1, &s_obj_vertex_view);
+			cmd_list->DrawInstanced(s_obj_vertices_offset, 1, 0, 0);
+		}
 	}
 }
