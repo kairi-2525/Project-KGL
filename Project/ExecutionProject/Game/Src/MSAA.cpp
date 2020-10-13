@@ -49,8 +49,4 @@ void MSAASelector::SetScale(TYPE scale)
 	{
 		set_scale = scale;
 	}
-	else
-	{
-		set_scale = max_scale;
-	}
 }

@@ -30,7 +30,8 @@ namespace KGL
 			{
 				left,
 				right,
-				center
+				center,
+				button1
 			};
 			enum class KEYS : int
 			{

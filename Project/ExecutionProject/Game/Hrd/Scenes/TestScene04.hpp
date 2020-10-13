@@ -33,8 +33,8 @@ class TestScene04 : public SceneBase
 {
 	enum RT : UINT
 	{
-		NON_BLOOM,
-		BLOOM,
+		MAIN,
+		SUB,
 		PTC_NON_BLOOM,
 		PTC_BLOOM
 	};
@@ -81,10 +81,10 @@ private:
 	std::shared_ptr<DemoCamera>					camera;
 	DirectX::XMFLOAT2							camera_angle;
 	bool										use_gui;
+	bool										stop_time;
 
 	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
-	std::shared_ptr<KGL::BaseRenderer>			high_sprite_renderer;
-	std::shared_ptr<KGL::BaseRenderer>			add_sprite_renderer;
+	std::vector<std::shared_ptr<KGL::BaseRenderer>>	add_sprite_renderers;
 	std::shared_ptr<KGL::BaseRenderer>			depth_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;
 	std::vector<BoardRenderers>					board_renderers;

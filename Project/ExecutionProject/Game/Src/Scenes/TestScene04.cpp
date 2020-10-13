@@ -152,7 +152,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	DXGI_SAMPLE_DESC max_sample_desc = { desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel() };
 
 	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
-
+	const UINT msaa_type_count = SCAST<UINT>(msaa_selector->GetMaxScale()) + 1u;
 	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
@@ -177,11 +177,20 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
-		add_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
+		add_sprite_renderers.reserve(msaa_type_count);
+		add_sprite_renderers.push_back(std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc));
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		renderer_desc.ps_desc.entry_point = "PSMainMS";
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			add_sprite_renderers.push_back(std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc));
+		}
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
+		renderer_desc.other_desc.sample_desc.Count = 1u;
+		renderer_desc.ps_desc.entry_point = "PSMain";
 
-		//renderer_desc.ps_desc.hlsl = "./HLSL/2D/SpriteAdd_ps.hlsl";
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
-		high_sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
 		sprite = std::make_shared<KGL::Sprite>(device);
 
 		renderer_desc.render_targets.clear();
@@ -564,6 +573,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	sky_mgr->Init(view * proj_mat);
 
 	use_gui = true;
+	stop_time = false;
 
 	ResetCounterMax();
 	time_scale = 1.f;
@@ -672,7 +682,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
 	msaa_depth_draw = false;
 
-	const float ptc_update_time = elapsed_time * time_scale;
+	const float ptc_update_time = stop_time ? 0.f : elapsed_time * time_scale;
 
 	auto input = desc.input;
 
@@ -925,7 +935,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		float key_spawn_late = 5.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
-		if (input->IsKeyPressed(KGL::KEYS::NUMPADPLUS)) spawn_fireworks = !spawn_fireworks;
+		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
+			spawn_fireworks = !spawn_fireworks;
+		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
+			stop_time = !stop_time;
 		if (spawn_fireworks)
 			ptc_key_spawn_counter += ptc_update_time;
 		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
@@ -1110,6 +1123,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				if (ImGui::RadioButton("CPU", !use_gpu)) use_gpu = false;
 				const bool reset_max_counter0 = use_gpu_log != use_gpu;
 				const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
+				ImGui::Checkbox("Time Stop", &stop_time);
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
 				ct_particle = std::max<UINT64>(ct_particle, counter);
@@ -1422,21 +1436,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		const auto& srvrbs = ptc_rtvs->GetRtvResourceBarriers(false);
 		cmd_list->ResourceBarrier(srvrbs.size(), srvrbs.data());
 	}
-	/*{
-		const UINT rtv_num = 1u;
-		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(true, rtv_num));
-
-		ptc_rtvs->Set(cmd_list, nullptr, rtv_num);
-		ptc_rtvs->Clear(cmd_list, ptc_rtv_texs[rtv_num]->GetClearColor(), rtv_num);
-
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		high_sprite_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(0));
-		sprite->Render(cmd_list);
-
-		cmd_list->ResourceBarrier(1u, &ptc_rtvs->GetRtvResourceBarrier(false, rtv_num));
-	}*/
 	{
 		bloom_generator->Generate(cmd_list, ptc_rtvs->GetSRVHeap(), ptc_rtvs->GetSRVGPUHandle(1), viewport);
 	}
@@ -1567,14 +1566,14 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	ImGui::Render();
 
 	// Sky と Debug を RT::NON_BLOOM に描画
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::NON_BLOOM));
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::NON_BLOOM);
-	rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::NON_BLOOM].tex->GetClearColor(), RT::NON_BLOOM);
+	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
+	rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
 	cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	sky_mgr->Render(cmd_list, msaa_scale);
 	debug_mgr->Render(cmd_list, msaa_scale);
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::NON_BLOOM));
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
 	
 	{	// パーティクルを描画
@@ -1629,7 +1628,21 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(prrbs.size(), prrbs.data());
 	}
 
-	//bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, msaa_scale);
+	// ブルームをかけるレンダーターゲットを渡す
+	// bloom_generator->Generate(cmd_list, rtrc.rtvs->GetSRVHeap(), rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, msaa_scale);
+
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	// パーティクルは加算合成描画
+	add_sprite_renderers[msaa_scale]->SetState(cmd_list);
+	cmd_list->SetDescriptorHeaps(1, rtrc.rtvs->GetSRVHeap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_NON_BLOOM));
+	sprite->Render(cmd_list);
+	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM));
+	sprite->Render(cmd_list);
+	//bloom_generator->Render(cmd_list, msaa_scale);
+	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
 	if (msaa)
 	{
@@ -1637,35 +1650,49 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		{
 			D3D12_RESOURCE_BARRIER barriers[] =
 			{
-				rtrc.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-				rtrc_off.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_DEST)
+				rtrc.render_targets[RT::MAIN].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+				rtrc_off.render_targets[RT::MAIN].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_DEST),
+				rtrc.render_targets[RT::PTC_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+				rtrc_off.render_targets[RT::PTC_BLOOM].tex->RB(D3D12_RESOURCE_STATE_RESOLVE_DEST)
 			};
 			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 		}
 		// コピー
 		cmd_list->ResolveSubresource(
-			rtrc_off.render_targets[RT::NON_BLOOM].tex->Data().Get(), 0,
-			rtrc.render_targets[RT::NON_BLOOM].tex->Data().Get(), 0,
-			rtrc_off.render_targets[RT::NON_BLOOM].tex->Data()->GetDesc().Format
+			rtrc_off.render_targets[RT::MAIN].tex->Data().Get(), 0,
+			rtrc.render_targets[RT::MAIN].tex->Data().Get(), 0,
+			rtrc_off.render_targets[RT::MAIN].tex->Data()->GetDesc().Format
+		);
+		// コピー
+		cmd_list->ResolveSubresource(
+			rtrc_off.render_targets[RT::PTC_BLOOM].tex->Data().Get(), 0,
+			rtrc.render_targets[RT::PTC_BLOOM].tex->Data().Get(), 0,
+			rtrc_off.render_targets[RT::PTC_BLOOM].tex->Data()->GetDesc().Format
 		);
 		{
 
 			D3D12_RESOURCE_BARRIER barriers[] =
 			{
-				rtrc.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-				rtrc_off.render_targets[RT::NON_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+				rtrc.render_targets[RT::MAIN].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+				rtrc_off.render_targets[RT::MAIN].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+				rtrc.render_targets[RT::PTC_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+				rtrc_off.render_targets[RT::PTC_BLOOM].tex->RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
 			};
 			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 		}
 	}
+
+	bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, 0u);
 
 	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
 	desc.app->SetRtv(cmd_list);
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	sprite_renderer->SetState(cmd_list);
 	cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::NON_BLOOM));
+	cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
 	sprite->Render(cmd_list);
+
+	bloom_generator->Render(cmd_list, 0u);
 
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
