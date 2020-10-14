@@ -82,14 +82,24 @@ HRESULT FCManager::ReloadDesc() noexcept
 	return S_OK;
 }
 
-HRESULT FCManager::Export(const std::filesystem::path& path, const Desc& desc) noexcept
+HRESULT FCManager::Export(
+	const std::filesystem::path& path,
+	std::string file_name,
+	std::shared_ptr<FireworksDesc> desc
+) noexcept
 {
-	const auto& file_name = desc.first + ".bin";
-	std::ofstream ofs(path.string() + file_name, std::ios::binary);
+	std::string bin = ".bin";
+	auto pos = file_name.find('\0');
+	if (std::string::npos != pos)
+		file_name.erase(pos, file_name.size());
+	
+	std::string file_name_e = file_name + bin;
+
+	std::ofstream ofs(path.string() + file_name_e, std::ios::binary);
 	if (ofs.is_open())
 	{
 		cereal::BinaryOutputArchive o_archive(ofs);
-		o_archive(KGL_NVP(desc.first, desc.second));
+		o_archive(KGL_NVP(file_name, desc));
 	}
 	return S_OK;
 }
@@ -99,6 +109,10 @@ bool FCManager::ChangeName(std::string before, std::string after) noexcept
 	if (desc_list.count(before) == 0u || desc_list.count(after) == 1u)
 		return false;
 	desc_list[after] = desc_list[before];
+	if (desc_list[after] == select_desc)
+	{
+		select_name = after;
+	}
 	desc_list.erase(before);
 	return true;
 }
@@ -349,7 +363,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 					{
 						if (select_desc)
 						{
-							Export(directory->GetPath(), { select_name, select_desc });
+							Export(directory->GetPath(), select_name, select_desc);
 						}
 					}
 					ImGui::SameLine();

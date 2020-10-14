@@ -33,7 +33,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		XMVECTOR axis = XMVector3Normalize(velocity);
 		XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
 		XMVECTOR side_axis;
-		XMVECTOR old_pos = pos - axis * time;
+		XMVECTOR old_pos = pos - (axis * time);
 		if (XMVector3Length(XMVectorSubtract(right_axis, axis)).m128_f32[0] <= FLT_EPSILON)
 			side_axis = XMVector3Normalize(XMVector3Cross(axis, XMVectorSet(0.f, 1.f, 0.f, 0.f)));
 		else
@@ -71,7 +71,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 
 				auto& desc = effect.child;
 
-				DirectX::XMStoreFloat3(&desc.pos, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				DirectX::XMStoreFloat3(&desc.pos, (old_pos + (-velocity * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
 				DirectX::XMStoreFloat3(&desc.velocity, velocity * rmdbasespeed(mt) + spawn_v * rmdspeed(mt));
 				desc.resistivity = effect.resistivity;
 
@@ -93,7 +93,8 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				R = XMMatrixRotationAxis(side_axis, side_angle);
 				R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
 				XMVECTOR spawn_v = XMVector3Transform(axis, R);
-				DirectX::XMStoreFloat3(&p.position, (old_pos + (axis * (spawn_time_counter_max - spawn_time_counter))) + spawn_v * rmdspace(mt));
+				const float time_space_scale = spawn_time_counter_max - spawn_time_counter;
+				DirectX::XMStoreFloat3(&p.position, (old_pos + (-velocity * time_space_scale)) + spawn_v * rmdspace(mt));
 				DirectX::XMStoreFloat3(&p.velocity, velocity * rmdbasespeed(mt) + spawn_v * rmdspeed(mt));
 				//p.color = (effect.end_color - effect.begin_color);
 				CXMVECTOR xm_begin_color = XMLoadFloat4(&effect.begin_color);

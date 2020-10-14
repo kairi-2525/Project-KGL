@@ -137,7 +137,7 @@ private:
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
 	bool DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
-	static HRESULT Export(const std::filesystem::path& path, const Desc& desc) noexcept;
+	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
 	~FCManager();
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
