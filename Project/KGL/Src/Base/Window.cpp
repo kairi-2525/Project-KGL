@@ -127,7 +127,7 @@ HRESULT Window::Create() noexcept
 	LONG start_y = CW_USEDEFAULT;
 
 	const auto pm_size = GetPrimaryMonitorSize();
-	if (pm_size.x < window_x)
+	if (pm_size.x < SCAST<uint32_t>(window_x))
 	{
 		start_x = -((window_x - SCAST<LONG>(pm_size.x)) / 2);
 		start_y = 0;

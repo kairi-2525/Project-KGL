@@ -23,7 +23,7 @@ float4 PSMainMS(PSInput input) : SV_TARGET
 {
 	float4 bloom_accum = float4(0.f, 0.f, 0.f, 0.f);
 
-	for (int i = 0; i < kernel; i++)
+	for (uint i = 0; i < kernel; i++)
 	{
 		bloom_accum += GaussianBlur5x5(texms[i], input.uv) * temp_weight[i];
 	}
@@ -35,7 +35,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
 	float4 bloom_accum	= float4(0.f, 0.f, 0.f, 0.f);
 
-	for (int i = 0; i < kernel; i++)
+	for (uint i = 0; i < kernel; i++)
 	{
 		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv) * temp_weight[i];
 	}

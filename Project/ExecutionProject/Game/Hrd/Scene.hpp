@@ -138,7 +138,7 @@ HRESULT SceneBufferDx12<_Ty>::Load(const SceneDesc& desc)
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC mat_cbv_desc = {};
 	mat_cbv_desc.BufferLocation = buff->GetGPUVirtualAddress();
-	mat_cbv_desc.SizeInBytes = size_in_bytes;
+	mat_cbv_desc.SizeInBytes = SCAST<UINT>(size_in_bytes);
 	device->CreateConstantBufferView(&mat_cbv_desc, handle.Cpu());
 
 	return hr;

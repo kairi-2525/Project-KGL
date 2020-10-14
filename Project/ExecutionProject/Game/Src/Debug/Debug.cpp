@@ -20,18 +20,18 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 	{
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 		cbv_desc.BufferLocation = s_obj_tc_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = s_obj_tc_resource->SizeInBytes();
+		cbv_desc.SizeInBytes = SCAST<UINT>(s_obj_tc_resource->SizeInBytes());
 		device->CreateConstantBufferView(&cbv_desc, s_obj_tc_handle.Cpu());
 	}
 	{
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 		cbv_desc.BufferLocation = s_obj_sc_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = s_obj_sc_resource->SizeInBytes();
+		cbv_desc.SizeInBytes = SCAST<UINT>(s_obj_sc_resource->SizeInBytes());
 		device->CreateConstantBufferView(&cbv_desc, s_obj_sc_handle.Cpu());
 	}
 
 	s_obj_vertex_view.BufferLocation = s_obj_vertex_resource->Data()->GetGPUVirtualAddress();
-	s_obj_vertex_view.SizeInBytes = s_obj_vertex_resource->SizeInBytes();
+	s_obj_vertex_view.SizeInBytes = SCAST<UINT>(s_obj_vertex_resource->SizeInBytes());
 	s_obj_vertex_view.StrideInBytes = sizeof(Vertex);
 
 	{
@@ -193,7 +193,7 @@ HRESULT DebugManager::UpdateStaticObjects()
 		s_obj_vertex_resource = std::make_shared<KGL::Resource<Vertex>>(device, vert_count * 2u);
 
 		s_obj_vertex_view.BufferLocation = s_obj_vertex_resource->Data()->GetGPUVirtualAddress();
-		s_obj_vertex_view.SizeInBytes = s_obj_vertex_resource->SizeInBytes();
+		s_obj_vertex_view.SizeInBytes = SCAST<UINT>(s_obj_vertex_resource->SizeInBytes());
 	}
 
 	// Vertex‚ðƒZƒbƒg‚·‚é
@@ -202,7 +202,7 @@ HRESULT DebugManager::UpdateStaticObjects()
 	s_obj_vertices_offset = 0u;
 	for (const auto& obj : s_objects)
 	{
-		s_obj_vertices_offset += obj->GetVertex(&mapped_vertices[s_obj_vertices_offset]);
+		s_obj_vertices_offset += SCAST<UINT>(obj->GetVertex(&mapped_vertices[s_obj_vertices_offset]));
 	}
 
 	s_obj_vertex_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));

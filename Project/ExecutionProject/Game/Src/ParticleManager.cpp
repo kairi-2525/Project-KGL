@@ -11,7 +11,7 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capac
 	parent_begin_handle = desc_mgr->Alloc();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 	cbv_desc.BufferLocation = parent_res->Data()->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = parent_res->SizeInBytes();
+	cbv_desc.SizeInBytes = SCAST<UINT>(parent_res->SizeInBytes());
 	device->CreateConstantBufferView(&cbv_desc, parent_begin_handle.Cpu());
 
 	D3D12_HEAP_PROPERTIES prop = {};
@@ -53,7 +53,7 @@ void ParticleManager::Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	cmd_list->SetDescriptorHeaps(1, parent_begin_handle.Heap().GetAddressOf());
 	cmd_list->SetComputeRootDescriptorTable(0, parent_begin_handle.Gpu());
 
-	const UINT ptcl_size = std::min<UINT>(particle_total_num, resource->Size());
+	const UINT ptcl_size = std::min<UINT>(SCAST<UINT>(particle_total_num), SCAST<UINT>(resource->Size()));
 	DirectX::XMUINT3 patch = {};
 	constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 	patch.x = (ptcl_size / 64) + ((ptcl_size % 64) > 0 ? 1 : 0);
@@ -71,7 +71,6 @@ void ParticleManager::Update()
 	auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
 	auto particles = resource->Map(0, &CD3DX12_RANGE(0, 0));
 	const size_t i_max = std::min<size_t>(particle_total_num, resource->Size());
-	XMVECTOR resultant;
 	const auto* cb = parent_res->Map(0, &CD3DX12_RANGE(0, 0));
 	for (int i = 0; i < i_max; i++)
 	{
@@ -140,7 +139,7 @@ void ParticleManager::AddToFrameParticle()
 		next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
 
 		auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-		*p_counter += frame_add_ptc_num;
+		*p_counter += SCAST<UINT32>(frame_add_ptc_num);
 		particle_total_num = *p_counter;
 		counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}

@@ -5,7 +5,7 @@
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
-#include <Dx12/BlendState.hpp>A
+#include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
 

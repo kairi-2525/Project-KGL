@@ -232,7 +232,7 @@ std::vector<D3D12_RESOURCE_BARRIER> RenderTargetView::GetRtvResourceBarriers(boo
 	RCHECK(count == 0, "“n‚³‚ê‚½’l‚ª¬‚³‚·‚¬‚Ü‚·", {});
 	const size_t buffer_num = m_buffers.size();
 	std::vector<D3D12_RESOURCE_BARRIER> rbs(count);
-	for (auto i = 0; i < count; i++)
+	for (UINT i = 0; i < count; i++)
 	{
 		rbs[i] = GetRtvResourceBarrier(render_target, start_num + i);
 	}

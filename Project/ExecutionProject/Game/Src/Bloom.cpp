@@ -14,7 +14,8 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 
 	rtv_rs.resize(renderer_count);
 	auto rtv_rs_itr = rtv_rs.begin();
-	const UINT width = desc.Width, height = desc.Height;
+	const UINT64 width = desc.Width;
+	const UINT height = desc.Height;
 	for (UINT i = 1u; i <= max_sample_desc.Count; i *= 2)
 	{
 		desc.Width = width;
@@ -25,8 +26,8 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 		resources.reserve(RTV_MAX);
 		for (auto& tex : (rtv_rs_itr->textures))
 		{
-			desc.Width = std::max<UINT>(1, desc.Width / 2);
-			desc.Height = std::max<UINT>(1, desc.Height / 2);;
+			desc.Width = std::max<UINT64>(1u, desc.Width / 2);
+			desc.Height = std::max<UINT>(1u, desc.Height / 2);;
 
 			tex = std::make_shared<KGL::Texture>(
 				device, desc, dx_clear_value);
@@ -102,7 +103,7 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 	cbv_desc.BufferLocation = buffer_res->Data()->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = buffer_res->SizeInBytes();
+	cbv_desc.SizeInBytes = SCAST<UINT>(buffer_res->SizeInBytes());
 	device->CreateConstantBufferView(&cbv_desc, rtv_num_handle.Cpu());
 }
 
@@ -114,14 +115,14 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 	D3D12_RECT scissor_rect;
 	scissor_rect.left = scissor_rect.top = 0u;
-	scissor_rect.right = view_port.Width;
-	scissor_rect.bottom = view_port.Height;
+	scissor_rect.right = SCAST<LONG>(view_port.Width);
+	scissor_rect.bottom = SCAST<LONG>(view_port.Height);
 	const auto return_scissor_rect = scissor_rect;
 	const auto& rtvs = rtv_rs[msaa_scale].rtvs;
 	const auto& textures = rtv_rs[msaa_scale].textures;
 
 	const auto& rtrb = rtvs->GetRtvResourceBarriers(true);
-	cmd_list->ResourceBarrier(rtrb.size(), rtrb.data());
+	cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
 	
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	bloom_renderers[msaa_scale]->SetState(cmd_list);
@@ -141,8 +142,10 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		rtvs->Clear(cmd_list, textures[idx]->GetClearColor(), idx);
 		const auto& desc = textures[idx]->Data()->GetDesc();
 
-		scissor_rect.right = view_port.Width = desc.Width;
-		scissor_rect.bottom = view_port.Height = desc.Height;
+		view_port.Width = SCAST<FLOAT>(desc.Width);
+		view_port.Height = SCAST<FLOAT>(desc.Height);
+		scissor_rect.right = SCAST<LONG>(desc.Width);
+		scissor_rect.bottom = SCAST<LONG>(desc.Height);
 
 		cmd_list->RSSetViewports(1, &view_port);
 		cmd_list->RSSetScissorRects(1, &scissor_rect);
@@ -150,7 +153,7 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		sprite->Render(cmd_list);
 	}
 	const auto& srvrb = rtvs->GetRtvResourceBarriers(false);
-	cmd_list->ResourceBarrier(srvrb.size(), srvrb.data());
+	cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
 
 	cmd_list->RSSetViewports(1, &return_view_port);
 	cmd_list->RSSetScissorRects(1, &return_scissor_rect);

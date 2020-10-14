@@ -197,14 +197,14 @@ FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device,
 	{
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 		cbv_desc.BufferLocation = world_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = world_resource->SizeInBytes();
+		cbv_desc.SizeInBytes = SCAST<UINT>(world_resource->SizeInBytes());
 		device->CreateConstantBufferView(&cbv_desc, world_handle.Cpu());
 	}
 
 	resource = std::make_shared<KGL::Resource<Particle>>(device, capacity);
 
 	vbv.BufferLocation = resource->Data()->GetGPUVirtualAddress();
-	vbv.SizeInBytes = resource->SizeInBytes();
+	vbv.SizeInBytes = SCAST<UINT>(resource->SizeInBytes());
 	vbv.StrideInBytes = sizeof(Particle);
 
 	draw_flg = true;
@@ -405,7 +405,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				else
 					gui_use_inum = SCAST<int>(demo_frame_number);
 				gui_use_inum = std::min(gui_use_inum, SCAST<int>(max_frame_count));
-				if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, max_frame_count))
+				if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, SCAST<int>(max_frame_count)))
 				{
 					demo_frame_number = SCAST<UINT>(gui_use_inum);
 					if (demo_play)

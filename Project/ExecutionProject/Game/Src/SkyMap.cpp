@@ -145,7 +145,7 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 	buffer_handle = desc_mgr->Alloc();
 	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 	cbv_desc.BufferLocation = buffer->Data()->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = buffer->SizeInBytes();
+	cbv_desc.SizeInBytes = SCAST<UINT>(buffer->SizeInBytes());
 	device->CreateConstantBufferView(&cbv_desc, buffer_handle.Cpu());
 }
 

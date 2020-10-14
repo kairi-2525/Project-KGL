@@ -392,11 +392,11 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		grid_idx_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
 
 		grid_vbv.BufferLocation = grid_vertex_resource->Data()->GetGPUVirtualAddress();
-		grid_vbv.SizeInBytes = sizeof(grid_vertices[0]) * grid_vertices.size();
+		grid_vbv.SizeInBytes = SCAST<UINT>(sizeof(grid_vertices[0]) * grid_vertices.size());
 		grid_vbv.StrideInBytes = sizeof(grid_vertices[0]);
 
 		grid_ibv.BufferLocation = grid_idx_resource->Data()->GetGPUVirtualAddress();
-		grid_ibv.SizeInBytes = sizeof(grid_indices[0]) * grid_indices.size();
+		grid_ibv.SizeInBytes = SCAST<UINT>(sizeof(grid_indices[0]) * grid_indices.size());
 		grid_ibv.Format = DXGI_FORMAT_R16_UINT;
 
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
@@ -434,11 +434,11 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 	{
 		b_ptc_vbv.BufferLocation = ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
-		b_ptc_vbv.SizeInBytes = ptc_mgr->Resource()->SizeInBytes();
+		b_ptc_vbv.SizeInBytes = SCAST<UINT>(ptc_mgr->Resource()->SizeInBytes());
 		b_ptc_vbv.StrideInBytes = sizeof(Particle);
 
 		b_pl_shot_ptc_vbv.BufferLocation = pl_shot_ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
-		b_pl_shot_ptc_vbv.SizeInBytes = pl_shot_ptc_mgr->Resource()->SizeInBytes();
+		b_pl_shot_ptc_vbv.SizeInBytes = SCAST<UINT>(pl_shot_ptc_mgr->Resource()->SizeInBytes());
 		b_pl_shot_ptc_vbv.StrideInBytes = sizeof(Particle);
 	}
 
@@ -1600,7 +1600,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
-		cmd_list->ResourceBarrier(rtrbs.size(), rtrbs.data());
+		cmd_list->ResourceBarrier(SCAST<UINT>(rtrbs.size()), rtrbs.data());
 		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
 		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);
 
@@ -1646,7 +1646,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		}
 
 		const auto& prrbs = rtrc.rtvs->GetRtvResourceBarriers(false, RT::PTC_NON_BLOOM, rt_num);
-		cmd_list->ResourceBarrier(prrbs.size(), prrbs.data());
+		cmd_list->ResourceBarrier(SCAST<UINT>(prrbs.size()), prrbs.data());
 
 		// パーティクルをメインRTに描画（ブルームはまだ）
 		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
