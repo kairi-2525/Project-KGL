@@ -87,6 +87,9 @@
     <ClCompile Include="Src\MSAA.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\FXAA.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\SceneGame.hpp">
@@ -158,6 +161,9 @@
     <ClInclude Include="Hrd\Scene.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\FXAA.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
@@ -204,6 +210,7 @@
     <FxCompile Include="HLSL\3D\StaticObject_vs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticObject_ps.hlsl" />
     <FxCompile Include="HLSL\2D\DepthWriteTextureMS_ps.hlsl" />
+    <FxCompile Include="HLSL\2D\FXAA_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -219,6 +226,7 @@
     <None Include="HLSL\Easings.hlsli" />
     <None Include="HLSL\3D\UnNormal.hlsli" />
     <None Include="HLSL\3D\StaticObject.hlsli" />
+    <None Include="HLSL\2D\FXAA3_11.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KGL_ICON.rc">

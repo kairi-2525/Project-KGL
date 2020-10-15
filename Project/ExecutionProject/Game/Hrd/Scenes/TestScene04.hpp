@@ -27,6 +27,7 @@
 #include "../ParticleManager.hpp"
 #include "../Debug.hpp"
 #include "../MSAA.hpp"
+#include "../FXAA.hpp"
 #include "../Scene.hpp"
 
 class TestScene04 : public SceneBase
@@ -36,7 +37,8 @@ class TestScene04 : public SceneBase
 		MAIN,
 		SUB,
 		PTC_NON_BLOOM,
-		PTC_BLOOM
+		PTC_BLOOM,
+		FXAA_GRAY
 	};
 	struct CbvParam
 	{
@@ -162,6 +164,8 @@ private:
 	std::shared_ptr<MSAASelector>						msaa_selector;
 	std::vector<std::string>							msaa_combo_texts;
 	bool												msaa_depth_draw;	// MSAA描画時に深度テクスチャをチェックしている際に使用されます。
+
+	std::shared_ptr<FXAAManager>						fxaa_mgr;
 private:
 	// レンダーターゲットとデプスステンシルを作成します。
 	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);

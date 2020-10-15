@@ -57,7 +57,8 @@ private:
 	KGL::DescriptorHandle										buffer_handle;
 
 	std::shared_ptr<Tex>										select;
-
+private:
+	void Change(bool next);
 public:
 	SkyManager(KGL::ComPtrC<ID3D12Device> device,
 		const std::shared_ptr<KGL::DXC>& dxc, 
@@ -72,4 +73,6 @@ public:
 	void SetWVP(DirectX::CXMMATRIX wvp);
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale);
 	void Uninit(std::shared_ptr<KGL::DescriptorManager> imgui_desc_mgr);
+	void ChangeNext() { Change(true); }
+	void ChangeBack() { Change(false); }
 };

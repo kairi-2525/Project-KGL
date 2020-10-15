@@ -72,9 +72,11 @@ HRESULT FCManager::ReloadDesc() noexcept
 		if (ifs.is_open())
 		{
 			const auto& file_name = file.filename().stem();
-			auto& desc = desc_list[file_name.string()];
+			//auto& desc = desc_list[file_name.string()];
+			std::shared_ptr<FireworksDesc> desc;
 			cereal::BinaryInputArchive i_archive(ifs);
 			i_archive(KGL_NVP(file_name.string(), desc));
+			Create(file_name.string(), desc.get());
 		}
 		//std::cout << ss.str() << std::endl;
 	}
@@ -117,20 +119,29 @@ bool FCManager::ChangeName(std::string before, std::string after) noexcept
 	return true;
 }
 
-void FCManager::Create() noexcept
+void FCManager::Create(const std::string& name, const FireworksDesc* desc) noexcept
 {
-	const std::string title = "none";
-	std::string name;
-	UINT num = 0u;
-	while (1)
+	if (desc)
 	{
-		num++;
-		name = title + "_" + std::to_string(num);
 		if (desc_list.count(name) == 0u)
-			break;
+		{
+			select_desc = desc_list[name] = std::make_shared<FireworksDesc>(*desc);
+			select_name = name;
+			select_desc->original_name = name;
+			return;
+		}
+		std::string set_name;
+		UINT num = 0u;
+		while (1)
+		{
+			num++;
+			set_name = name + "_" + std::to_string(num);
+			if (desc_list.count(set_name) == 0u)
+				break;
+		}
+		select_desc = desc_list[set_name] = std::make_shared<FireworksDesc>(*desc);
+		select_name = set_name;
 	}
-	select_desc = desc_list[name] = std::make_shared<FireworksDesc>();
-	select_name = name;
 }
 
 void FCManager::PlayDemo(UINT frame_num) noexcept
@@ -377,13 +388,31 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 		if (ImGui::TreeNode(u8"一覧"))
 		{
-			bool loop = true;
-			while (loop)
+			FWDESC_STATE state = LOOP;
+			while (state == LOOP)
 			{
+				if (desc_list.empty())
+				{
+					ImGui::Text(u8"存在しません。");
+					break;
+				}
 				for (auto& desc : desc_list)
 				{
-					loop = DescImGuiUpdate(device, &desc, p_parent);
-					if (loop) break;
+					state = DescImGuiUpdate(device, &desc, p_parent);
+					if (state == LOOP) break;
+					else if (state == ERASE)
+					{
+						desc_list.erase(desc.first);
+						state = LOOP;
+						break;
+					}
+					else if (cpy_fw_desc)
+					{
+						Create(cpy_fw_desc->first, &cpy_fw_desc->second);
+						cpy_fw_desc = nullptr;
+						state = LOOP;
+						break;
+					}
 				}
 			}
 
@@ -498,23 +527,23 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
-bool FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
+FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
 {
-	bool result = false;
+	FWDESC_STATE result = FWDESC_STATE::NONE;
 	if (desc && desc->second)
 	{
 		if (ImGui::TreeNode(desc->first.c_str()))
 		{
-			static std::string s_after_name("", 64u);
-			ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(), s_after_name.data(), s_after_name.size());
+			if (desc->second->set_name.size() < 64)
+				desc->second->set_name.resize(64u);
+			ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(), desc->second->set_name.data(), desc->second->set_name.size());
 			ImGui::SameLine();
 			if (ImGui::Button(u8"名前変更"))
 			{
-				ChangeName(desc->first, s_after_name);
+				ChangeName(desc->first, desc->second->set_name);
 				ImGui::TreePop();
-				return true;
+				return FWDESC_STATE::LOOP;
 			}
-
 			if (desc->second == select_desc)
 			{
 				ImGui::Text(u8"選択中");
@@ -524,6 +553,20 @@ bool FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, c
 				select_desc = desc->second;
 				select_name = desc->first;
 			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"コピー"))
+			{
+				std::string use_name = desc->second->original_name;
+				if (use_name.empty()) use_name = desc->first;
+				cpy_fw_desc = std::make_unique<std::pair<const std::string, FireworksDesc>>(use_name, *desc->second);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"削除"))
+			{
+				ImGui::TreePop();
+				return FWDESC_STATE::ERASE;
+			}
+			ImGui::SameLine();
 
 			UINT build_count = 0u;
 			for (const auto& data : add_demo_data)
@@ -578,7 +621,14 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 			{
 				if (ImGui::Button(u8"エフェクト追加"))
 				{
-					desc->effects.emplace_back();
+					desc->effects.emplace_back(*FIREWORK_EFFECTS::FW_DEFAULT.effects.begin());
+				}
+				if (cpy_ef_desc)
+				{
+					if (ImGui::Button(u8"貼り付け"))
+					{
+						desc->effects.emplace_back(*cpy_ef_desc);
+					}
 				}
 				if (ImGui::TreeNode(u8"エフェクト削除"))
 				{
@@ -594,8 +644,23 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 			UINT idx = 0;
 			for (auto& effect : desc->effects)
 			{
-				if (ImGui::TreeNode(std::string("[" + std::to_string(idx) + "]").c_str()))
+				if (ImGui::TreeNode(std::string("[" + std::to_string(idx) + 
+				(effect.name.empty() ? "]" : "] - " + effect.name)).c_str()))
 				{
+					if (effect.set_name.size() < 64)
+						effect.set_name.resize(64u);
+					ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(),
+						effect.set_name.data(), effect.set_name.size());
+					ImGui::SameLine();
+					if (ImGui::Button(u8"名前変更"))
+					{
+						effect.name = effect.set_name;
+						ImGui::TreePop();
+					}
+					if (ImGui::Button(u8"コピー"))
+					{
+						cpy_ef_desc = std::make_unique<EffectDesc>(effect);
+					}
 					if (ImGui::TreeNode(u8"パラメーター"))
 					{
 						ImGui::InputFloat(u8"開始時間(s)", &effect.start_time);

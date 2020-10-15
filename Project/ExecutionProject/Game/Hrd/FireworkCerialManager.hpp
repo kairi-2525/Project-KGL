@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Helper/Cast.hpp>
 #include "CelealHelper.hpp"
 #include "Effects.hpp"
 
@@ -27,56 +28,83 @@
 //	archive(KGL_NVP("x", m.x), KGL_NVP("y", m.y));
 //}
 
+#define EV_0_EFDC_ARCHIVE \
+	KGL_NVP("start_time", m.start_time), \
+	KGL_NVP("time", m.time), \
+	KGL_NVP("start_accel", m.start_accel), \
+	KGL_NVP("end_accel", m.end_accel), \
+	KGL_NVP("alive_time", m.alive_time), \
+	KGL_NVP("late", m.late), \
+	KGL_NVP("late_update_time", m.late_update_time), \
+	KGL_NVP("speed", m.speed), \
+	KGL_NVP("base_speed", m.base_speed), \
+	KGL_NVP("scale", m.scale), \
+	KGL_NVP("scale_front", m.scale_front), \
+	KGL_NVP("scale_back", m.scale_back), \
+	KGL_NVP("angle", m.angle), \
+	KGL_NVP("spawn_space", m.spawn_space), \
+	KGL_NVP("begin_color", m.begin_color), \
+	KGL_NVP("end_color", m.end_color), \
+	KGL_NVP("erase_color", m.erase_color), \
+	KGL_NVP("resistivity", m.resistivity), \
+	KGL_NVP("scale_resistivity", m.scale_resistivity), \
+	KGL_NVP("bloom", m.bloom), \
+	KGL_NVP("has_child", m.has_child), \
+	KGL_NVP("child", m.child)
+
+#define EV_0_FWDC_ARCHIVE \
+	KGL_NVP("mass", m.mass), \
+	KGL_NVP("resistivity", m.resistivity), \
+	KGL_NVP("speed", m.speed), \
+	KGL_NVP("effects", m.effects)
+
 template<class Archive>
 void serialize(Archive& archive,
 	EffectDesc& m, std::uint32_t const version)
 {
 	using namespace DirectX;
-	archive(
-		KGL_NVP("start_time", m.start_time),
-		KGL_NVP("time", m.time),
-		KGL_NVP("start_accel", m.start_accel),
-		KGL_NVP("end_accel", m.end_accel),
-		KGL_NVP("alive_time", m.alive_time),
-		KGL_NVP("late", m.late),
-		KGL_NVP("late_update_time", m.late_update_time),
-		KGL_NVP("speed", m.speed),
-		KGL_NVP("base_speed", m.base_speed),
-		KGL_NVP("scale", m.scale),
-		KGL_NVP("scale_front", m.scale_front),
-		KGL_NVP("scale_back", m.scale_back),
-		KGL_NVP("angle", m.angle),
-		KGL_NVP("spawn_space", m.spawn_space),
-		KGL_NVP("begin_color", m.begin_color),
-		KGL_NVP("end_color", m.end_color),
-		KGL_NVP("erase_color", m.erase_color),
-		KGL_NVP("resistivity", m.resistivity),
-		KGL_NVP("scale_resistivity", m.scale_resistivity),
-		KGL_NVP("bloom", m.bloom),
-		KGL_NVP("has_child", m.has_child),
-		KGL_NVP("child", m.child)					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
-	);
-	if (1 <= version) {
-		// archive(...);
+	switch (SCAST<EFFECT_VERSION>(version))
+	{
+		case EFFECT_VERSION::EV_0:
+		{
+			archive(EV_0_EFDC_ARCHIVE);
+			break;
+		}
+		case EFFECT_VERSION::EV_1:
+		{
+			archive(
+				EV_0_EFDC_ARCHIVE,
+				KGL_NVP("name", m.name)
+			);
+			break;
+		}
 	}
 }
-CEREAL_CLASS_VERSION(EffectDesc, 1);
+CEREAL_CLASS_VERSION(EffectDesc, SCAST<UINT>(EFFECT_VERSION::EV_1));
 
 template<class Archive>
 void serialize(Archive& archive,
 	FireworksDesc& m, std::uint32_t const version)
 {
-	archive(
-		KGL_NVP("mass", m.mass),
-		KGL_NVP("resistivity", m.resistivity),
-		KGL_NVP("speed", m.speed),
-		KGL_NVP("effects", m.effects)
-	);
-	if (1 <= version) {
-		// archive(...);
+	using namespace DirectX;
+	switch (SCAST<FIREWORKS_VERSION>(version))
+	{
+		case FIREWORKS_VERSION::FV_0:
+		{
+			archive(EV_0_FWDC_ARCHIVE);
+			break;
+		}
+		case FIREWORKS_VERSION::FV_1:
+		{
+			archive(
+				EV_0_FWDC_ARCHIVE,
+				KGL_NVP("original_name", m.original_name)
+			);
+			break;
+		}
 	}
 }
-CEREAL_CLASS_VERSION(FireworksDesc, 1);
+CEREAL_CLASS_VERSION(FireworksDesc, SCAST<UINT>(FIREWORKS_VERSION::FV_1));
 
 class FCManager
 {
@@ -109,6 +137,12 @@ private:
 		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
 		size_t Size(UINT num) const;
 	};
+	enum FWDESC_STATE
+	{
+		NONE,
+		LOOP,
+		ERASE
+	};
 private:
 	std::shared_ptr<KGL::Directory>								directory;
 	std::string													select_name;
@@ -124,19 +158,22 @@ private:
 	UINT														demo_frame_number;
 	bool														demo_play;
 	float														demo_play_frame;
+
+	std::unique_ptr<std::pair<const std::string, FireworksDesc>> cpy_fw_desc;
+	std::unique_ptr<EffectDesc>									cpy_ef_desc;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
 	void DemoDataManaged();
-	void Create() noexcept;
+	void Create(const std::string& name = "none", const FireworksDesc* desc = &FIREWORK_EFFECTS::FW_DEFAULT) noexcept;
 	void PlayDemo(UINT frame_num) noexcept;
 	void StopDemo() noexcept;
 	void UpdateDemo(float update_time) noexcept;
 	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
-	static void FWDescImGuiUpdate(FireworksDesc* desc);
+	void FWDescImGuiUpdate(FireworksDesc* desc);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
-	bool DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
+	FWDESC_STATE DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
 	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
 	~FCManager();

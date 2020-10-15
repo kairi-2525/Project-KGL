@@ -8,6 +8,17 @@
 #include <Windows.h>
 #undef NOMINMAX
 
+enum class EFFECT_VERSION : UINT
+{
+	EV_0 = 1u,
+	EV_1
+};
+enum class FIREWORKS_VERSION : UINT
+{
+	FV_0 = 1u,
+	FV_1
+};
+
 struct Particle;
 struct ParticleParent;
 class Fireworks;
@@ -22,12 +33,14 @@ struct FireworksDesc
 	float				speed;
 
 	std::vector<EffectDesc>	effects;
+
+	std::string set_name;
+	std::string original_name;
 };
 
 struct EffectDesc
 {
 	// XMFLOAT2は全て 最小値x ~ 最大値y
-
 	float				start_time;				// start_time経過後出現します。
 	float				time;					// start_time経過後time秒間後消滅します。
 	float				start_accel;			// start_timeが経過した瞬間にFireworkクラスで ↓↓
@@ -52,6 +65,9 @@ struct EffectDesc
 	bool				has_child;				// このフラグを確認して↓を適応します
 	FireworksDesc		child;					// パーティクルの代わりにFireworksを作成する場合ここに指定します。
 
+	std::string			name;
+	std::string			set_name;
+	UINT32				id;
 };
 
 struct Effect
@@ -70,6 +86,36 @@ struct Effect
 
 namespace FIREWORK_EFFECTS
 {
+	extern inline const FireworksDesc FW_DEFAULT =
+	{
+		{ 0.f, 0.f, 0.f }, // pos
+		{ 0.f, 0.f, 0.f },
+		1.f, 1.f, 1.f,
+		{
+			{
+				0.f,	// start_time
+				1.f,	// time
+				1.f,	// start_accel
+				1.f,	// end_accel
+				{ 1.f, 1.f },	// alive_time
+				{ 100.f, 100.f },	// late
+				1.f,			// late_update_time
+				{ 10.f, 10.f },	// speed
+				{ 0.f, 0.f },	// base_speed
+				{ 1.0f, 1.0f },	// scale
+				0.f, 0.f,		// scale_front, scale_back
+				{ DirectX::XMConvertToRadians(0.f) , DirectX::XMConvertToRadians(180.f) },	// angle
+				{ 0.f, 0.f },	// spawn_space
+				{ 1.f, 1.f, 1.f, 0.5f },	// begin_color
+				{ 1.f, 1.f, 1.f, 0.5f },	// end_color
+				{ 1.f, 1.f, 1.f, 0.00f },	// erase_color
+				5.f, 0.f,						// resistivity, scale_resistivity
+				true,							// bloom
+				false
+			}
+		},
+
+	};
 	extern inline const std::vector<EffectDesc> A =
 	{
 		{

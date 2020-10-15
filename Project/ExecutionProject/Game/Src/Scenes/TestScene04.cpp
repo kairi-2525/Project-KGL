@@ -43,7 +43,10 @@ HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC samp
 		device, res_desc, CD3DX12_CLEAR_VALUE(res_desc.Format, (float*)&clear_value)) });
 	rtrc.render_targets.push_back({ std::make_shared<KGL::Texture>(
 		device, res_desc, CD3DX12_CLEAR_VALUE(res_desc.Format, (float*)&clear_value)) });
-
+	// FXAA_GRAY
+	constexpr auto non_alpha_clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+	rtrc.render_targets.push_back({ std::make_shared<KGL::Texture>(
+		device, res_desc, CD3DX12_CLEAR_VALUE(res_desc.Format, (float*)&non_alpha_clear_value)) });
 	std::vector<ComPtr<ID3D12Resource>> resources;
 	resources.reserve(rtrc.render_targets.size());
 	for (auto& it : rtrc.render_targets) resources.push_back(it.tex->Data());
@@ -505,6 +508,9 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		PrepareRTAndDS(desc, sample_desc);
 		sample_desc.Count *= 2;
 	}
+
+	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
+
 	return hr;
 }
 
@@ -524,7 +530,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	const XMMATRIX proj_mat = XMMatrixPerspectiveFovLH(
 		XMConvertToRadians(70.f),	// FOV
 		static_cast<float>(resolution.x) / static_cast<float>(resolution.y),	// アスペクト比
-		1.0f, 1000.0f // near, far
+		0.1f, 1000.0f // near, far
 	);
 	XMStoreFloat4x4(&proj, proj_mat);
 	
@@ -624,7 +630,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	}
 
 	// MSAAをのセレクターに最大値をセット
-	// msaa_selector->SetScale(msaa_selector->GetMaxScale());
+	msaa_selector->SetScale(msaa_selector->GetMaxScale());
 
 	return S_OK;
 }
@@ -700,8 +706,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	const float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
-	camera->Update(desc.window, desc.input, elapsed_time, camera_speed, input->IsMouseHold(KGL::MOUSE_BUTTONS::right));
+	{
+		float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
+		if (input->IsKeyHold(KGL::KEYS::LCONTROL)) camera_speed *= 0.1f;
+		camera->Update(desc.window, desc.input, elapsed_time, camera_speed, input->IsMouseHold(KGL::MOUSE_BUTTONS::right));
+	}
 #if 0
 	camera->GetPos() = { 0.f, 200.f, -10.f };
 	camera->GetFront() = { 0.f, 0.f, 1.f };
@@ -716,13 +725,23 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	fc_mgr->Update(elapsed_time);
 
-	{
+	{	// MSAAスケールをキーで変更
 		auto msaa_scale = SCAST<UINT>(msaa_selector->GetScale());
 		if (input->IsKeyPressed(KGL::KEYS::NUMPAD8))
 			msaa_scale++;
 		if (input->IsKeyPressed(KGL::KEYS::NUMPAD2))
 			msaa_scale--;
 		msaa_selector->SetScale(SCAST<MSAASelector::TYPE>(msaa_scale));
+	}
+	{
+		if (input->IsKeyPressed(KGL::KEYS::NUMPAD5))
+			fxaa_mgr->SetActiveFlg(!fxaa_mgr->IsActive());
+	}
+	{	// 空をキーで変更
+		if (input->IsKeyPressed(KGL::KEYS::NUMPAD1))
+			sky_mgr->ChangeBack();
+		if (input->IsKeyPressed(KGL::KEYS::NUMPAD3))
+			sky_mgr->ChangeNext();
 	}
 	if (use_gui)
 	{
@@ -750,6 +769,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 			ImGui::Spacing();
 
+			fxaa_mgr->ImGuiTreeUpdate(desc.app->GetResolution());
+			ImGui::Spacing();
 			{
 				std::string select_msaa = msaa_combo_texts[SCAST<UINT>(msaa_selector->GetScale())];
 
@@ -831,6 +852,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}
 
+	fxaa_mgr->UpdateBuffer();
 	sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj));
 
 	{
@@ -1575,8 +1597,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	cmd_list->RSSetScissorRects(1, &scissorrect);
 
 	// MSAA識別用
-	const UINT msaa_scale = msaa_selector->GetScale();
-	const bool msaa = msaa_scale != 0u;
+	const bool fxaa = fxaa_mgr->GetDesc().type == FXAAManager::TYPE::FXAA_ON;
+	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : msaa_selector->GetScale();
+	const bool msaa = msaa_scale != SCAST<UINT>(MSAASelector::MSAA_OFF);
 
 	const auto& rtrc = rt_resources[msaa_scale];
 	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
@@ -1721,18 +1744,39 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	}
 
 	// DOFの場合はGeneratorから描画させ、そうでない場合はSpriteで描画する
-	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
 	if (dof_flg)
 	{
 		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), viewport);
-		desc.app->SetRtv(cmd_list);
-		desc.app->ClearRtv(cmd_list, { 0.f, 0.f, 0.f, 0.f });
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
+		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
 		dof_generator->Render(cmd_list, rtrc_off.depth_srv_handle.Heap(), rtrc_off.depth_srv_handle.Gpu());
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+	}
+
+	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+	
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	if (fxaa)
+	{
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::FXAA_GRAY));
+		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::FXAA_GRAY);
+		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::FXAA_GRAY].tex->GetClearColor(), RT::FXAA_GRAY);
+		fxaa_mgr->SetGrayState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
+		sprite->Render(cmd_list);
+		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::FXAA_GRAY));
+
+		desc.app->SetRtv(cmd_list);
+		fxaa_mgr->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::FXAA_GRAY));
+		sprite->Render(cmd_list);
 	}
 	else
 	{
 		desc.app->SetRtv(cmd_list);
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		sprite_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));

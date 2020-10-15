@@ -21,7 +21,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 	float depth_center = depth_tex.Sample(smp, float2(0.5f, 0.5f));
 	float depth = depth_tex.Sample(smp, input.uv);
 	float depth_diff = abs(depth_center - depth);
-	depth_diff = pow(depth_diff, 0.4);
+	depth_diff = pow(depth_diff, 0.5);
 	float no;
 	float t = modf(depth_diff * rtv_num, no);
 

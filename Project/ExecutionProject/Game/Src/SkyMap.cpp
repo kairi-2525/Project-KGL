@@ -199,6 +199,42 @@ void SkyManager::Update(const DirectX::XMFLOAT3& pos, DirectX::CXMMATRIX viewpro
 	}
 }
 
+void SkyManager::Change(bool next)
+{
+	auto itr = tex_data.begin();
+	while (itr != tex_data.end())
+	{
+		if (itr->second == select)
+			break;
+		itr++;
+	}
+	if (itr != tex_data.end())
+	{
+		if (next)
+		{
+			itr++;
+			if (itr == tex_data.end())
+				select = tex_data.begin()->second;
+			else
+				select = itr->second;
+		}
+		else
+		{
+			if (itr == tex_data.begin())
+			{
+				auto back = tex_data.end();
+				back--;
+				select = back->second;
+			}
+			else
+			{
+				itr--;
+				select = itr->second;
+			}
+		}
+	}
+}
+
 void SkyManager::SetWVP(DirectX::CXMMATRIX wvp)
 {
 	auto* p_mapped_wvp = buffer->Map(0, &CD3DX12_RANGE(0, 0));
