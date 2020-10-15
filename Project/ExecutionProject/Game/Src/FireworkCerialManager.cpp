@@ -279,11 +279,11 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 		desc.pos = { 0.f, 0.f, 0.f };
 		desc.velocity = { 0.f, desc.speed, 0.f };
 		fws.emplace_back(desc);
-		const UINT FRAME_COUNT = SCAST<UINT>(max_time_count / FRAME_SECOND);
+		const UINT FRAME_COUNT = SCAST<UINT>(max_time_count / FRAME_SECOND) + 1u;
 		ptcs.resize(FRAME_COUNT);
 		auto parent = *p_parent;
 		parent.elapsed_time = FRAME_SECOND;
-		for (UINT i = 0u; i < FRAME_COUNT; i++)
+		for (UINT i = 1u; i < FRAME_COUNT; i++)
 		{
 			if (i >= 1u)
 			{
