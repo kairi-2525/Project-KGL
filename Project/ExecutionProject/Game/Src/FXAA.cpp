@@ -91,15 +91,14 @@ void FXAAManager::SetRCPFrameDesc(const DirectX::XMUINT2& rt_size, float N)
 
 void FXAAManager::ImGuiTreeUpdate(const DirectX::XMUINT2& rt_size)
 {
-	if (ImGui::TreeNode(u8"FXAA"))
+	bool on_flg = desc.type == FXAA_ON;
+	if (ImGui::Checkbox(u8"FXAA", &on_flg))
 	{
-		bool on_flg = desc.type == FXAA_ON;
-		if (ImGui::Checkbox(u8"ON", &on_flg))
-		{
-			if (on_flg) desc.type = FXAA_ON;
-			else desc.type = FXAA_OFF;
-		}
-
+		if (on_flg) desc.type = FXAA_ON;
+		else desc.type = FXAA_OFF;
+	}
+	if (ImGui::TreeNode(u8"FXAA Option"))
+	{
 		if (ImGui::SliderFloat("quality_edge_threshold", &desc.buffer.quality_edge_threshold, 0.063f, 0.333f)) changed = true;
 		if (ImGui::SliderFloat("quality_edge_threshold_min", &desc.buffer.quality_edge_threshold_min, 0.0312f, 0.0833f)) changed = true;
 		if (ImGui::SliderFloat("console_edge_threshold", &desc.buffer.console_edge_threshold, 0.125f, 0.25f)) changed = true;

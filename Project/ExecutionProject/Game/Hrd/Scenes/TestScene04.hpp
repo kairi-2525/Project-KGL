@@ -86,7 +86,7 @@ private:
 	bool										use_gui;
 	bool										stop_time;
 
-	std::shared_ptr<KGL::BaseRenderer>			sprite_renderer;
+	std::vector<std::shared_ptr<KGL::BaseRenderer>>	sprite_renderers;
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>	add_sprite_renderers;
 	std::shared_ptr<KGL::BaseRenderer>			depth_sprite_renderer;
 	std::shared_ptr<KGL::Sprite>				sprite;

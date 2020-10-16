@@ -177,7 +177,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{	// スプライト用PSOの作成(半透明、加算、高輝度抽出)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
-		sprite_renderer = std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc);
+		sprite_renderers.emplace_back(std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc));
+		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
+		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
+		{
+			renderer_desc.other_desc.sample_desc.Count *= 2;
+			sprite_renderers.emplace_back(std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc));
+		}
+		renderer_desc.other_desc.sample_desc.Count = 1u;
+		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 
 		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
 		add_sprite_renderers.reserve(msaa_type_count);
@@ -1598,7 +1606,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	// MSAA識別用
 	const bool fxaa = fxaa_mgr->GetDesc().type == FXAAManager::TYPE::FXAA_ON;
-	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : msaa_selector->GetScale();
+	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : SCAST<UINT>(msaa_selector->GetScale());
 	const bool msaa = msaa_scale != SCAST<UINT>(MSAASelector::MSAA_OFF);
 
 	const auto& rtrc = rt_resources[msaa_scale];
@@ -1777,7 +1785,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	else
 	{
 		desc.app->SetRtv(cmd_list);
-		sprite_renderer->SetState(cmd_list);
+		sprite_renderers[MSAASelector::MSAA_OFF]->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
 		sprite->Render(cmd_list);

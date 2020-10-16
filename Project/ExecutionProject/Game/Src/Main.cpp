@@ -52,10 +52,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	{
 		using KGL::ComPtr;
 #ifdef _DEBUG
-		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::HD_WINDOWED_ADJ_DESC);
+		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::FULLSCREEN_DESC);
+		// std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::HD_WINDOWED_ADJ_DESC);
 #else
-		//auto wwdesc = KGL::Window::FULLSCREEN_DESC;
-		//std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(wwdesc);
 		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::FULLSCREEN_DESC);
 #endif
 		std::shared_ptr<KGL::Input> input = std::make_shared<KGL::Input>(window->GetHWND());
