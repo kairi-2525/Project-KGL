@@ -597,6 +597,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	spawn_fireworks = false;
 
 	dof_flg = true;
+	ptc_dof_flg = false;
 
 	bloom_generator->SetKernel(8u);
 	after_blooming = false;
@@ -770,6 +771,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Spacing();
 
 			ImGui::Checkbox("Use DOF", &dof_flg);
+			ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
 			auto dof_rtv_num = SCAST<int>(dof_generator->GetRtvNum());
 			if (ImGui::SliderInt("Scale", &dof_rtv_num, 1, 8))
 			{
@@ -1156,6 +1158,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			if (ImGui::Begin("Particle"))
 			{
+				ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
 				ImGui::Checkbox("SpawnFireworks", &spawn_fireworks);
 				bool use_gpu_log = use_gpu;
 				if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
@@ -1656,7 +1659,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 
 		// 被写界深度用にパーティクルの深度値を書き込む
-		if (dof_flg)
+		if (dof_flg && ptc_dof_flg)
 		{
 			board_renderers[msaa_scale].dsv->SetState(cmd_list);
 			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());

@@ -151,6 +151,7 @@ private:
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
 
+	bool												ptc_dof_flg;
 	bool												dof_flg;
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
