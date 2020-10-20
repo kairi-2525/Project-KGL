@@ -114,6 +114,8 @@ private:
 
 	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
+	KGL::ComPtr<ID3D12CommandAllocator>			fast_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>		fast_cmd_list;
 
 	KGL::ComPtr<ID3D12CommandAllocator>			cpt_cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
@@ -147,6 +149,7 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>					grid_renderer;
 	SceneBufferDx12<AlphaBuffer>						grid_buffer;
 
+	bool												sky_draw;
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
@@ -174,6 +177,7 @@ public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
 	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
+	HRESULT FastRender(const SceneDesc& desc);
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
 	void ResetCounterMax();

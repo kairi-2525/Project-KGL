@@ -159,6 +159,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &fast_cmd_allocator, &fast_cmd_list);
+	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cpt_cmd_allocator, &cpt_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	{	// コンピュート用
@@ -605,6 +607,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	rt_gui_windowed = false;
 	sky_gui_windowed = false;
 
+	sky_draw = true;
+
 	{	// キューブを簡易描画するマネージャー(キューブ以外のものも対応予定)
 		debug_mgr->ClearStaticObjects();
 		std::vector<std::shared_ptr<DebugManager::Object>> objects;
@@ -770,6 +774,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Text("xyz[ %.2f, %.2f, %.2f ]", camera_pos.x, camera_pos.y, camera_pos.z);
 			ImGui::Spacing();
 
+			ImGui::Checkbox("Draw Sky", &sky_draw);
+			ImGui::Spacing();
+
 			ImGui::Checkbox("Use DOF", &dof_flg);
 			ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
 			auto dof_rtv_num = SCAST<int>(dof_generator->GetRtvNum());
@@ -864,6 +871,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	fxaa_mgr->UpdateBuffer();
 	sky_mgr->Update(camera_pos, view * XMLoadFloat4x4(&proj));
+
+	HRESULT hr = FastRender(desc);
+	RCHECK_HR(hr, "FastRenderに失敗");
 
 	{
 		using namespace DirectX;
@@ -1284,6 +1294,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	ct_update = update_timer.GetTime();
 
+	ImGui::Render();
 	return Render(desc);
 }
 
@@ -1588,6 +1599,50 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	return hr;
 }
 #else
+
+HRESULT TestScene04::FastRender(const SceneDesc& desc)
+{
+	using KGL::SCAST;
+	HRESULT hr = S_OK;
+
+	//auto window_size = desc.window->GetClientSize();
+	auto resolution = desc.app->GetResolution();
+	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
+
+	// ビューとシザーをセット
+	D3D12_VIEWPORT viewport =
+		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
+	auto scissorrect =
+		CD3DX12_RECT(0, 0, resolution.x, resolution.y);
+	fast_cmd_list->RSSetViewports(1, &viewport);
+	fast_cmd_list->RSSetScissorRects(1, &scissorrect);
+
+	// MSAA識別用
+	const bool fxaa = fxaa_mgr->GetDesc().type == FXAAManager::TYPE::FXAA_ON;
+	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : SCAST<UINT>(msaa_selector->GetScale());
+	const bool msaa = msaa_scale != SCAST<UINT>(MSAASelector::MSAA_OFF);
+
+	const auto& rtrc = rt_resources[msaa_scale];
+	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
+	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+
+	// Sky と Debug を RT::NON_BLOOM に描画
+	fast_cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+	rtrc.rtvs->Set(fast_cmd_list, dsv_handle, RT::MAIN);
+	rtrc.rtvs->Clear(fast_cmd_list, rtrc.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
+	fast_cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	if (sky_draw) sky_mgr->Render(fast_cmd_list, msaa_scale);
+	debug_mgr->Render(fast_cmd_list, msaa_scale);
+	fast_cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+
+	fast_cmd_list->Close();
+	ID3D12CommandList* cmd_lists[] = { fast_cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+	desc.app->GetQueue()->Signal();
+
+	return hr;
+}
+
 HRESULT TestScene04::Render(const SceneDesc& desc)
 {
 	using KGL::SCAST;
@@ -1614,18 +1669,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	const auto& rtrc = rt_resources[msaa_scale];
 	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
-
-	ImGui::Render();
-
-	// Sky と Debug を RT::NON_BLOOM に描画
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-	rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
-	rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
-	cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-	sky_mgr->Render(cmd_list, msaa_scale);
-	debug_mgr->Render(cmd_list, msaa_scale);
-	cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
 	const auto ptc_size = ptc_mgr->Size();
 	const auto fc_mgr_size = fc_mgr->Size();
@@ -1799,6 +1843,12 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
 	
 	cmd_list->Close();
+
+	// FastRenderの完了を待つ
+	desc.app->GetQueue()->Wait();
+	fast_cmd_allocator->Reset();
+	fast_cmd_list->Reset(fast_cmd_allocator.Get(), nullptr);
+
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
 	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
 	desc.app->GetQueue()->Signal();

@@ -39,6 +39,27 @@ namespace KGL
 				}
 				return hr;
 			}
+
+			template <class _Ty = ID3D12GraphicsCommandList>
+			inline HRESULT CreateCommandList(
+				ComPtrC<ID3D12Device> device,
+				ID3D12CommandAllocator* p_allocator,
+				ComPtr<_Ty>* p_list,
+				D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT)
+			{
+				HRESULT hr = S_OK;
+
+				if (p_allocator && p_list)
+				{
+					hr = device->CreateCommandList(0,
+						type,
+						p_allocator, nullptr,
+						IID_PPV_ARGS(p_list->ReleaseAndGetAddressOf())
+					);
+					RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
+				}
+				return hr;
+			}
 		}
 	}
 }

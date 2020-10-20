@@ -228,6 +228,10 @@ HRESULT Application::CreateSwapchain(ComPtr<IDXGIFactory6> factory, HWND hwnd) n
 			(IDXGISwapChain1**)m_swapchain.ReleaseAndGetAddressOf()
 		);
 		RCHECK(FAILED(hr), "スワップチェインの生成に失敗！", hr);
+
+		// Alt+Enterによる全画面遷移をできないようにする
+		hr = factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER);
+		RCHECK(FAILED(hr), "Alt+Enterによる全画面遷移の設定に失敗！", hr);
 	}
 	return hr;
 }
