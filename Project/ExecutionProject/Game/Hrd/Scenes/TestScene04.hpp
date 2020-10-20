@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Dx12/Texture.hpp>
+#include <Helper/Timer.hpp>
 #include <Loader/PMDLoader.hpp>
 #include <Loader/VMDLoader.hpp>
 #include <Dx12/3D/PMDModel.hpp>
@@ -67,8 +68,14 @@ class TestScene04 : public SceneBase
 		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
 	};
 private:
-	UINT64 ct_particle, ct_frame_ptc, ct_fw, ct_gpu, ct_cpu, ct_fw_update, ct_map_update;
-	UINT64 ct_update, ct_update_max, ct_render, ct_render_max;
+	KGL::Timer									tm_update;
+	KGL::Timer									tm_render;
+	// KGL::Timer									ct_ptc;
+	// KGL::Timer									ct_ptc;
+	UINT64										ct_ptc_total_max;
+	UINT64										ct_ptc_frame_max;
+	UINT64										ct_fw_max;
+
 	float										ptc_key_spawn_counter;
 	float										time_scale;
 	bool										use_gpu;

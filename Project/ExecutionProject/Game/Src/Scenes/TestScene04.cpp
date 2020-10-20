@@ -5,7 +5,6 @@
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Helper/Debug.hpp>
-#include <Helper/Timer.hpp>
 #include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
@@ -650,8 +649,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 void TestScene04::ResetCounterMax()
 {
-	ct_particle = ct_frame_ptc = ct_fw = ct_gpu = ct_cpu = ct_fw_update = ct_map_update = 0u;
-	ct_update = ct_update_max = ct_render = ct_render_max = 0;
+	ct_fw_max = 0u;
+	ct_ptc_max = 0u;
 }
 
 void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
@@ -913,7 +912,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	using namespace DirectX;
-	KGL::Timer timer;
 	auto particle_total_num = ptc_mgr->ResetCounter();
 	auto pl_shot_particle_total_num = pl_shot_ptc_mgr->ResetCounter();
 	{
@@ -960,7 +958,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_parent->elapsed_time = ptc_update_time;
 			pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		timer.Restart();
 		if (use_gpu)
 		{
 			particle_pipeline->SetState(cpt_cmd_list);
@@ -1126,8 +1123,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			spawn_timer -= spawn_elapsed;
 		}
 	}*/
-	UINT64 cputime = timer.GetTime(KGL::Timer::SEC::MICRO);
-	timer.Restart();
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
 		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks))
@@ -1137,17 +1132,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			i--;
 		}
 	}
-	UINT64 firework_update = timer.GetTime(KGL::Timer::SEC::MICRO);
 
-	timer.Restart();
 	if (use_gpu)
 	{
 		cpt_cmd_queue->Wait();
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
-	UINT64 gputime = timer.GetTime(KGL::Timer::SEC::MICRO);
-	timer.Restart();
 
 	if (particle_total_num > 0)
 		ptc_mgr->Sort();
@@ -1157,9 +1148,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	const auto frame_ptc_size = ptc_mgr->frame_particles.size() + pl_shot_ptc_mgr->frame_particles.size();
 	ptc_mgr->AddToFrameParticle();
 	pl_shot_ptc_mgr->AddToFrameParticle();
-	UINT64 map_update = timer.GetTime(KGL::Timer::SEC::MICRO);
-	timer.Restart();
-	cputime += firework_update + map_update;
 
 	{
 		const auto counter = ptc_mgr->Size() + pl_shot_ptc_mgr->Size();
@@ -1179,23 +1167,30 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ImGui::Checkbox("Time Stop", &stop_time);
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
-				ct_update_max = std::max<UINT64>(ct_update, ct_update_max);
-				ImGui::Text("Update Count Total [ %5d ] : [ %5d ]", ct_update, ct_update_max);
-				ct_render_max = std::max<UINT64>(ct_render, ct_render_max);
+				constexpr auto TimerGui = [](const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO)
+				{
+					std::string title_text = (title + " [ %5d ][ %5d ][ %5d ][ %5d ]");
+					switch (sec_type)
+					{
+						case KGL::Timer::SEC::MICRO:
+							ImGui::Text(title_text.c_str(), timer.Last().micro, timer.Average().micro, timer.Min().micro, timer.Max().micro);
+							break;
+						case KGL::Timer::SEC::NANO:
+							ImGui::Text(title_text.c_str(), timer.Last().nano, timer.Average().nano, timer.Min().nano, timer.Max().nano);
+							break;
+						default:
+							ImGui::Text(title_text.c_str(), timer.Last().milli, timer.Average().milli, timer.Min().milli, timer.Max().milli);
+							break;
+					}
+				};
+				TimerGui("Update Count Total", tm_update);
 				ImGui::Text("Render Count Total [ %5d ] : [ %5d ]", ct_render, ct_render_max);
-				ct_particle = std::max<UINT64>(ct_particle, counter);
-				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_particle);
-				ct_frame_ptc = std::max<UINT64>(ct_frame_ptc, frame_ptc_size);
-				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_frame_ptc);
-				ct_fw = std::max<UINT64>(ct_fw, fireworks.size());
-				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw);
-				ct_gpu = std::max<UINT64>(ct_gpu, gputime);
+				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
+				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
+				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw_max);
 				ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
-				ct_cpu = std::max<UINT64>(ct_cpu, cputime);
 				ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
-				ct_fw_update = std::max<UINT64>(ct_fw_update, firework_update);
 				ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
-				ct_map_update = std::max<UINT64>(ct_map_update, map_update);
 				ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
 
 				ImGui::NextColumn();
@@ -1291,8 +1286,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		debug_mgr->Update(tc, sc, use_gui);
 	}
-
-	ct_update = update_timer.GetTime();
 
 	ImGui::Render();
 	return Render(desc);
@@ -1648,8 +1641,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
-	KGL::Timer render_timer;
-
 	//auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
@@ -1852,8 +1843,6 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
 	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
 	desc.app->GetQueue()->Signal();
-
-	ct_render = render_timer.GetTime();
 	desc.app->GetQueue()->Wait();
 
 	cmd_allocator->Reset();
