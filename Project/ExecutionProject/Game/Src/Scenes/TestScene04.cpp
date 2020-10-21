@@ -653,6 +653,10 @@ void TestScene04::ResetCounterMax()
 	ct_ptc_total_max = 0u;
 	ct_ptc_frame_max = 0u;
 
+	tm_update.Clear();
+	tm_render.Clear();
+	tm_ptc_update_gpu.Clear();
+	tm_ptc_update_cpu.Clear();
 }
 
 void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
@@ -703,7 +707,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
-	KGL::Timer update_timer;
+	tm_update.Restart();
 
 	msaa_depth_draw = false;
 
@@ -980,8 +984,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 		else
 		{
+			tm_ptc_update_cpu.Restart();
 			if (particle_total_num > 0)
 				ptc_mgr->Update();
+			tm_ptc_update_cpu.Count();
 		}
 
 		float key_spawn_late = 5.f;
@@ -1137,7 +1143,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gpu)
 	{
+		tm_ptc_update_gpu.Restart();
 		cpt_cmd_queue->Wait();
+		tm_ptc_update_gpu.Count();
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
@@ -1185,11 +1193,17 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 							break;
 					}
 				};
-				TimerGui("Update Count Total", tm_update);
-				TimerGui("Render Count Total", tm_render);
+				TimerGui("Update Count Total ", tm_update);
+				TimerGui("Render Count Total ", tm_render);
+				TimerGui("Particle Update Gpu", tm_ptc_update_gpu);
+				TimerGui("Particle Update Cpu", tm_ptc_update_cpu);
 				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
-				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
+
+				ct_fw_max = (std::max)(fireworks.size(), ct_fw_max);
 				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw_max);
+				ct_ptc_frame_max = (std::max)(frame_ptc_size, ct_ptc_frame_max);
+				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
+
 				//ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
 				//ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
 				//ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
@@ -1288,6 +1302,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		debug_mgr->Update(tc, sc, use_gui);
 	}
+
+	tm_update.Count();
 
 	ImGui::Render();
 	return Render(desc);
@@ -1643,6 +1659,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
+	tm_render.Restart();
+
 	//auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
@@ -1846,6 +1864,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
 	desc.app->GetQueue()->Signal();
 	desc.app->GetQueue()->Wait();
+
+	tm_render.Count();
 
 	cmd_allocator->Reset();
 	cmd_list->Reset(cmd_allocator.Get(), nullptr);

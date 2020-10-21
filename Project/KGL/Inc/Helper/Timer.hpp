@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <deque>
+#include <vector>
 
 #define NOMINMAX
 #include <Windows.h>
@@ -70,35 +71,42 @@ namespace KGL
 		SCALES									average_time;
 		SCALES									last_time;
 		bool									inited;
-	private:
-		void Update() noexcept
+		std::vector<SCALES>						average_frame_data;
+	public:
+		void Count() noexcept
 		{
 			auto last_time_point = std::chrono::system_clock::now() - time_point;
 			last_time.milli = std::chrono::duration_cast<std::chrono::milliseconds>(last_time_point).count();
 			last_time.micro = std::chrono::duration_cast<std::chrono::microseconds>(last_time_point).count();
 			last_time.nano = std::chrono::duration_cast<std::chrono::nanoseconds>(last_time_point).count();
-			
+
 			max_time = SCALES::Max(max_time, last_time);
 			min_time = SCALES::Min(min_time, last_time);
 
-			average_time += last_time;
-			if (inited)
-				average_time /= 2;
-			else
-				inited = true;
+			average_frame_data.push_back(last_time);
+			if (average_frame_data.size() >= average_frame_data.capacity())
+			{
+				average_time = { 0, 0, 0 };
+				for (const auto& it : average_frame_data)
+				{
+					average_time += it;
+				}
+				average_time /= average_frame_data.capacity();
+				average_frame_data.clear();
+			}
 		}
 		void Clear()
 		{
 			inited = false;
 			last_time = average_time = max_time = { 0, 0, 0 };
 			min_time = { UINT64_MAX, UINT64_MAX, UINT64_MAX };
+			average_frame_data.clear();
 		}
-	public:
-		explicit Timer() noexcept { Clear(); Restart(); };
+		explicit Timer(UINT average_frame = 100u) noexcept { average_frame_data.reserve(average_frame); Clear(); Restart(); };
 		void Restart() noexcept { time_point = std::chrono::system_clock::now(); }
 		UINT64 GetTime(SEC sec_type = SEC::MILLI) noexcept
 		{
-			Update();
+			Count();
 			switch (sec_type)
 			{
 			case SEC::MICRO:

@@ -70,8 +70,8 @@ class TestScene04 : public SceneBase
 private:
 	KGL::Timer									tm_update;
 	KGL::Timer									tm_render;
-	// KGL::Timer									ct_ptc;
-	// KGL::Timer									ct_ptc;
+	KGL::Timer									tm_ptc_update_gpu;
+	KGL::Timer									tm_ptc_update_cpu;
 	UINT64										ct_ptc_total_max;
 	UINT64										ct_ptc_frame_max;
 	UINT64										ct_fw_max;

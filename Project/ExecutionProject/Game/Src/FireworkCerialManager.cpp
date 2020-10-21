@@ -10,6 +10,8 @@
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 
+#define EditCheck(func, result, func_result) func_result = func; result = result || func_result;
+
 static void HelpMarker(const char* desc)
 {
 	ImGui::TextDisabled("(?)");
@@ -43,6 +45,14 @@ FCManager::~FCManager()
 			demo_mg_stop = true;
 		}
 		demo_mg_th->join();
+	}
+	if (demo_select_th)
+	{
+		{
+			std::lock_guard<std::mutex> stop_check_lock(demo_select_stop_mutex);
+			demo_select_stop = true;
+		}
+		demo_select_th->join();
 	}
 }
 
@@ -328,17 +338,36 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 	build_flg = false;
 }
 
-void FCManager::CreateDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
+void FCManager::CreateDemo(
+	KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+	std::mutex* mt_lock, std::mutex* mt_stop_lock,
+	std::list<std::shared_ptr<FireworksDesc>>* p_add_demo_data,
+	std::list<DemoData>* p_demo_data,
+	const UINT* frame_number,
+	const bool* stop_flg,
+	std::mutex* mt_clear
+) noexcept
 {
-	std::lock_guard<std::mutex> lock(demo_mg_mutex);
-	for (auto it = add_demo_data.begin(); it != add_demo_data.end();)
+	std::lock_guard<std::mutex> lock(*mt_lock);
+	for (auto it = p_add_demo_data->begin(); it != p_add_demo_data->end();)
 	{
-		auto& data = demo_data.emplace_back(device, *it, 100000u);
-		data.Build(p_parent, demo_frame_number);
-		it = add_demo_data.erase(it);
+		auto& data = p_demo_data->emplace_back(device, *it, 100000u);
+		data.Build(p_parent, *frame_number);
+		it = p_add_demo_data->erase(it);
 
-		std::lock_guard<std::mutex> stop_check_lock(demo_mg_stop_mutex);
-		if (demo_mg_stop) break;
+		if (mt_clear)
+		{
+			if (!p_add_demo_data->empty())
+			{
+				auto add_data = *p_add_demo_data->rbegin();
+				std::lock_guard<std::mutex> lock(*mt_clear);
+				p_add_demo_data->clear();
+				p_add_demo_data->push_back(add_data);
+			}
+		}
+
+		std::lock_guard<std::mutex> stop_check_lock(*mt_stop_lock);
+		if (*stop_flg) break;
 	}
 }
 
@@ -347,6 +376,49 @@ HRESULT FCManager::Update(float update_time) noexcept
 	if (demo_play)
 	{
 		UpdateDemo(update_time);
+	}
+
+	demo_select_itr = demo_select_data.end();
+	for (auto it = demo_select_data.begin(); it != demo_select_data.end();)
+	{
+		it->build_mutex.lock();
+		bool build_flg = it->build_flg;
+		if (build_flg || !it->exist)
+		{
+			if (!it->build_flg && !it->exist)
+			{
+				it->build_mutex.unlock();
+				it = demo_select_data.erase(it);
+				continue;
+			}
+
+			it->build_mutex.unlock();
+			it++;
+			continue;
+		}
+		it->build_mutex.unlock();
+
+		if (!build_flg) demo_select_itr = it;
+		it++;
+	}
+	for (auto it = demo_select_data.begin(); it != demo_select_data.end();)
+	{
+		it->build_mutex.lock();
+		bool build_flg = it->build_flg;
+		if (build_flg || !it->exist)
+		{
+			it->build_mutex.unlock();
+			it++;
+			continue;
+		}
+		it->build_mutex.unlock();
+
+		if (!build_flg && it != demo_select_itr)
+		{
+			// 前回描画に使用された可能性があるのでこのフレームでは消さない
+			it->exist = false;
+		}
+		it++;
 	}
 
 	return S_OK;
@@ -389,6 +461,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 		if (ImGui::TreeNode(u8"一覧"))
 		{
 			FWDESC_STATE state = LOOP;
+			bool create_select_demo = false;
 			while (state == LOOP)
 			{
 				if (desc_list.empty())
@@ -398,7 +471,13 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				}
 				for (auto& desc : desc_list)
 				{
-					state = DescImGuiUpdate(device, &desc, p_parent);
+					bool edited = false;
+					// DescのGuiを更新
+					state = DescImGuiUpdate(device, &desc, p_parent, &edited);
+					if (edited && desc.second == select_desc)
+					{
+						create_select_demo = true;
+					}
 					if (state == LOOP) break;
 					else if (state == ERASE)
 					{
@@ -416,12 +495,35 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				}
 			}
 
+			// 選択中のDescが更新されたのでDemoを作成する
+			if (create_select_demo)
+			{
+				demo_select_clear_mutex.lock();
+				add_demo_select_data.push_back(select_desc);
+				demo_select_clear_mutex.unlock();
+				const bool try_lock = demo_select_mutex.try_lock();
+				if (try_lock) demo_select_mutex.unlock();
+
+				if (!demo_select_th || try_lock)
+				{
+					if (demo_select_th && try_lock)
+						demo_select_th->join();
+					demo_select_th = std::make_unique<std::thread>(
+						FCManager::CreateDemo, device, p_parent,
+						&demo_select_mutex, &demo_select_stop_mutex,
+						&add_demo_select_data, &demo_select_data,
+						&demo_frame_number, &demo_select_stop,
+						&demo_select_clear_mutex
+						);
+				}
+			}
+
 			ImGui::TreePop();
 		}
 	}
 	ImGui::End();
 
-	if (!demo_data.empty())
+	if (!demo_data.empty() || !demo_select_data.empty())
 	{
 		if (ImGui::Begin("Fireworks Editor [demo]"))
 		{
@@ -435,6 +537,14 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 				size_t max_frame_count = 0u;
 				for (auto& data : demo_data)
+				{
+					std::lock_guard<std::mutex> lock(data.build_mutex);
+					if (!data.build_flg && data.exist)
+					{
+						max_frame_count = std::max(max_frame_count, data.ptcs.size());
+					}
+				}
+				for (auto& data : demo_select_data)
 				{
 					std::lock_guard<std::mutex> lock(data.build_mutex);
 					if (!data.build_flg && data.exist)
@@ -463,10 +573,29 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 							data.SetResource(demo_frame_number);
 						}
 					}
+					for (auto& data : demo_select_data)
+					{
+						std::lock_guard<std::mutex> lock(data.build_mutex);
+						if (!data.build_flg && data.exist)
+						{
+							data.SetResource(demo_frame_number);
+						}
+					}
 				}
 				ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
 			}
-			UINT idx = 0;
+
+			if (demo_select_itr != demo_select_data.end())
+			{
+				ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, u8"[編集中] ##9999");
+				ImGui::SameLine();
+				if (ImGui::Button(demo_select_itr->draw_flg ? u8"非表示##9999" : u8"表示##9999"))
+				{
+					demo_select_itr->draw_flg = !demo_select_itr->draw_flg;
+				}
+			}
+
+			UINT idx = 0u;
 			for (auto it = demo_data.begin(); it != demo_data.end();)
 			{
 				{
@@ -527,7 +656,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
-FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent)
+FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited)
 {
 	FWDESC_STATE result = FWDESC_STATE::NONE;
 	if (desc && desc->second)
@@ -552,6 +681,7 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> de
 			{
 				select_desc = desc->second;
 				select_name = desc->first;
+				*edited = true;
 			}
 			ImGui::SameLine();
 			if (ImGui::Button(u8"コピー"))
@@ -586,7 +716,13 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> de
 				{
 					if (demo_mg_th && try_lock)
 						demo_mg_th->join();
-					demo_mg_th = std::make_unique<std::thread>(&FCManager::CreateDemo, this, device, p_parent);
+					demo_mg_th = std::make_unique<std::thread>(
+						FCManager::CreateDemo, device, p_parent,
+						&demo_mg_mutex, &demo_mg_stop_mutex,
+						&add_demo_data, &demo_data,
+						&demo_frame_number, &demo_mg_stop,
+						nullptr
+						);
 				}
 			}
 			if (build_count > 0u)
@@ -595,22 +731,26 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> de
 				ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.f }, (u8"[ " + std::to_string(build_count) + u8" 個作成中 ]").c_str());
 			}
 
-			FWDescImGuiUpdate(desc->second.get());
+			
+			bool edited_update = FWDescImGuiUpdate(desc->second.get());
+			if (edited) *edited = edited_update || *edited;
 			ImGui::TreePop();
 		}
 	}
 	return result;
 }
 
-void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
+bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 {
+	bool edited = false;
+	bool fresult;
 	if (desc)
 	{
 		if (ImGui::TreeNode(u8"基本パラメーター"))
 		{
-			ImGui::InputFloat(u8"質量", &desc->mass);
-			ImGui::InputFloat(u8"効力", &desc->resistivity);
-			ImGui::InputFloat(u8"スピード", &desc->speed);
+			EditCheck(ImGui::InputFloat(u8"質量", &desc->mass), edited, fresult);
+			EditCheck(ImGui::InputFloat(u8"効力", &desc->resistivity), edited, fresult);
+			EditCheck(ImGui::InputFloat(u8"スピード", &desc->speed), edited, fresult);
 			ImGui::SameLine(); HelpMarker(u8"プレイヤーから射出される場合の速度(初速)。");
 
 			ImGui::TreePop();
@@ -621,12 +761,14 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 			{
 				if (ImGui::Button(u8"エフェクト追加"))
 				{
+					edited = true;
 					desc->effects.emplace_back(*FIREWORK_EFFECTS::FW_DEFAULT.effects.begin());
 				}
 				if (cpy_ef_desc)
 				{
 					if (ImGui::Button(u8"貼り付け"))
 					{
+						edited = true;
 						desc->effects.emplace_back(*cpy_ef_desc);
 					}
 				}
@@ -634,6 +776,7 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 				{
 					if (ImGui::Button(u8"削除する"))
 					{
+						edited = true;
 						desc->effects.pop_back();
 					}
 					ImGui::TreePop();
@@ -663,85 +806,88 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 					}
 					if (ImGui::TreeNode(u8"パラメーター"))
 					{
-						ImGui::InputFloat(u8"開始時間(s)", &effect.start_time);
-							ImGui::SameLine(); HelpMarker(u8"開始時間が経過後出現します。");
+						EditCheck(ImGui::InputFloat(u8"開始時間(s)", &effect.start_time), edited, fresult);
+						ImGui::SameLine(); HelpMarker(u8"開始時間が経過後出現します。");
 
-							ImGui::InputFloat(u8"表示時間(s)", &effect.time);
-							ImGui::SameLine(); HelpMarker(u8"出現してから消滅するまでの時間");
+						EditCheck(ImGui::InputFloat(u8"表示時間(s)", &effect.time);
+						ImGui::SameLine(); HelpMarker(u8"出現してから消滅するまでの時間"), edited, fresult);
 
-							ImGui::InputFloat(u8"開始時加速倍数", &effect.start_accel);
-							ImGui::SameLine(); HelpMarker(
-								u8"出現したときに親の速度にこの値をかける。\n"
-								u8"(速度を変えない場合は[1.0f])"
-							);
-						ImGui::InputFloat(u8"消滅時加速倍数", &effect.end_accel);
+						EditCheck(ImGui::InputFloat(u8"開始時加速倍数", &effect.start_accel), edited, fresult);
+						ImGui::SameLine(); HelpMarker(
+							u8"出現したときに親の速度にこの値をかける。\n"
+							u8"(速度を変えない場合は[1.0f])"
+						);
+						EditCheck(ImGui::InputFloat(u8"消滅時加速倍数", &effect.end_accel), edited, fresult);
 						ImGui::SameLine(); HelpMarker(
 							u8"消滅したときに親の速度にこの値をかける。\n"
 							u8"(速度を変えない場合は[1.0f])"
 						);
 
-						ImGui::InputFloat2(u8"パーティクルの表示時間", (float*)&effect.alive_time);
+						EditCheck(ImGui::InputFloat2(u8"パーティクルの表示時間", (float*)&effect.alive_time), edited, fresult);
 						ImGui::SameLine(); HelpMarker(MINMAX_TEXT);
 
-						ImGui::InputFloat2(u8"生成レート(s)", (float*)&effect.late);
+						EditCheck(ImGui::InputFloat2(u8"生成レート(s)", (float*)&effect.late), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"一秒間にレート個のパーティクルが発生します\n" MINMAX_TEXT);
 
-						ImGui::InputFloat(u8"生成レート更新頻度(s)", (float*)&effect.late_update_time);
+						EditCheck(ImGui::InputFloat(u8"生成レート更新頻度(s)", (float*)&effect.late_update_time), edited, fresult);
 
-						ImGui::InputFloat2(u8"パーティクル射出速度(m/s)", (float*)&effect.speed);
+						EditCheck(ImGui::InputFloat2(u8"パーティクル射出速度(m/s)", (float*)&effect.speed), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の速度\n" MINMAX_TEXT);
-						ImGui::InputFloat2(u8"射出元速度の影響度", (float*)&effect.base_speed);
+						EditCheck(ImGui::InputFloat2(u8"射出元速度の影響度", (float*)&effect.base_speed), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の射出元速度の影響度\n" MINMAX_TEXT);
 
-						ImGui::InputFloat2(u8"パーティクル射出サイズ(m)", (float*)&effect.scale);
+						EditCheck(ImGui::InputFloat2(u8"パーティクル射出サイズ(m)", (float*)&effect.scale), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の大きさ\n" MINMAX_TEXT);
 
-						ImGui::InputFloat(u8"移動方向へのサイズ(前)", &effect.scale_front);
+						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(前)", &effect.scale_front), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"移動方向前方へ速度に影響を受け変動するサイズ\n" MINMAX_TEXT);
-						ImGui::InputFloat(u8"移動方向へのサイズ(後)", &effect.scale_back);
+						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(後)", &effect.scale_back), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"移動方向後方へ速度に影響を受け変動するサイズ\n" MINMAX_TEXT);
 
 						DirectX::XMFLOAT2 def_angle = { DirectX::XMConvertToDegrees(effect.angle.x), DirectX::XMConvertToDegrees(effect.angle.y) };
 						if (ImGui::InputFloat2(u8"射出角度(def)", (float*)&def_angle))
+						{
+							edited = true;
 							effect.angle = { DirectX::XMConvertToRadians(def_angle.x), DirectX::XMConvertToRadians(def_angle.y) };
+						}
 						ImGui::SameLine(); HelpMarker(
 							u8"min(x)からmax(y)の間の角度でランダムに射出する\n"
 							u8"射出方向へ飛ばす場合は 0\n"
 							u8"射出方向反対へ飛ばす場合は deg(180)"
 						);
 
-						ImGui::InputFloat2(u8"射出方向スペース", (float*)&effect.spawn_space);
+						EditCheck(ImGui::InputFloat2(u8"射出方向スペース", (float*)&effect.spawn_space), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出方向へspawn_space分位置をずらします。\n" MINMAX_TEXT);
 
-						ImGui::ColorEdit4(u8"エフェクト生成時カラー", (float*)&effect.begin_color);
+						EditCheck(ImGui::ColorEdit4(u8"エフェクト生成時カラー", (float*)&effect.begin_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(
 							u8"エフェクト生成時のパーティクル生成時のカラーです。\n"
 							u8"消滅時カラーに向かって変化していきます"
 						);
-						ImGui::ColorEdit4(u8"エフェクト消滅時カラー", (float*)&effect.end_color);
+						EditCheck(ImGui::ColorEdit4(u8"エフェクト消滅時カラー", (float*)&effect.end_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"エフェクト消滅時のパーティクル生成時のカラーです。");
 
-						ImGui::ColorEdit4(u8"パーティクル消滅時カラー", (float*)&effect.erase_color);
+						EditCheck(ImGui::ColorEdit4(u8"パーティクル消滅時カラー", (float*)&effect.erase_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル消滅時のカラーです。");
 
-						ImGui::InputFloat(u8"効力", &effect.resistivity);
+						EditCheck(ImGui::InputFloat(u8"効力", &effect.resistivity), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度");
-						ImGui::InputFloat(u8"効力S", &effect.scale_resistivity);
+						EditCheck(ImGui::InputFloat(u8"効力S", &effect.scale_resistivity), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度（スケールから影響を受ける）");
 
-						ImGui::Checkbox(u8"ブルーム", &effect.bloom);
+						EditCheck(ImGui::Checkbox(u8"ブルーム", &effect.bloom), edited, fresult);
 
 						ImGui::TreePop();
 					}
 
-					ImGui::Checkbox(u8"子供", &effect.has_child);
+					EditCheck(ImGui::Checkbox(u8"子供", &effect.has_child), edited, fresult);
 					ImGui::SameLine(); HelpMarker(
 						u8"子供のエフェクトを持つかどうか\n"
 						u8"(このフラグを持つ場合パーティクルではなくエフェクトを射出します)"
 					);
 					if (effect.has_child)
 					{
-						FWDescImGuiUpdate(&effect.child);
+						EditCheck(FWDescImGuiUpdate(&effect.child), edited, fresult);
 					}
 
 					ImGui::TreePop();
@@ -752,6 +898,7 @@ void FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 			ImGui::TreePop();
 		}
 	}
+	return edited;
 }
 
 void FCManager::DemoData::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept
@@ -790,6 +937,14 @@ void FCManager::Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept
 			data.Render(cmd_list, frame_num);
 		}
 	}
+	for (auto& data : demo_select_data)
+	{
+		std::lock_guard<std::mutex> lock(data.build_mutex);
+		if (!data.build_flg && data.exist)
+		{
+			data.Render(cmd_list, frame_num);
+		}
+	}
 }
 
 size_t FCManager::Size() const
@@ -798,6 +953,13 @@ size_t FCManager::Size() const
 	size_t total_size = 0u;
 
 	for (const auto& data : demo_data)
+	{
+		if (!data.build_flg && data.exist)
+		{
+			total_size += data.Size(frame_num);
+		}
+	}
+	for (const auto& data : demo_select_data)
 	{
 		if (!data.build_flg && data.exist)
 		{

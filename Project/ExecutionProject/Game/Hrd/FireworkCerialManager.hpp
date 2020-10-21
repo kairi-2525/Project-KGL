@@ -159,6 +159,15 @@ private:
 	bool														demo_play;
 	float														demo_play_frame;
 
+	std::mutex													demo_select_mutex;
+	std::mutex													demo_select_stop_mutex;
+	std::mutex													demo_select_clear_mutex;
+	bool														demo_select_stop;
+	std::list<DemoData>											demo_select_data;
+	std::list<std::shared_ptr<FireworksDesc>>					add_demo_select_data;
+	std::unique_ptr<std::thread>								demo_select_th;
+	std::list<DemoData>::iterator								demo_select_itr;
+
 	std::unique_ptr<std::pair<const std::string, FireworksDesc>> cpy_fw_desc;
 	std::unique_ptr<EffectDesc>									cpy_ef_desc;
 private:
@@ -169,11 +178,19 @@ private:
 	void PlayDemo(UINT frame_num) noexcept;
 	void StopDemo() noexcept;
 	void UpdateDemo(float update_time) noexcept;
-	void CreateDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
-	void FWDescImGuiUpdate(FireworksDesc* desc);
+	static void CreateDemo(
+		KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+		std::mutex* mt_lock, std::mutex* mt_stop_lock,
+		std::list<std::shared_ptr<FireworksDesc>>* p_add_demo_data,
+		std::list<DemoData>* p_demo_data,
+		const UINT* frame_number,
+		const bool* stop_flg,
+		std::mutex* mt_clear
+	) noexcept;
+	bool FWDescImGuiUpdate(FireworksDesc* desc);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
-	FWDESC_STATE DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent);
+	FWDESC_STATE DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited);
 	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
 	FCManager(const std::filesystem::path& directory);
 	~FCManager();
