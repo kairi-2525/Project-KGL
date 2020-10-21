@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <deque>
 
@@ -59,8 +60,8 @@ namespace KGL
 			SCALES& operator-=(const SCALES& s) { return *this = *this - s; }
 			SCALES operator/(UINT i) { return { milli / i, micro / i, nano / i }; }
 			SCALES& operator/=(UINT i) { return *this = *this / i; }
-			static SCALES Max(const SCALES& s0, const SCALES& s1) { return { std::max(s0.milli, s1.milli), std::max(s0.micro, s1.micro), std::max(s0.nano, s1.nano) }; }
-			static SCALES Min(const SCALES& s0, const SCALES& s1) { return { std::min(s0.milli, s1.milli), std::min(s0.micro, s1.micro), std::min(s0.nano, s1.nano) }; }
+			static SCALES Max(const SCALES& s0, const SCALES& s1) { return { (std::max)(s0.milli, s1.milli), (std::max)(s0.micro, s1.micro), (std::max)(s0.nano, s1.nano) }; }
+			static SCALES Min(const SCALES& s0, const SCALES& s1) { return { (std::min)(s0.milli, s1.milli), (std::min)(s0.micro, s1.micro), (std::min)(s0.nano, s1.nano) }; }
 		};
 	private:
 		std::chrono::system_clock::time_point	time_point;

@@ -650,7 +650,9 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 void TestScene04::ResetCounterMax()
 {
 	ct_fw_max = 0u;
-	ct_ptc_max = 0u;
+	ct_ptc_total_max = 0u;
+	ct_ptc_frame_max = 0u;
+
 }
 
 void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
@@ -1184,14 +1186,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					}
 				};
 				TimerGui("Update Count Total", tm_update);
-				ImGui::Text("Render Count Total [ %5d ] : [ %5d ]", ct_render, ct_render_max);
+				TimerGui("Render Count Total", tm_render);
 				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
 				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
 				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw_max);
-				ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
-				ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
-				ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
-				ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+				//ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
+				//ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
+				//ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
+				//ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
 
 				ImGui::NextColumn();
 				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetKernel());
