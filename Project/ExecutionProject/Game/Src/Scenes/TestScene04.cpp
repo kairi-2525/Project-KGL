@@ -616,7 +616,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
 		target_cube->scale = { 1.f, 1.f, 1.f };
 		target_cube->rotate = {};
-#if 0
+#if 1
 		objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
 #else
 		objects.reserve(1000u + 1u);

@@ -45,14 +45,14 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 			"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
-		renderer_desc.input_layouts.push_back({
+		/*renderer_desc.input_layouts.push_back({
 			"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
 			"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
-			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });*/
 		renderer_desc.input_layouts.push_back({
 			"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
@@ -98,6 +98,7 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 		renderer_desc.static_samplers = static_samplers;
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/StaticObject_vs.hlsl";
+		renderer_desc.gs_desc.hlsl = "./HLSL/3D/StaticObject_gs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/StaticObject_ps.hlsl";
 
 		renderer_desc.rastarizer_desc.FrontCounterClockwise = TRUE;

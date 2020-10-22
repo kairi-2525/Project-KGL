@@ -211,6 +211,7 @@
     <FxCompile Include="HLSL\3D\StaticObject_ps.hlsl" />
     <FxCompile Include="HLSL\2D\DepthWriteTextureMS_ps.hlsl" />
     <FxCompile Include="HLSL\2D\FXAA_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticObject_gs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

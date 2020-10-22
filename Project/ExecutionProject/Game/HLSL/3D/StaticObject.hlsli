@@ -26,8 +26,14 @@ struct VSInput
 {
 	float3 position  : POSITION;
 	float3 normal    : NORMAL;
-	float3 tangent   : TANGENT;
-	float3 bitangent : BITANGENT;
+	float2 texcoord  : TEXCOORD;
+};
+
+struct GSInput
+{
+	float4 pixel_position  : SV_POSITION;
+	float3 position : POSITION;
+	float3 normal    : NORMAL;
 	float2 texcoord  : TEXCOORD;
 };
 

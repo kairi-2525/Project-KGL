@@ -115,6 +115,8 @@ namespace KGL
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept;
 			
+			HRESULT Save(const std::filesystem::path& dir) const noexcept;
+
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
 			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
 			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }

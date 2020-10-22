@@ -30,6 +30,7 @@ void GSMain(
 	
 	/*float w = input[0].scale * 0.5f;
 	float h = input[0].scale * 0.5f;*/
+
 	float2 view_front_vec = view_front_pos.xy - view_pos.xy;
 	float front_length = length(view_front_vec);
 	view_front_vec = normalize(view_front_vec);
@@ -43,6 +44,8 @@ void GSMain(
 
 	float4 pos_lt = view_front_pos;
 	float4 pos_rb = view_back_pos;
+	//float4 pos_lt = float4(view_pos.xy + view_front_vec, view_front_pos.zw);
+	//float4 pos_rb = float4(view_pos.xy + view_back_vec, view_back_pos.zw);
 	float4 pos_rt = view_pos + float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 	float4 pos_lb = view_pos - float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 

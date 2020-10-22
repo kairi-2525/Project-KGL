@@ -369,6 +369,11 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	return hr;
 }
 
+HRESULT Texture::Save(const std::filesystem::path& dir) const noexcept
+{
+
+}
+
 D3D12_RESOURCE_BARRIER Texture::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept
 {
 	m_resource_state = after;
