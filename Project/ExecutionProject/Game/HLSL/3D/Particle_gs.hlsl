@@ -41,8 +41,8 @@ void GSMain(
 	view_back_vec = normalize(view_back_vec);
 	view_back_vec = view_back_vec * max(back_length, scale_width);
 
-	float4 pos_lt = view_pos + float4(view_front_vec, 0.0, 0.0);
-	float4 pos_rb = view_pos + float4(view_back_vec, 0.0, 0.0);
+	float4 pos_lt = view_front_pos;
+	float4 pos_rb = view_back_pos;
 	float4 pos_rt = view_pos + float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 	float4 pos_lb = view_pos - float4(view_down_norm * scale_width + view_down_norm * speed * scale_speed_width, 0.0, 0.0);
 

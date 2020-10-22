@@ -177,9 +177,17 @@ void FCManager::UpdateDemo(float update_time) noexcept
 	{
 		demo_play_frame += (1.f / DemoData::FRAME_SECOND) * update_time;
 		size_t max_frame_count = 0u;
-		for (const auto& data : demo_data)
+		for (auto& data : demo_data)
 		{
-			max_frame_count = std::max(max_frame_count, data.ptcs.size());
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+				max_frame_count = std::max(max_frame_count, data.ptcs.size());
+		}
+		for (auto& data : demo_select_data)
+		{
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+				max_frame_count = std::max(max_frame_count, data.ptcs.size());
 		}
 
 		if (max_frame_count != 0)
@@ -191,7 +199,15 @@ void FCManager::UpdateDemo(float update_time) noexcept
 
 			for (auto& data : demo_data)
 			{
-				data.SetResource(SCAST<UINT>(demo_play_frame));
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (!data.build_flg && data.exist)
+					data.SetResource(SCAST<UINT>(demo_play_frame));
+			}
+			for (auto& data : demo_select_data)
+			{
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (!data.build_flg && data.exist)
+					data.SetResource(SCAST<UINT>(demo_play_frame));
 			}
 		}
 		else
@@ -357,10 +373,10 @@ void FCManager::CreateDemo(
 
 		if (mt_clear)
 		{
+			std::lock_guard<std::mutex> lock(*mt_clear);
 			if (!p_add_demo_data->empty())
 			{
 				auto add_data = *p_add_demo_data->rbegin();
-				std::lock_guard<std::mutex> lock(*mt_clear);
 				p_add_demo_data->clear();
 				p_add_demo_data->push_back(add_data);
 			}
@@ -824,25 +840,30 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 						);
 
 						EditCheck(ImGui::InputFloat2(u8"パーティクルの表示時間", (float*)&effect.alive_time), edited, fresult);
+						effect.alive_time.y = (std::max)(effect.alive_time.x, effect.alive_time.y);
 						ImGui::SameLine(); HelpMarker(MINMAX_TEXT);
 
 						EditCheck(ImGui::InputFloat2(u8"生成レート(s)", (float*)&effect.late), edited, fresult);
+						effect.late.y = (std::max)(effect.late.x, effect.late.y);
 						ImGui::SameLine(); HelpMarker(u8"一秒間にレート個のパーティクルが発生します\n" MINMAX_TEXT);
 
 						EditCheck(ImGui::InputFloat(u8"生成レート更新頻度(s)", (float*)&effect.late_update_time), edited, fresult);
 
 						EditCheck(ImGui::InputFloat2(u8"パーティクル射出速度(m/s)", (float*)&effect.speed), edited, fresult);
+						effect.speed.y = (std::max)(effect.speed.x, effect.speed.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の速度\n" MINMAX_TEXT);
 						EditCheck(ImGui::InputFloat2(u8"射出元速度の影響度", (float*)&effect.base_speed), edited, fresult);
+						effect.base_speed.y = (std::max)(effect.base_speed.x, effect.base_speed.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の射出元速度の影響度\n" MINMAX_TEXT);
 
 						EditCheck(ImGui::InputFloat2(u8"パーティクル射出サイズ(m)", (float*)&effect.scale), edited, fresult);
+						effect.scale.y = (std::max)(effect.scale.x, effect.scale.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の大きさ\n" MINMAX_TEXT);
 
 						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(前)", &effect.scale_front), edited, fresult);
-						ImGui::SameLine(); HelpMarker(u8"移動方向前方へ速度に影響を受け変動するサイズ\n" MINMAX_TEXT);
+						ImGui::SameLine(); HelpMarker(u8"移動方向前方へ速度に影響を受け変動するサイズ");
 						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(後)", &effect.scale_back), edited, fresult);
-						ImGui::SameLine(); HelpMarker(u8"移動方向後方へ速度に影響を受け変動するサイズ\n" MINMAX_TEXT);
+						ImGui::SameLine(); HelpMarker(u8"移動方向後方へ速度に影響を受け変動するサイズ");
 
 						DirectX::XMFLOAT2 def_angle = { DirectX::XMConvertToDegrees(effect.angle.x), DirectX::XMConvertToDegrees(effect.angle.y) };
 						if (ImGui::InputFloat2(u8"射出角度(def)", (float*)&def_angle))
@@ -857,6 +878,7 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 						);
 
 						EditCheck(ImGui::InputFloat2(u8"射出方向スペース", (float*)&effect.spawn_space), edited, fresult);
+						effect.spawn_space.y = (std::max)(effect.spawn_space.x, effect.spawn_space.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出方向へspawn_space分位置をずらします。\n" MINMAX_TEXT);
 
 						EditCheck(ImGui::ColorEdit4(u8"エフェクト生成時カラー", (float*)&effect.begin_color), edited, fresult);
