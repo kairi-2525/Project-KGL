@@ -597,6 +597,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
 	pl_shot_ptc_mgr->SetParent(ptc_parent);
+	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent);
 
 	spawn_counter = 0.f;
 	ptc_key_spawn_counter = 0.f;

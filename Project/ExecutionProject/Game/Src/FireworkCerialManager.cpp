@@ -440,6 +440,28 @@ HRESULT FCManager::Update(float update_time) noexcept
 	return S_OK;
 }
 
+void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent)
+{
+	demo_select_clear_mutex.lock();
+	add_demo_select_data.push_back(select_desc);
+	demo_select_clear_mutex.unlock();
+	const bool try_lock = demo_select_mutex.try_lock();
+	if (try_lock) demo_select_mutex.unlock();
+
+	if (!demo_select_th || try_lock)
+	{
+		if (demo_select_th && try_lock)
+			demo_select_th->join();
+		demo_select_th = std::make_unique<std::thread>(
+			FCManager::CreateDemo, device, p_parent,
+			&demo_select_mutex, &demo_select_stop_mutex,
+			&add_demo_select_data, &demo_select_data,
+			&demo_frame_number, &demo_select_stop,
+			&demo_select_clear_mutex
+			);
+	}
+};
+
 HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
 {
 	if (ImGui::Begin("Fireworks Editor", nullptr, ImGuiWindowFlags_MenuBar))
@@ -514,24 +536,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 			// ‘I‘ð’†‚ÌDesc‚ªXV‚³‚ê‚½‚Ì‚ÅDemo‚ðì¬‚·‚é
 			if (create_select_demo)
 			{
-				demo_select_clear_mutex.lock();
-				add_demo_select_data.push_back(select_desc);
-				demo_select_clear_mutex.unlock();
-				const bool try_lock = demo_select_mutex.try_lock();
-				if (try_lock) demo_select_mutex.unlock();
-
-				if (!demo_select_th || try_lock)
-				{
-					if (demo_select_th && try_lock)
-						demo_select_th->join();
-					demo_select_th = std::make_unique<std::thread>(
-						FCManager::CreateDemo, device, p_parent,
-						&demo_select_mutex, &demo_select_stop_mutex,
-						&add_demo_select_data, &demo_select_data,
-						&demo_frame_number, &demo_select_stop,
-						&demo_select_clear_mutex
-						);
-				}
+				CreateSelectDemo(device, p_parent);
 			}
 
 			ImGui::TreePop();

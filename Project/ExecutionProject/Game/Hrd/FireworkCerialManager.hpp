@@ -192,6 +192,7 @@ private:
 public:
 	FWDESC_STATE DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited);
 	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
+	void CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent);
 	FCManager(const std::filesystem::path& directory);
 	~FCManager();
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
