@@ -324,13 +324,21 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		board_renderers[MSAASelector::TYPE::MSAA_OFF].simple =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].simple_wire =
+			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		idx = 1u;
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx++].simple =
+			board_renderers[idx].simple =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+			board_renderers[idx++].simple_wire =
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		}
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 		renderer_desc.other_desc.sample_desc.Count = 1u;
@@ -339,13 +347,21 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 		board_renderers[MSAASelector::TYPE::MSAA_OFF].add_pos =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		board_renderers[MSAASelector::TYPE::MSAA_OFF].add_pos_wire =
+			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		idx = 1u;
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx++].add_pos =
+			board_renderers[idx].add_pos =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
+			board_renderers[idx++].add_pos_wire =
+				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		}
 
 		board = std::make_shared<KGL::Board>(device);
@@ -607,6 +623,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	sky_gui_windowed = false;
 
 	sky_draw = true;
+	particle_wire = false;
 
 	{	// キューブを簡易描画するマネージャー(キューブ以外のものも対応予定)
 		debug_mgr->ClearStaticObjects();
@@ -1166,6 +1183,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			if (ImGui::Begin("Particle"))
 			{
+				ImGui::Checkbox("Wire Frame", &particle_wire);
 				ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
 				ImGui::Checkbox("SpawnFireworks", &spawn_fireworks);
 				bool use_gpu_log = use_gpu;
@@ -1689,12 +1707,17 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
+		auto& ptc_renderer = board_renderers[msaa_scale];
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrbs.size()), rtrbs.data());
 		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
 		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-		board_renderers[msaa_scale].simple->SetState(cmd_list);
+
+		particle_wire ? 
+			ptc_renderer.simple_wire->SetState(cmd_list) :
+			ptc_renderer.simple->SetState(cmd_list);
+
 		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 		if (b_select_srv_handle)
@@ -1709,7 +1732,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 		}
 
-		board_renderers[msaa_scale].add_pos->SetState(cmd_list);
+		particle_wire ? 
+			ptc_renderer.add_pos_wire->SetState(cmd_list) : 
+			ptc_renderer.add_pos->SetState(cmd_list);
 
 		if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 

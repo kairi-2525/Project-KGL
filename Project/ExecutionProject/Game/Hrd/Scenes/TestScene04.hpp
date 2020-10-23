@@ -64,6 +64,8 @@ class TestScene04 : public SceneBase
 	{
 		std::shared_ptr<KGL::BaseRenderer>			simple;
 		std::shared_ptr<KGL::BaseRenderer>			add_pos;
+		std::shared_ptr<KGL::BaseRenderer>			simple_wire;
+		std::shared_ptr<KGL::BaseRenderer>			add_pos_wire;
 		std::shared_ptr<KGL::BaseRenderer>			dsv;
 		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
 	};
@@ -92,6 +94,7 @@ private:
 	DirectX::XMFLOAT2							camera_angle;
 	bool										use_gui;
 	bool										stop_time;
+	bool										particle_wire;
 
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>	sprite_renderers;
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>	add_sprite_renderers;
