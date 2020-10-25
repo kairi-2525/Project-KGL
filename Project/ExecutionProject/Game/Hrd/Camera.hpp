@@ -29,6 +29,7 @@ public:
 	DirectX::XMFLOAT3& GetFront() noexcept { return focus_vec; };
 	const DirectX::XMFLOAT3& GetPos() const noexcept { return eye; };
 	void SetPos(const DirectX::XMFLOAT3& pos) noexcept { eye = pos; };
+	void SetMouseClipped(bool flg) noexcept;
 };
 
 class DemoCamera : public FPSCamera

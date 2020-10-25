@@ -757,7 +757,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	const auto& camera_front = camera->GetFront();
 
 	if (desc.input->IsKeyPressed(KGL::KEYS::F1))
+	{
 		use_gui = !use_gui;
+		if (use_gui)
+			desc.input->SetMouseVisible(true);
+	}
+	if (!use_gui)
+		desc.input->SetMouseVisible(false);
 
 	fc_mgr->Update(elapsed_time);
 
