@@ -1,18 +1,3 @@
-struct GSOutput
-{
-	float4 pos : SV_POSITION;
-};
+#define VERTEX_COUNT 4 // 4 or 8
 
-[maxvertexcount(3)]
-void main(
-	triangle float4 input[3] : SV_POSITION, 
-	inout TriangleStream< GSOutput > output
-)
-{
-	for (uint i = 0; i < 3; i++)
-	{
-		GSOutput element;
-		element.pos = input[i];
-		output.Append(element);
-	}
-}
+#include "Particle_gs.hlsli"

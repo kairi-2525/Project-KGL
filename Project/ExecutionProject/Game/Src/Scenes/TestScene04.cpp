@@ -213,12 +213,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		depth_sprite_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 	}
 
+	board_renderers.resize(3u);
+	UINT count = 0u;
+	for (auto& bd_rndrs : board_renderers)
 	{	// パーティクル用PSOを作成(描画用)
-		board_renderers.resize(msaa_selector->GetMaxScale() + 1u);
+		bd_rndrs.resize(msaa_selector->GetMaxScale() + 1u);
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
 		//renderer_desc.depth_desc = {};
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
-		renderer_desc.gs_desc.hlsl = "./HLSL/3D/Particle_gs.hlsl";
+		renderer_desc.gs_desc.hlsl = "./HLSL/3D/" + PTC_VT_TABLE.at(SCAST<PTC_VT>(count));
 		renderer_desc.input_layouts.clear();
 		renderer_desc.input_layouts.push_back({
 			"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
@@ -288,27 +291,27 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.render_targets.clear();
 		renderer_desc.render_targets.reserve(2u);
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/ParticleDepth_ps.hlsl";
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].dsv 
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].dsv
 			= std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		UINT idx = 1u;
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx++].dsv = 
+			bd_rndrs[idx++].dsv =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		}
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].dsv_add_pos = 
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].dsv_add_pos =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		idx = 1u;
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx++].dsv_add_pos = 
+			bd_rndrs[idx++].dsv_add_pos =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		}
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
@@ -322,10 +325,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.depth_desc = {};
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
 		renderer_desc.render_targets.push_back(DXGI_FORMAT_R8G8B8A8_UNORM);
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].simple =
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].simple =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].simple_wire =
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].simple_wire =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
@@ -333,10 +336,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx].simple =
+			bd_rndrs[idx].simple =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-			board_renderers[idx++].simple_wire =
+			bd_rndrs[idx++].simple_wire =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		}
@@ -345,10 +348,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/ParticlePos_vs.hlsl";
 
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].add_pos =
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].add_pos =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		board_renderers[MSAASelector::TYPE::MSAA_OFF].add_pos_wire =
+		bd_rndrs[MSAASelector::TYPE::MSAA_OFF].add_pos_wire =
 			std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 		renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
@@ -356,16 +359,16 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
 		{
 			renderer_desc.other_desc.sample_desc.Count *= 2;
-			board_renderers[idx].add_pos =
+			bd_rndrs[idx].add_pos =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_WIREFRAME;
-			board_renderers[idx++].add_pos_wire =
+			bd_rndrs[idx++].add_pos_wire =
 				std::make_shared<KGL::_3D::Renderer>(device, desc.dxc, renderer_desc);
 			renderer_desc.rastarizer_desc.FillMode = D3D12_FILL_MODE_SOLID;
 		}
-
-		board = std::make_shared<KGL::Board>(device);
+		count++;
 	}
+	board = std::make_shared<KGL::Board>(device);
 
 	//hr = cpt_scene_buffer.Load(desc);
 	//RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
@@ -625,6 +628,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	sky_draw = true;
 	particle_wire = false;
+
+	ptc_vt_type = PTC_VT::COUNT4;
 
 	{	// キューブを簡易描画するマネージャー(キューブ以外のものも対応予定)
 		debug_mgr->ClearStaticObjects();
@@ -1184,12 +1189,31 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	pl_shot_ptc_mgr->AddToFrameParticle();
 
 	{
-		const auto counter = ptc_mgr->Size() + pl_shot_ptc_mgr->Size();
+		const auto counter = ptc_mgr->Size() + pl_shot_ptc_mgr->Size() + fc_mgr->Size();
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(counter) + std::string(10, ' '));
 		if (use_gui)
 		{
 			if (ImGui::Begin("Particle"))
 			{
+				{
+					std::string select_vt = PTC_VT_TABLE[ptc_vt_type];
+
+					// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
+					if (ImGui::BeginCombo("Vertex Type", select_vt.c_str()))
+					{
+						for (int n = 0; n < PTC_VT_TABLE.size(); n++)
+						{
+							// オブジェクトの外側または内側に、選択内容を好きなように保存できます
+							bool is_selected = (select_vt == PTC_VT_TABLE[n]);
+							if (ImGui::Selectable(PTC_VT_TABLE[n].c_str(), is_selected))
+								ptc_vt_type = SCAST<PTC_VT>(n);
+							if (is_selected)
+								// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
+								ImGui::SetItemDefaultFocus();
+						}
+						ImGui::EndCombo();
+					}
+				}
 				ImGui::Checkbox("Wire Frame", &particle_wire);
 				ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
 				ImGui::Checkbox("SpawnFireworks", &spawn_fireworks);
@@ -1714,7 +1738,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
-		auto& ptc_renderer = board_renderers[msaa_scale];
+		auto& ptc_renderer = board_renderers[ptc_vt_type][msaa_scale];
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrbs.size()), rtrbs.data());
 		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
 		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);
@@ -1748,7 +1772,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		// 被写界深度用にパーティクルの深度値を書き込む
 		if (dof_flg && ptc_dof_flg)
 		{
-			board_renderers[msaa_scale].dsv->SetState(cmd_list);
+			ptc_renderer.dsv->SetState(cmd_list);
 			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
 			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
 			if (b_select_srv_handle)
@@ -1762,7 +1786,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 			}
 
-			board_renderers[msaa_scale].dsv_add_pos->SetState(cmd_list);
+			ptc_renderer.dsv_add_pos->SetState(cmd_list);
 			if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 		}
 

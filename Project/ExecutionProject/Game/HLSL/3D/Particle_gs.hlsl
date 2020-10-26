@@ -1,7 +1,5 @@
 #include "Particle.hlsli"
 
-#define VERTEX_COUNT 4 // 4 or 8
-
 //static const float angle = radians(90);
 //static const row_major float2x2 Rotation2D =
 //{
@@ -278,7 +276,7 @@
 //	output.RestartStrip();
 //}
 
-[maxvertexcount(VERTEX_COUNT)]
+[maxvertexcount(4)]
 void GSMain(
 	point Particle input[1],
 	inout TriangleStream<PSInput> output
@@ -295,10 +293,10 @@ void GSMain(
 
 	// front
 	float3 front_v = vel_norm * input[0].scale_front + vel * input[0].scale_speed_front;
-	float3 front_pos = pos + normalize(front_v) * max(length(front_v) - scale_width, 0.f);
+	float3 front_pos = pos + front_v;
 	// back
 	float3 back_v = -(vel_norm * input[0].scale_back + vel * input[0].scale_speed_back);
-	float3 back_pos = pos + normalize(back_v) * max(length(back_v) - scale_width, 0.f);
+	float3 back_pos = pos + back_v;
 
 	// 0地点がカメラ位置なのでそのままベクトルとしてポジションを扱う
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
@@ -313,27 +311,26 @@ void GSMain(
 	float3 view_front_axis = normalize(cross(view_btfv_norm, view_front_v));
 	float3 view_back_axis = normalize(cross(view_btfv_norm, view_back_v));
 
-	float3 view_top_v = normalize(cross(view_front_axis, view_front_v));
-	float3 view_bottom_v = normalize(cross(view_back_axis, view_back_v));
+	//float3 view_top_v = normalize(cross(view_front_axis, view_front_v));
+	//float3 view_bottom_v = normalize(cross(view_back_axis, view_back_v));
 
 	float speed_scale = length(vel) * scale_speed_width;
 	float3 view_front_side_v = view_front_axis * scale_width + view_front_axis * speed_scale;
 	float3 view_back_side_v = view_back_axis * scale_width + view_back_axis * speed_scale;
 
-	float3 view_top_pos = view_front_pos - view_top_v * scale_width;
-	float3 view_bottom_pos = view_back_pos + view_bottom_v * scale_width;
+	//float3 view_top_pos = view_front_pos - view_top_v * scale_width;
+	//float3 view_bottom_pos = view_back_pos + view_bottom_v * scale_width;
 
-#if VERTEX_COUNT == 4
 	float4 v[4];
-	v[0] = float4(view_top_pos + view_front_side_v, 1.f);
-	v[1] = float4(view_top_pos - view_front_side_v, 1.f);
-	v[2] = float4(view_bottom_pos + view_back_side_v, 1.f);
-	v[3] = float4(view_bottom_pos - view_back_side_v, 1.f);
+	v[0] = float4(view_front_pos + view_front_side_v, 1.f);
+	v[1] = float4(view_front_pos - view_front_side_v, 1.f);
+	v[2] = float4(view_back_pos + view_back_side_v, 1.f);
+	v[3] = float4(view_back_pos - view_back_side_v, 1.f);
 
 	element.pos = mul(v[0], proj);
 	element.uv = float2(0.f, 1.f);
 	output.Append(element);
-	
+
 	element.pos = mul(v[1], proj);
 	element.uv = float2(1.f, 1.f);
 	output.Append(element);
@@ -341,55 +338,10 @@ void GSMain(
 	element.pos = mul(v[2], proj);
 	element.uv = float2(0.f, 0.f);
 	output.Append(element);
-	
+
 	element.pos = mul(v[3], proj);
 	element.uv = float2(1.f, 0.f);
 	output.Append(element);
-
-#elif VERTEX_COUNT == 8
-	
-	float4 v[8];
-	v[0] = float4(view_top_pos + view_front_side_v, 1.f);
-	v[1] = float4(view_top_pos - view_front_side_v, 1.f);
-	v[2] = float4(view_front_pos + view_front_side_v, 1.f);
-	v[3] = float4(view_front_pos - view_front_side_v, 1.f);
-	v[4] = float4(view_back_pos + view_back_side_v, 1.f);
-	v[5] = float4(view_back_pos - view_back_side_v, 1.f);
-	v[6] = float4(view_bottom_pos + view_back_side_v, 1.f);
-	v[7] = float4(view_bottom_pos - view_back_side_v, 1.f);
-
-	element.pos = mul(v[0], proj);
-	element.uv = float2(0.f, 1.f);
-	output.Append(element);
-	
-	element.pos = mul(v[1], proj);
-	element.uv = float2(1.f, 1.f);
-	output.Append(element);
-	
-	element.pos = mul(v[2], proj);
-	element.uv = float2(0.f, 0.5f);
-	output.Append(element);
-	
-	element.pos = mul(v[3], proj);
-	element.uv = float2(1.f, 0.5f);
-	output.Append(element);
-	
-	element.pos = mul(v[4], proj);
-	element.uv = float2(0.f, 0.5f);
-	output.Append(element);
-	
-	element.pos = mul(v[5], proj);
-	element.uv = float2(1.f, 0.5f);
-	output.Append(element);
-	
-	element.pos = mul(v[6], proj);
-	element.uv = float2(0.f, 0.f);
-	output.Append(element);
-	
-	element.pos = mul(v[7], proj);
-	element.uv = float2(1.f, 0.f);
-	output.Append(element);
-#endif
 
 	output.RestartStrip();
 }

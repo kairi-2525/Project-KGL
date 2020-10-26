@@ -30,6 +30,7 @@
 #include "../MSAA.hpp"
 #include "../FXAA.hpp"
 #include "../Scene.hpp"
+#include <unordered_map>
 
 class TestScene04 : public SceneBase
 {
@@ -40,6 +41,12 @@ class TestScene04 : public SceneBase
 		PTC_NON_BLOOM,
 		PTC_BLOOM,
 		FXAA_GRAY
+	};
+	enum PTC_VT : UINT
+	{
+		NONE,
+		COUNT4,
+		COUNT8
 	};
 	struct CbvParam
 	{
@@ -70,78 +77,81 @@ class TestScene04 : public SceneBase
 		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
 	};
 private:
-	KGL::Timer									tm_update;
-	KGL::Timer									tm_render;
-	KGL::Timer									tm_ptc_update_gpu;
-	KGL::Timer									tm_ptc_update_cpu;
-	UINT64										ct_ptc_total_max;
-	UINT64										ct_ptc_frame_max;
-	UINT64										ct_fw_max;
+	static inline const std::vector<std::string> PTC_VT_TABLE =
+	{
+		"Particle_gs.hlsl",
+		"Particle4_gs.hlsl",
+		"Particle8_gs.hlsl"
+	};
+private:
+	KGL::Timer											tm_update;
+	KGL::Timer											tm_render;
+	KGL::Timer											tm_ptc_update_gpu;
+	KGL::Timer											tm_ptc_update_cpu;
+	UINT64												ct_ptc_total_max;
+	UINT64												ct_ptc_frame_max;
+	UINT64												ct_fw_max;
 
-	float										ptc_key_spawn_counter;
-	float										time_scale;
-	bool										use_gpu;
-	bool										spawn_fireworks;
-	bool										after_blooming;
-	bool										rt_gui_windowed;
-	bool										sky_gui_windowed;
+	float												ptc_key_spawn_counter;
+	float												time_scale;
+	bool												use_gpu;
+	bool												spawn_fireworks;
+	bool												after_blooming;
+	bool												rt_gui_windowed;
+	bool												sky_gui_windowed;
 
-	DirectX::XMFLOAT4X4							proj;
+	DirectX::XMFLOAT4X4									proj;
 
-	//SceneBufferDx12<ParticleParent>				cpt_scene_buffer;
-	SceneBufferDx12<SceneBase::SceneBuffers>	scene_buffer;
-	std::shared_ptr<DemoCamera>					camera;
-	DirectX::XMFLOAT2							camera_angle;
-	bool										use_gui;
-	bool										stop_time;
-	bool										particle_wire;
+	SceneBufferDx12<SceneBase::SceneBuffers>			scene_buffer;
+	std::shared_ptr<DemoCamera>							camera;
+	DirectX::XMFLOAT2									camera_angle;
+	bool												use_gui;
+	bool												stop_time;
+	bool												particle_wire;
 
-	std::vector<std::shared_ptr<KGL::BaseRenderer>>	sprite_renderers;
-	std::vector<std::shared_ptr<KGL::BaseRenderer>>	add_sprite_renderers;
-	std::shared_ptr<KGL::BaseRenderer>			depth_sprite_renderer;
-	std::shared_ptr<KGL::Sprite>				sprite;
-	std::vector<BoardRenderers>					board_renderers;
-	std::shared_ptr<KGL::Board>					board;
-	std::shared_ptr<KGL::DescriptorManager>		b_cbv_descmgr;
-	KGL::DescriptorHandle						b_cbv;
-	std::shared_ptr<KGL::DescriptorManager>		b_srv_descmgr;
+	std::vector<std::shared_ptr<KGL::BaseRenderer>>		sprite_renderers;
+	std::vector<std::shared_ptr<KGL::BaseRenderer>>		add_sprite_renderers;
+	std::shared_ptr<KGL::BaseRenderer>					depth_sprite_renderer;
+	std::shared_ptr<KGL::Sprite>						sprite;
+	std::vector<std::vector<BoardRenderers>>			board_renderers;
+	std::shared_ptr<KGL::Board>							board;
+	std::shared_ptr<KGL::DescriptorManager>				b_cbv_descmgr;
+	KGL::DescriptorHandle								b_cbv;
+	std::shared_ptr<KGL::DescriptorManager>				b_srv_descmgr;
 	struct BoardTex
 	{
-		std::shared_ptr<KGL::DescriptorHandle>	handle;
-		KGL::DescriptorHandle					imgui_handle;
-		std::shared_ptr<KGL::Texture>			tex;
+		std::shared_ptr<KGL::DescriptorHandle>			handle;
+		KGL::DescriptorHandle							imgui_handle;
+		std::shared_ptr<KGL::Texture>					tex;
 	};
-	BoardTex									b_tex_data[2];
+	BoardTex											b_tex_data[2];
 
-	D3D12_VERTEX_BUFFER_VIEW					b_ptc_vbv;
-	D3D12_VERTEX_BUFFER_VIEW					b_pl_shot_ptc_vbv;
+	D3D12_VERTEX_BUFFER_VIEW							b_ptc_vbv;
+	D3D12_VERTEX_BUFFER_VIEW							b_pl_shot_ptc_vbv;
 
-	std::shared_ptr<KGL::DescriptorHandle>		b_select_srv_handle;
+	std::shared_ptr<KGL::DescriptorHandle>				b_select_srv_handle;
 
-	std::shared_ptr<KGL::Resource<CbvParam>>	matrix_resource;
+	std::shared_ptr<KGL::Resource<CbvParam>>			matrix_resource;
 
-	KGL::TextureManager							tex_mgr;
+	KGL::TextureManager									tex_mgr;
 
-	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
-	KGL::ComPtr<ID3D12CommandAllocator>			fast_cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>		fast_cmd_list;
+	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				cmd_list;
+	KGL::ComPtr<ID3D12CommandAllocator>					fast_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				fast_cmd_list;
 
-	KGL::ComPtr<ID3D12CommandAllocator>			cpt_cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
-	std::shared_ptr<KGL::CommandQueue>			cpt_cmd_queue;
+	KGL::ComPtr<ID3D12CommandAllocator>					cpt_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				cpt_cmd_list;
+	std::shared_ptr<KGL::CommandQueue>					cpt_cmd_queue;
 
-	//std::shared_ptr<KGL::RenderTargetView>		rtvs;
-	//std::vector<std::shared_ptr<KGL::Texture>>	rtv_textures;
-	//std::shared_ptr<KGL::RenderTargetView>		ptc_rtvs;
-	//std::vector<std::shared_ptr<KGL::Texture>>	ptc_rtv_texs;
+	PTC_VT												ptc_vt_type;
+	bool												ptc_dof_flg;
+	std::shared_ptr<ParticleManager>					ptc_mgr;
+	std::shared_ptr<ParticleManager>					pl_shot_ptc_mgr;
+	std::shared_ptr<KGL::ComputePipline>				particle_pipeline;
+	float												spawn_counter;
 
-	std::shared_ptr<ParticleManager>			ptc_mgr;
-	std::shared_ptr<ParticleManager>			pl_shot_ptc_mgr;
-	std::shared_ptr<KGL::ComputePipline>		particle_pipeline;
-	float										spawn_counter;
-
-	std::vector<Fireworks>						fireworks;
+	std::vector<Fireworks>								fireworks;
 
 	struct AlphaBuffer
 	{
@@ -164,7 +174,6 @@ private:
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
 
-	bool												ptc_dof_flg;
 	bool												dof_flg;
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;

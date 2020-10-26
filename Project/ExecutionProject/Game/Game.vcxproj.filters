@@ -212,6 +212,8 @@
     <FxCompile Include="HLSL\2D\DepthWriteTextureMS_ps.hlsl" />
     <FxCompile Include="HLSL\2D\FXAA_ps.hlsl" />
     <FxCompile Include="HLSL\3D\StaticObject_gs.hlsl" />
+    <FxCompile Include="HLSL\3D\Particle4_gs.hlsl" />
+    <FxCompile Include="HLSL\3D\Particle8_gs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -228,6 +230,7 @@
     <None Include="HLSL\3D\UnNormal.hlsli" />
     <None Include="HLSL\3D\StaticObject.hlsli" />
     <None Include="HLSL\2D\FXAA3_11.hlsli" />
+    <None Include="HLSL\3D\Particle_gs.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KGL_ICON.rc">
