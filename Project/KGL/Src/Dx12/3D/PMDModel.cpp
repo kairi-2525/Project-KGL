@@ -219,10 +219,10 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 			}
 			else
 			{
-				hr = tex.toon_buff->Create(device, use_toon_folder.string() + toon_file_name, mgr);
+				hr = tex.toon_buff->Create(device, use_toon_folder.string() + toon_file_name, 1u, mgr);
 				if (!IsFound(hr))
 				{
-					hr = tex.toon_buff->Create(device, model_folder.string() + toon_file_name, mgr);
+					hr = tex.toon_buff->Create(device, model_folder.string() + toon_file_name, 1u, mgr);
 					if (!IsFound(hr))
 					{
 						*tex.toon_buff = *tex_gradation;
@@ -270,18 +270,18 @@ HRESULT PMD_Model::CreateTextureBuffers(ComPtr<ID3D12Device> device, const std::
 				tex_files.second = model_folder.string() + tex_files.second.string();
 
 			if (extensions.first == ".SPH")
-				tex.sph_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+				tex.sph_buff = std::make_unique<Texture>(device, tex_files.first, 1u, mgr);
 			else if (extensions.first == ".SPA")
-				tex.spa_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+				tex.spa_buff = std::make_unique<Texture>(device, tex_files.first, 1u, mgr);
 			else if (!extensions.first.empty())
-				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.first, mgr);
+				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.first, 1u, mgr);
 
 			if (extensions.second == ".SPH")
-				tex.sph_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+				tex.sph_buff = std::make_unique<Texture>(device, tex_files.second, 1u, mgr);
 			else if (extensions.second == ".SPA")
-				tex.spa_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+				tex.spa_buff = std::make_unique<Texture>(device, tex_files.second, 1u, mgr);
 			else if (!extensions.second.empty())
-				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.second, mgr);
+				tex.diffuse_buff = std::make_unique<Texture>(device, tex_files.second, 1u, mgr);
 		}
 		
 		if (!tex.sph_buff)

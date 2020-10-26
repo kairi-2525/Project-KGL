@@ -12,7 +12,7 @@ struct PSOut
 PSOut PSMain(PSInput input) : SV_TARGET
 {
 	PSOut output = (PSOut)0;
-	const float4 color = tex.Sample(smp, input.uv) * input.color;
+	const float4 color = tex.SampleLevel(smp, input.uv, 0) * input.color;
 	if (input.bloom)
 	{
 		output.bloom_color = color;

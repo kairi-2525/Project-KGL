@@ -72,7 +72,7 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 }
 
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
-	const std::filesystem::path& path, TextureManager* mgr) noexcept
+	const std::filesystem::path& path, UINT16 mip_level, TextureManager* mgr) noexcept
 {
 	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 	m_path = path;
@@ -132,7 +132,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 			metadata.width,
 			SCAST<UINT>(metadata.height),
 			SCAST<UINT16>(metadata.arraySize),
-			SCAST<UINT16>(metadata.mipLevels)
+			mip_level
 		);
 	res_desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 

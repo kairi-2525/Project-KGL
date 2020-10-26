@@ -219,7 +219,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{	// パーティクル用PSOを作成(描画用)
 		bd_rndrs.resize(msaa_selector->GetMaxScale() + 1u);
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
-		//renderer_desc.depth_desc = {};
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
 		renderer_desc.gs_desc.hlsl = "./HLSL/3D/" + PTC_VT_TABLE.at(SCAST<PTC_VT>(count));
 		renderer_desc.input_layouts.clear();
@@ -370,8 +369,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 	board = std::make_shared<KGL::Board>(device);
 
-	//hr = cpt_scene_buffer.Load(desc);
-	//RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
@@ -381,7 +378,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
-	b_tex_data[0].tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/particle.png");
+	b_tex_data[0].tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/Big_Glow/Big_Glow_10.DDS", 10u);
 	b_tex_data[1].tex = std::make_shared<KGL::Texture>(device);
 
 	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
@@ -450,13 +447,14 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Format = b_tex_data[0].tex->Data()->GetDesc().Format;
-		srv_desc.Texture2D.MipLevels = 1;
+		srv_desc.Texture2D.MipLevels = 10u;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 		b_tex_data[0].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
 		b_tex_data[0].imgui_handle = desc.imgui_heap_mgr->Alloc();
 		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].handle->Cpu());
 		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].imgui_handle.Cpu());
 		srv_desc.Format = b_tex_data[1].tex->Data()->GetDesc().Format;
+		srv_desc.Texture2D.MipLevels = 1u;
 		b_tex_data[1].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
 		b_tex_data[1].imgui_handle = desc.imgui_heap_mgr->Alloc();
 		device->CreateShaderResourceView(b_tex_data[1].tex->Data().Get(), &srv_desc, b_tex_data[1].handle->Cpu());

@@ -37,6 +37,8 @@ namespace KGL
 			ComPtr<ID3D12Resource>				m_buffer;
 			std::unique_ptr<DirectX::XMFLOAT4>	m_clear_value;
 			D3D12_RESOURCE_STATES				m_resource_state;
+		private:
+			//static void Upload(const ComPtr<ID3D12Device>& device, ComPtr<ID3D12Resource> buffer, );
 		public:
 			Texture() = default;
 			const Texture& operator=(const Texture& tex) noexcept
@@ -49,9 +51,9 @@ namespace KGL
 			Texture(const Texture& tex) noexcept { *this = tex; }
 			// 画像テクスチャ
 			explicit Texture(const ComPtr<ID3D12Device>& device,
-				const std::filesystem::path& path, TextureManager* mgr = nullptr) noexcept
+				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept
 			{
-				auto hr = Create(device, path, mgr); AssertLoadResult(hr, m_path.string());
+				auto hr = Create(device, path, mip_level, mgr); AssertLoadResult(hr, m_path.string());
 				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			// 単色テクスチャ
@@ -94,7 +96,7 @@ namespace KGL
 			
 			// 画像テクスチャ
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
-				const std::filesystem::path& path, TextureManager* mgr = nullptr) noexcept;
+				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept;
 			// 単色最小テクスチャ
 			HRESULT Create(const ComPtr<ID3D12Device>& device,
 				UCHAR r = 0xff, UCHAR g = 0xff, UCHAR b = 0xff, UCHAR a = 0xff, TextureManager* mgr = nullptr) noexcept;
