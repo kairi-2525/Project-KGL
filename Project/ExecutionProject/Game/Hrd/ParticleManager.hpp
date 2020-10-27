@@ -2,6 +2,8 @@
 #include "Particle.hpp"
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
+#include <Dx12/Texture.hpp>
+#include <Base/Directory.hpp>
 #include <vector>
 
 class ParticleManager
@@ -33,3 +35,17 @@ public:
 	std::shared_ptr<KGL::Resource<ParticleParent>> ParentResource() const noexcept { return parent_res; }
 	UINT32 Size();
 };
+
+class ParticleTextureManager
+{
+private:
+	KGL::Files files;
+	std::shared_ptr<KGL::TextureManager>		tex_mgr;
+	std::vector<std::shared_ptr<KGL::Texture>>	textures;
+public:
+	ParticleTextureManager(
+		KGL::ComPtrC<ID3D12Device> device,
+		const std::filesystem::path& dir,
+		std::shared_ptr<KGL::DX12::TextureManager> texture_mgr = nullptr
+	);
+} typedef PTCTexMgr;

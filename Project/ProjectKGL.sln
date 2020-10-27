@@ -20,6 +20,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DXR", "ExecutionProject\DXR
 		{AA122FDC-E64D-48AE-9A6B-82F43B59EA13} = {AA122FDC-E64D-48AE-9A6B-82F43B59EA13}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectXTexLoader", "DirectXTexLoader\DirectXTexLoader.vcxproj", "{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -60,6 +62,14 @@ Global
 		{430B8ACD-1568-4BD2-A281-15EAEE1C6994}.Release|x64.Build.0 = Release|x64
 		{430B8ACD-1568-4BD2-A281-15EAEE1C6994}.Release|x86.ActiveCfg = Release|Win32
 		{430B8ACD-1568-4BD2-A281-15EAEE1C6994}.Release|x86.Build.0 = Release|Win32
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Debug|x64.ActiveCfg = Debug|x64
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Debug|x64.Build.0 = Debug|x64
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Debug|x86.ActiveCfg = Debug|Win32
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Debug|x86.Build.0 = Debug|Win32
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Release|x64.ActiveCfg = Release|x64
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Release|x64.Build.0 = Release|x64
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Release|x86.ActiveCfg = Release|Win32
+		{F8EB3F24-783B-4BB0-BDA7-00734B4D8318}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

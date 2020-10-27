@@ -17,4 +17,6 @@ struct Particle
 	bool	bloom					: RENDER_MODE;
 	float3	acceleration			: ACCS;
 	float	exist_time				: EXIST;
+	float3	spawn_pos				: SPAWN_POSITION;
+	uint	tex_num					: TEXTURE_NUM;
 };

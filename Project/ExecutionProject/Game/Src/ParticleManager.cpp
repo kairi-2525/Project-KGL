@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
+#include <Dx12/CommandQueue.hpp>
+#include <Dx12/Helper.hpp>
 
 ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept
 {
@@ -176,4 +178,43 @@ UINT32 ParticleManager::Size()
 	result = *p_counter;
 	counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	return result;
+}
+
+ParticleTextureManager::ParticleTextureManager(
+	KGL::ComPtrC<ID3D12Device> device,
+	const std::filesystem::path& dir,
+	std::shared_ptr<KGL::DX12::TextureManager> texture_mgr
+)
+{
+	KGL::Directory directory(dir);
+	files = directory.GetFiles(".DDS");
+	tex_mgr = texture_mgr;
+	if (!tex_mgr)
+	{
+		tex_mgr = std::make_shared<KGL::TextureManager>();
+	}
+
+	KGL::ComPtr<ID3D12CommandAllocator> cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list;
+	D3D12_COMMAND_QUEUE_DESC cmd_queue_desc = {};
+	cmd_queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	cmd_queue_desc.NodeMask = 0;
+	cmd_queue_desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+	cmd_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	KGL::CommandQueue cmd_queue(device, cmd_queue_desc);
+	std::vector<ComPtr<ID3D12Resource>> subresources;
+
+	HRESULT hr;
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗");
+
+	textures.reserve(files.size());
+	const std::string directory_pass = directory.GetPath().string() + "\\";
+	for (const auto& file : files)
+	{
+		textures.emplace_back(std::make_shared<KGL::Texture>(
+			device, cmd_list, &subresources,
+			directory_pass + file.string(), 1u, tex_mgr.get())
+		);
+	}
 }

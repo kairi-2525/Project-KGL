@@ -28,7 +28,8 @@ struct Particle
 	bool				bloom;
 	DirectX::XMFLOAT3	accs;
 	float				exist_time;
-
+	DirectX::XMFLOAT3	spawn_position;
+	uint32_t			texture_num;
 public:
 	bool Alive() { return exist_time > 0; }
 	void Update(float time, const ParticleParent* parent);

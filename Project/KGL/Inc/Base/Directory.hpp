@@ -1,3 +1,4 @@
+#pragma once
 #include <filesystem>
 #define NOMINMAX
 #include <Windows.h>
@@ -16,7 +17,8 @@ namespace KGL
 		private:
 			HRESULT Load(std::filesystem::path dir, std::filesystem::path sub_dir = std::filesystem::path());
 		public:
-			Directory(const std::filesystem::path& dir);
+			explicit Directory(const std::filesystem::path& dir);
+			virtual ~Directory() = default;
 			HRESULT Reload();
 			const std::filesystem::path& GetPath() const noexcept { return m_path; }
 			const Files& GetFiles() const noexcept { return m_files; };

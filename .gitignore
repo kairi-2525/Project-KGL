@@ -13,6 +13,8 @@
 
 /Project/ImGui/x64
 /Project/ImGui/Win32
+/Project/DirectXTexLoader/x64
+/Project/DirectXTexLoader/Win32
 /Project/KGL/Debug
 /Project/KGL/Release
 /Project/Build/x64

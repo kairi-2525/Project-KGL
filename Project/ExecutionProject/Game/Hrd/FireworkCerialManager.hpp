@@ -52,6 +52,14 @@
 	KGL_NVP("has_child", m.has_child), \
 	KGL_NVP("child", m.child)
 
+#define EV_1_EFDC_ARCHIVE \
+	EV_0_EFDC_ARCHIVE, \
+	KGL_NVP("name", m.name)
+
+#define EV_2_EFDC_ARCHIVE \
+	EV_1_EFDC_ARCHIVE, \
+	KGL_NVP("texture_name", m.texture_name)
+
 #define EV_0_FWDC_ARCHIVE \
 	KGL_NVP("mass", m.mass), \
 	KGL_NVP("resistivity", m.resistivity), \
@@ -72,15 +80,17 @@ void serialize(Archive& archive,
 		}
 		case EFFECT_VERSION::EV_1:
 		{
-			archive(
-				EV_0_EFDC_ARCHIVE,
-				KGL_NVP("name", m.name)
-			);
+			archive(EV_1_EFDC_ARCHIVE);
+			break;
+		}
+		case EFFECT_VERSION::EV_2:
+		{
+			archive(EV_2_EFDC_ARCHIVE);
 			break;
 		}
 	}
 }
-CEREAL_CLASS_VERSION(EffectDesc, SCAST<UINT>(EFFECT_VERSION::EV_1));
+CEREAL_CLASS_VERSION(EffectDesc, SCAST<UINT>(EFFECT_VERSION::EV_2));
 
 template<class Archive>
 void serialize(Archive& archive,

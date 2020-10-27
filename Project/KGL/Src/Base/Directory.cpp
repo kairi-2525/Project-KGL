@@ -6,7 +6,7 @@ using namespace KGL;
 
 Directory::Directory(const std::filesystem::path& dir)
 {
-	m_path = dir;
+	m_path = dir.lexically_normal();
 	Reload();
 }
 
@@ -20,7 +20,6 @@ HRESULT Directory::Reload()
 HRESULT Directory::Load(const std::filesystem::path dir, std::filesystem::path sub_dir)
 {
 	HRESULT hr = S_OK;
-	m_files.clear();
 	using namespace std::filesystem;
 	std::for_each(
 		directory_iterator(dir), directory_iterator(),
@@ -30,8 +29,8 @@ HRESULT Directory::Load(const std::filesystem::path dir, std::filesystem::path s
 				//return S_OK;
 			}
 			else if (is_directory(p)) { // ディレクトリなら...
-				std::string directory = sub_dir.string() + p.string();
-				Load(dir.string() + p.string(), directory);
+				std::string directory = sub_dir.string() + p.filename().string();
+				Load(dir.string() + "\\" + directory, directory + "\\");
 				//RCHECK_HRSTR(hr, directory + "の読み込みに失敗", "フォルダの読み込みに失敗");
 			}
 			//return E_FAIL;
@@ -57,15 +56,15 @@ Files Directory::GetFiles(
 		std::transform(file_ext.begin(), file_ext.end(), file_ext.begin(), std::toupper);
 		if (file_ext == extension)
 		{
+#if 1
+			files.push_back(file);
+#else
 			std::filesystem::path file_name_less = file;
 			file_name_less.remove_filename();
 			
-			if (sub_dir.empty())
+			if (sub_dir.empty() && file_name_less.empty())
 			{
-				if (file_name_less.empty())
-				{
-					files.push_back(file);
-				}
+				files.push_back(file);
 			}
 			else
 			{
@@ -83,6 +82,7 @@ Files Directory::GetFiles(
 					}
 				}
 			}
+#endif
 		}
 	}
 	return files;

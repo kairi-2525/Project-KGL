@@ -11,7 +11,8 @@
 enum class EFFECT_VERSION : UINT
 {
 	EV_0 = 1u,
-	EV_1
+	EV_1,
+	EV_2
 };
 enum class FIREWORKS_VERSION : UINT
 {
@@ -67,6 +68,7 @@ struct EffectDesc
 
 	std::string			name;
 	std::string			set_name;
+	std::string			texture_name;
 	UINT32				id;
 };
 

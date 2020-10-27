@@ -286,6 +286,14 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			"EXIST", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SPAWN_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"TEXTURE_NUM", 0, DXGI_FORMAT_R32_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
 		renderer_desc.render_targets.clear();
 		renderer_desc.render_targets.reserve(2u);
@@ -372,6 +380,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
+	ptc_tex_mgr = std::make_shared<ParticleTextureManager>(device, "./Assets/Textures/Particles");
 	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
 	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 100000u);
 
@@ -1356,308 +1365,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	return Render(desc);
 }
 
-#if 0
-HRESULT TestScene04::Render(const SceneDesc& desc)
-{
-	using KGL::SCAST;
-	HRESULT hr = S_OK;
-
-	auto window_size = desc.window->GetClientSize();
-
-	D3D12_VIEWPORT viewport = {};
-	viewport.Width = SCAST<FLOAT>(window_size.x);
-	viewport.Height = SCAST<FLOAT>(window_size.y);
-	viewport.TopLeftX = 0;//出力先の左上座標X
-	viewport.TopLeftY = 0;//出力先の左上座標Y
-	viewport.MaxDepth = 1.0f;//深度最大値
-	viewport.MinDepth = 0.0f;//深度最小値
-
-	auto scissorrect = CD3DX12_RECT(
-		0, 0,
-		window_size.x, window_size.y
-	);
-
-	cmd_list->RSSetViewports(1, &viewport);
-	cmd_list->RSSetScissorRects(1, &scissorrect);
-	constexpr auto clear_value = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.f);
-
-	{
-		const UINT rtv_num = 0u;
-		//cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
-		//const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		//rtvs->Set(cmd_list, dsv_handle, rtv_num);
-		//rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
-		//desc.app->ClearDsv(cmd_list);
-
-		//sky_mgr->Render(cmd_list);
-
-		if (msaa_selector->GetScale() == MSAASelector::TYPE::MSAA_OFF)
-		{
-			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
-			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-			rtvs->Set(cmd_list, dsv_handle, rtv_num);
-			rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
-			desc.app->ClearDsv(cmd_list);
-			sky_mgr->Render(cmd_list, msaa_selector->GetScale());
-			debug_mgr->Render(cmd_list, msaa_selector->GetScale());
-			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
-		}
-		else
-		{
-			const UINT msaa_rtv_num = msaa_selector->GetScale() - 1u;
-			const auto& msaa_tex = msaa_textures[msaa_rtv_num];
-
-			{	// MSAA用RTをRT用にバリア
-				D3D12_RESOURCE_BARRIER barriers[] =
-				{
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.render_target->Data().Get(),
-						D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
-						D3D12_RESOURCE_STATE_RENDER_TARGET)
-				};
-				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
-			}
-
-			msaa_rtvs->Set(cmd_list, &msaa_tex.dsv_handle.Cpu(), msaa_rtv_num);
-			desc.app->ClearDsv(cmd_list);
-			msaa_rtvs->Clear(cmd_list, msaa_tex.render_target->GetClearColor(), msaa_rtv_num);
-			cmd_list->ClearDepthStencilView(msaa_tex.dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-			sky_mgr->Render(cmd_list, msaa_selector->GetScale());
-			debug_mgr->Render(cmd_list, msaa_selector->GetScale());
-
-			{	// MSAA用RTを元リソース用にバリア / RTVSのRTを宛先リソース用にバリア
-				D3D12_RESOURCE_BARRIER barriers[] =
-				{
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.render_target->Data().Get(),
-						D3D12_RESOURCE_STATE_RENDER_TARGET,
-						D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						rtvs->GetResources()[rtv_num].Get(),
-						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-						D3D12_RESOURCE_STATE_RESOLVE_DEST)
-				};
-				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
-			}
-
-			// コピー
-			cmd_list->ResolveSubresource(
-				rtvs->GetResources()[rtv_num].Get(), 0,
-				msaa_tex.render_target->Data().Get(), 0,
-				msaa_tex.render_target->Data()->GetDesc().Format
-			);
-
-			{
-				D3D12_RESOURCE_BARRIER barriers[] =
-				{	// RTVSのRTをシェーダーリソース用にバリア
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						rtvs->GetResources()[rtv_num].Get(),
-						D3D12_RESOURCE_STATE_RESOLVE_DEST,
-						D3D12_RESOURCE_STATE_RENDER_TARGET),
-					// Depthをピクセルシェーダー用にバリア
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.depth_stencil->Data().Get(),
-						D3D12_RESOURCE_STATE_DEPTH_WRITE,
-						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-				};
-				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
-			}
-
-			if (msaa_depth_draw)
-			{
-				// 深度値をコピーする
-				desc.app->SetDsv(cmd_list);
-				cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-				depth_sprite_renderer->SetState(cmd_list);
-				cmd_list->SetDescriptorHeaps(1, depth_srv_desc_mgr->Heap().GetAddressOf());
-				cmd_list->SetGraphicsRootDescriptorTable(0, msaa_tex.depth_srv_handle.Gpu());
-				sprite->Render(cmd_list);
-			}
-			
-			{
-				D3D12_RESOURCE_BARRIER barriers[] =
-				{	// DepthをDSV用にバリア
-					CD3DX12_RESOURCE_BARRIER::Transition(
-						msaa_tex.depth_stencil->Data().Get(),
-						D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-						D3D12_RESOURCE_STATE_DEPTH_WRITE)
-				};
-				cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
-			}
-			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-			rtvs->Set(cmd_list, dsv_handle, rtv_num);
-
-			//sky_mgr->Render(cmd_list);
-
-			cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
-		}
-	}
-	{
-		const auto& rtrbs = ptc_rtvs->GetRtvResourceBarriers(true);
-		const UINT rtrbs_size = rtrbs.size();
-		cmd_list->ResourceBarrier(rtrbs_size, rtrbs.data());
-
-		const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		ptc_rtvs->SetAll(cmd_list, dsv_handle);
-		
-		for (UINT idx = 0u; idx < rtrbs_size; idx++)
-		{
-			ptc_rtvs->Clear(cmd_list, ptc_rtv_texs[idx]->GetClearColor(), idx);
-		}
-
-		// パーティクル描画
-		{
-			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
-			board_renderer->SetState(cmd_list);
-			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-			//cmd_list->SetDescriptorHeaps(1, b_cbv.Heap().GetAddressOf());
-			//cmd_list->SetGraphicsRootDescriptorTable(1, b_cbv.Gpu());
-			if (b_select_srv_handle)
-			{
-				cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
-				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
-			}
-
-			const auto ptc_size = ptc_mgr->Size();
-			if (ptc_size > 0)
-			{
-				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
-				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
-			}
-
-			board_renderer_pos->SetState(cmd_list);
-			fc_mgr->Render(cmd_list);
-
-			if (dof_flg)
-			{
-				board_renderer_dsv->SetState(cmd_list);
-				cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
-				cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-				if (b_select_srv_handle)
-				{
-					cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
-					cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
-				}
-				if (ptc_size > 0)
-				{
-					cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
-					cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
-				}
-
-				board_renderer_dsv_pos->SetState(cmd_list);
-				fc_mgr->Render(cmd_list);
-			}
-		}
-
-		const auto& srvrbs = ptc_rtvs->GetRtvResourceBarriers(false);
-		cmd_list->ResourceBarrier(srvrbs.size(), srvrbs.data());
-	}
-	{
-		bloom_generator->Generate(cmd_list, ptc_rtvs->GetSRVHeap(), ptc_rtvs->GetSRVGPUHandle(1), viewport);
-	}
-	{
-		const UINT rtv_num = 1u;
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, rtv_num));
-		rtvs->Set(cmd_list, nullptr, rtv_num);
-		rtvs->Clear(cmd_list, rtv_textures[rtv_num]->GetClearColor(), rtv_num);
-
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		sprite_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
-		sprite->Render(cmd_list);
-
-
-		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		add_sprite_renderer->SetState(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(0));
-		sprite->Render(cmd_list);
-		cmd_list->SetDescriptorHeaps(1, ptc_rtvs->GetSRVHeap().GetAddressOf());
-		cmd_list->SetGraphicsRootDescriptorTable(0, ptc_rtvs->GetSRVGPUHandle(1));
-		sprite->Render(cmd_list);
-
-		if (!after_blooming)
-		{
-			bloom_generator->Render(cmd_list);
-		}
-
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, rtv_num));
-
-		if (dof_flg)
-			dof_generator->Generate(cmd_list, rtvs->GetSRVHeap(), rtvs->GetSRVGPUHandle(rtv_num), viewport);
-	}
-	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
-
-		desc.app->SetRtv(cmd_list);
-		desc.app->ClearRtv(cmd_list, DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f));
-
-		//cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-		//sprite_renderer->SetState(cmd_list);
-		//cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-		//cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
-		//sprite->Render(cmd_list);
-
-		if (dof_flg)
-		{
-			const auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-			dof_generator->Render(cmd_list, depth_srv_handle.Heap(), depth_srv_handle.Gpu());
-		}
-		else
-		{
-			sprite_renderer->SetState(cmd_list);
-			cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(1));
-			sprite->Render(cmd_list);
-		}
-		
-		if (after_blooming)
-		{
-			bloom_generator->Render(cmd_list);
-		}
-
-		{
-			desc.app->SetRtvDsv(cmd_list);
-
-			// グリッド描画
-			cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-			grid_renderer->SetState(cmd_list);
-			cmd_list->SetDescriptorHeaps(1, grid_buffer.handle.Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(0, grid_buffer.handle.Gpu());
-			cmd_list->IASetVertexBuffers(0, 1, &grid_vbv);
-			cmd_list->IASetIndexBuffer(&grid_ibv);
-			cmd_list->DrawIndexedInstanced(grid_idx_resource->Size(), 1, 0, 0, 0);
-
-			desc.app->SetRtv(cmd_list);
-		}
-		ImGui::Render();
-		cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
-		ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
-
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
-	}
-
-	cmd_list->Close();
-	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
-	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
-	desc.app->GetQueue()->Signal();
-	desc.app->GetQueue()->Wait();
-
-	cmd_allocator->Reset();
-	cmd_list->Reset(cmd_allocator.Get(), nullptr);
-
-	if (desc.app->IsTearingSupport())
-		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-	else
-		desc.app->GetSwapchain()->Present(1, 1);
-
-	return hr;
-}
-#else
-
 HRESULT TestScene04::FastRender(const SceneDesc& desc)
 {
 	using KGL::SCAST;
@@ -1931,7 +1638,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	return S_OK;
 }
-#endif
+
 HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene)
 {
 	sky_mgr->Uninit(desc.imgui_heap_mgr);

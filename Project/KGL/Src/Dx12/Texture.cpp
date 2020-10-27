@@ -9,6 +9,10 @@
 #include <DirectXTex/d3dx12.h>
 #pragma comment(lib, "DirectXTex.lib")
 
+#include <DDSTextureLoader12.h>
+#include <WICTextureLoader12.h>
+#pragma comment(lib, "DirectXTexLoader.lib")
+
 #include <Helper/Cast.hpp>
 #include <intrin.h>
 
@@ -71,6 +75,7 @@ bool TextureManager::SetResource(const std::filesystem::path& path,
 	return false;
 }
 
+// 画像テクスチャ(CPUロード)
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	const std::filesystem::path& path, UINT16 mip_level, TextureManager* mgr) noexcept
 {
@@ -132,7 +137,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 			metadata.width,
 			SCAST<UINT>(metadata.height),
 			SCAST<UINT16>(metadata.arraySize),
-			mip_level
+			(std::max)(mip_level, SCAST<UINT16>(metadata.mipLevels))
 		);
 	res_desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
 
@@ -166,6 +171,128 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	return hr;
 }
 
+// 画像テクスチャ(GPUロード)
+HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
+	ComPtrC<ID3D12GraphicsCommandList> cmd_list,
+	std::vector<ComPtr<ID3D12Resource>>* upload_resources,
+	const std::filesystem::path& path, UINT16 mip_level, TextureManager* mgr) noexcept
+{
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	m_path = path;
+	TexMetadata metadata = {};
+	ScratchImage scratch_img = {};
+
+	if (mgr)
+	{
+		if (mgr->GetResource(m_path, &m_buffer))
+			return S_OK;
+	}
+
+	if (!device)
+	{
+		assert(!"デバイスにNULLが渡されました。");
+		return E_FAIL;
+	}
+
+	std::string extension = m_path.extension().string();
+	std::transform(extension.begin(), extension.end(), extension.begin(), static_cast<int (*)(int)>(&std::toupper));
+	assert(TEX_LOAD_LAMBDA_TBL.count(extension) != 0u && "非対応の拡張子が入力されました。");
+
+	HRESULT hr = TEX_LOAD_LAMBDA_TBL.at(extension)(
+		m_path,
+		&metadata,
+		scratch_img
+		);
+	try
+	{
+		if (FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) && hr != HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)))
+			throw std::runtime_error(
+				"["
+				+ m_path.string()
+				+ "] の読み込み中に原因不明のエラーが発生しました。"
+			);
+		else if (FAILED(hr)) return hr;
+	}
+	catch (std::runtime_error& exception)
+	{
+		RuntimeErrorStop(exception);
+	}
+
+	// 生データの抽出
+	auto img = scratch_img.GetImage(0, 0, 0);
+
+	// TGAは対応していないのでCPUで読み込む
+	if (extension == ".TGA")
+	{
+		// WriteToSubresourceで転送する用のヒープ設定
+		D3D12_HEAP_PROPERTIES tex_heap_prop = {};
+		tex_heap_prop.Type = D3D12_HEAP_TYPE_CUSTOM;
+		tex_heap_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+		tex_heap_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+		tex_heap_prop.CreationNodeMask = 0;		// 単一アダプタのため
+		tex_heap_prop.VisibleNodeMask = 0;		// 単一アダプタのため
+
+		auto res_desc =
+			CD3DX12_RESOURCE_DESC::Tex2D(
+				metadata.format,
+				metadata.width,
+				SCAST<UINT>(metadata.height),
+				SCAST<UINT16>(metadata.arraySize),
+				(std::max)(mip_level, SCAST<UINT16>(metadata.mipLevels))
+			);
+		res_desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
+
+		// バッファ作成
+
+		hr = device->CreateCommittedResource(
+			&tex_heap_prop,
+			D3D12_HEAP_FLAG_NONE,
+			&res_desc,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+			nullptr,
+			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
+
+		hr = m_buffer->WriteToSubresource(
+			0u,
+			nullptr,
+			img->pixels,
+			SCAST<UINT>(img->rowPitch),
+			SCAST<UINT>(img->slicePitch)
+		);
+		RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
+	}
+	else
+	{
+		std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+		if (extension == ".DDS")
+		{
+			hr = LoadDDSTextureFromMemory(
+				device.Get(),
+				img->pixels,
+				img->rowPitch * img->slicePitch,
+				m_buffer.ReleaseAndGetAddressOf(),
+				subresources
+			);
+			RCHECK_HR(hr, "LoadDDSTextureFromFile に失敗");
+		}
+		else
+		{
+			//hr = LoadWICTextureFromFile();
+			RCHECK_HR(hr, "LoadWICTextureFromFile に失敗");
+		}
+	}
+
+	if (mgr)
+	{
+		mgr->SetResource(m_path, m_buffer);
+	}
+	m_buffer->SetName(m_path.wstring().c_str());
+	return hr;
+}
+
+// 単色最小テクスチャ
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR r, UCHAR g, UCHAR b, UCHAR a, TextureManager* mgr) noexcept
 {
@@ -236,6 +363,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	return hr;
 }
 
+// グラデーションテクスチャ
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	UCHAR tr, UCHAR tg, UCHAR tb, UCHAR ta,
 	UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height, TextureManager* mgr) noexcept

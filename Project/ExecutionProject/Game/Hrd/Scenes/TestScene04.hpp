@@ -146,6 +146,7 @@ private:
 
 	PTC_VT												ptc_vt_type;
 	bool												ptc_dof_flg;
+	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;
 	std::shared_ptr<ParticleManager>					pl_shot_ptc_mgr;
 	std::shared_ptr<KGL::ComputePipline>				particle_pipeline;
