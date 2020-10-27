@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
-#include <Dx12/CommandQueue.hpp>
 #include <Dx12/Helper.hpp>
 
 ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept
@@ -194,27 +193,83 @@ ParticleTextureManager::ParticleTextureManager(
 		tex_mgr = std::make_shared<KGL::TextureManager>();
 	}
 
-	KGL::ComPtr<ID3D12CommandAllocator> cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list;
 	D3D12_COMMAND_QUEUE_DESC cmd_queue_desc = {};
 	cmd_queue_desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	cmd_queue_desc.NodeMask = 0;
 	cmd_queue_desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 	cmd_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	KGL::CommandQueue cmd_queue(device, cmd_queue_desc);
-	std::vector<ComPtr<ID3D12Resource>> subresources;
+	cmd_queue = std::make_unique<KGL::CommandQueue>(device, cmd_queue_desc);
 
 	HRESULT hr;
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗");
 
-	textures.reserve(files.size());
+	textures.reserve(files.size() + 1u);
+
+	// 0番目は白テクスチャ
+	textures.emplace_back(std::make_shared<KGL::Texture>(device));
+
 	const std::string directory_pass = directory.GetPath().string() + "\\";
 	for (const auto& file : files)
-	{
-		textures.emplace_back(std::make_shared<KGL::Texture>(
-			device, cmd_list, &subresources,
+	{		textures.emplace_back(std::make_shared<KGL::Texture>(
+			device, cmd_list, &upload_heaps,
 			directory_pass + file.string(), 1u, tex_mgr.get())
 		);
+	}
+	cmd_list->Close();
+	//コマンドの実行
+	ID3D12CommandList* cmd_lists[] = {
+	   cmd_list.Get(),
+	};
+	cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
+	cmd_queue->Signal();
+
+	// SRV作成
+	srv_descriptor = std::make_shared<KGL::DescriptorManager>(device, textures.size());
+	CreateSRV(device, &handles, srv_descriptor);
+}
+
+// SRV作成
+void ParticleTextureManager::CreateSRV(
+	KGL::ComPtrC<ID3D12Device> device,
+	std::vector<KGL::DescriptorHandle>* out_handles,
+	std::shared_ptr<KGL::DescriptorManager> srv_descriptor
+)
+{
+	if (!out_handles) return;
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+	srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	size_t i = out_handles->size();
+	out_handles->resize(i + textures.size());
+	for (const auto& tex : textures)
+	{
+		auto& handle = (*out_handles)[i];
+		handle = srv_descriptor->Alloc();
+
+		auto tex_desc = tex->Data()->GetDesc();
+		srv_desc.Texture2D.MipLevels = tex_desc.MipLevels;
+		srv_desc.Format = tex_desc.Format;
+
+		device->CreateShaderResourceView(
+			tex->Data().Get(),
+			&srv_desc,
+			handle.Cpu()
+		);
+
+		i++;
+	}
+}
+
+void ParticleTextureManager::LoadWait()
+{
+	if (cmd_queue)
+	{
+		cmd_queue->Wait();
+		cmd_queue = nullptr;
+		cmd_allocator = nullptr;
+		cmd_list = nullptr;
+		upload_heaps.clear();
 	}
 }

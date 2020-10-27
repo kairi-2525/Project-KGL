@@ -76,6 +76,10 @@ class TestScene04 : public SceneBase
 		std::shared_ptr<KGL::BaseRenderer>			dsv;
 		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
 	};
+	struct SceneBuffers : public SceneBase::SceneBuffers
+	{
+		bool zero_texture;
+	};
 private:
 	static inline const std::vector<std::string> PTC_VT_TABLE =
 	{
@@ -102,7 +106,7 @@ private:
 
 	DirectX::XMFLOAT4X4									proj;
 
-	SceneBufferDx12<SceneBase::SceneBuffers>			scene_buffer;
+	SceneBufferDx12<SceneBuffers>						scene_buffer;
 	std::shared_ptr<DemoCamera>							camera;
 	DirectX::XMFLOAT2									camera_angle;
 	bool												use_gui;
@@ -117,19 +121,9 @@ private:
 	std::shared_ptr<KGL::Board>							board;
 	std::shared_ptr<KGL::DescriptorManager>				b_cbv_descmgr;
 	KGL::DescriptorHandle								b_cbv;
-	std::shared_ptr<KGL::DescriptorManager>				b_srv_descmgr;
-	struct BoardTex
-	{
-		std::shared_ptr<KGL::DescriptorHandle>			handle;
-		KGL::DescriptorHandle							imgui_handle;
-		std::shared_ptr<KGL::Texture>					tex;
-	};
-	BoardTex											b_tex_data[2];
 
 	D3D12_VERTEX_BUFFER_VIEW							b_ptc_vbv;
 	D3D12_VERTEX_BUFFER_VIEW							b_pl_shot_ptc_vbv;
-
-	std::shared_ptr<KGL::DescriptorHandle>				b_select_srv_handle;
 
 	std::shared_ptr<KGL::Resource<CbvParam>>			matrix_resource;
 
@@ -146,6 +140,7 @@ private:
 
 	PTC_VT												ptc_vt_type;
 	bool												ptc_dof_flg;
+	std::vector<KGL::DescriptorHandle>					ptc_tex_srv_gui_handles;
 	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;
 	std::shared_ptr<ParticleManager>					pl_shot_ptc_mgr;

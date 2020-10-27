@@ -174,14 +174,9 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 // 画像テクスチャ(GPUロード)
 HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 	ComPtrC<ID3D12GraphicsCommandList> cmd_list,
-	std::vector<ComPtr<ID3D12Resource>>* upload_resources,
+	std::vector<ComPtr<ID3D12Resource>>* upload_heaps,
 	const std::filesystem::path& path, UINT16 mip_level, TextureManager* mgr) noexcept
 {
-	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	m_path = path;
-	TexMetadata metadata = {};
-	ScratchImage scratch_img = {};
-
 	if (mgr)
 	{
 		if (mgr->GetResource(m_path, &m_buffer))
@@ -194,95 +189,81 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 		return E_FAIL;
 	}
 
+	m_path = path;
 	std::string extension = m_path.extension().string();
 	std::transform(extension.begin(), extension.end(), extension.begin(), static_cast<int (*)(int)>(&std::toupper));
 	assert(TEX_LOAD_LAMBDA_TBL.count(extension) != 0u && "非対応の拡張子が入力されました。");
 
-	HRESULT hr = TEX_LOAD_LAMBDA_TBL.at(extension)(
-		m_path,
-		&metadata,
-		scratch_img
-		);
-	try
-	{
-		if (FAILED(hr) && (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) && hr != HRESULT_FROM_WIN32(ERROR_PATH_NOT_FOUND)))
-			throw std::runtime_error(
-				"["
-				+ m_path.string()
-				+ "] の読み込み中に原因不明のエラーが発生しました。"
-			);
-		else if (FAILED(hr)) return hr;
-	}
-	catch (std::runtime_error& exception)
-	{
-		RuntimeErrorStop(exception);
-	}
+	HRESULT hr = S_OK;
 
-	// 生データの抽出
-	auto img = scratch_img.GetImage(0, 0, 0);
+	std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+	std::unique_ptr<uint8_t[]> decode_data;
 
 	// TGAは対応していないのでCPUで読み込む
 	if (extension == ".TGA")
 	{
-		// WriteToSubresourceで転送する用のヒープ設定
-		D3D12_HEAP_PROPERTIES tex_heap_prop = {};
-		tex_heap_prop.Type = D3D12_HEAP_TYPE_CUSTOM;
-		tex_heap_prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-		tex_heap_prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-		tex_heap_prop.CreationNodeMask = 0;		// 単一アダプタのため
-		tex_heap_prop.VisibleNodeMask = 0;		// 単一アダプタのため
-
-		auto res_desc =
-			CD3DX12_RESOURCE_DESC::Tex2D(
-				metadata.format,
-				metadata.width,
-				SCAST<UINT>(metadata.height),
-				SCAST<UINT16>(metadata.arraySize),
-				(std::max)(mip_level, SCAST<UINT16>(metadata.mipLevels))
-			);
-		res_desc.Dimension = static_cast<D3D12_RESOURCE_DIMENSION>(metadata.dimension);
-
-		// バッファ作成
-
-		hr = device->CreateCommittedResource(
-			&tex_heap_prop,
-			D3D12_HEAP_FLAG_NONE,
-			&res_desc,
-			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-			nullptr,
-			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
-		);
-		RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
-
-		hr = m_buffer->WriteToSubresource(
-			0u,
-			nullptr,
-			img->pixels,
-			SCAST<UINT>(img->rowPitch),
-			SCAST<UINT>(img->slicePitch)
-		);
-		RCHECK(FAILED(hr), "WriteToSubresourceに失敗", hr);
+		return Create(device, path, mip_level, mgr);
 	}
-	else
+	
+	m_resource_state = D3D12_RESOURCE_STATE_COPY_DEST;
+
+	try
 	{
-		std::vector<D3D12_SUBRESOURCE_DATA> subresources;
 		if (extension == ".DDS")
 		{
-			hr = LoadDDSTextureFromMemory(
+			hr = LoadDDSTextureFromFile(
 				device.Get(),
-				img->pixels,
-				img->rowPitch * img->slicePitch,
+				m_path.wstring().c_str(),
 				m_buffer.ReleaseAndGetAddressOf(),
+				decode_data,
 				subresources
 			);
 			RCHECK_HR(hr, "LoadDDSTextureFromFile に失敗");
 		}
 		else
 		{
-			//hr = LoadWICTextureFromFile();
+			auto& subresource = subresources.emplace_back();
+			hr = LoadWICTextureFromFile(
+				device.Get(),
+				m_path.wstring().c_str(),
+				m_buffer.ReleaseAndGetAddressOf(),
+				decode_data,
+				subresource
+			);
 			RCHECK_HR(hr, "LoadWICTextureFromFile に失敗");
 		}
 	}
+	catch (std::runtime_error& exception)
+	{
+		RuntimeErrorStop(exception);
+	}
+
+	const UINT subresoucesize = SCAST<UINT>(subresources.size());
+	const UINT64 upload_buffer_size = GetRequiredIntermediateSize(m_buffer.Get(), 0, subresoucesize);
+
+	// Uploadバッファーを作成
+	auto& upload_heap = upload_heaps->emplace_back();
+	device->CreateCommittedResource(
+		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		D3D12_HEAP_FLAG_NONE,
+		&CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(upload_heap.GetAddressOf())
+	);
+	upload_heap->SetName((m_path.wstring() + L"'s Upload Buffer").c_str());
+
+	UpdateSubresources(
+		cmd_list.Get(),
+		m_buffer.Get(),
+		upload_heap.Get(),
+		0, 0,
+		subresoucesize,
+		subresources.data()
+	);
+
+	cmd_list->ResourceBarrier(1, &RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	cmd_list->DiscardResource(upload_heap.Get(), nullptr);
 
 	if (mgr)
 	{

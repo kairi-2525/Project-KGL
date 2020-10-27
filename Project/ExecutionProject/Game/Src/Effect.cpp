@@ -114,6 +114,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				p.resistivity = effect.resistivity;
 				p.resistivity += effect.scale_resistivity * p.scale_width;
 				p.bloom = effect.bloom;
+				p.texture_num = effect.id;
 				if (effect.bloom)
 				{
 					p.bloom = effect.bloom;

@@ -25,8 +25,9 @@ static void HelpMarker(const char* desc)
 	}
 }
 
-FCManager::FCManager(const std::filesystem::path& directory)
+FCManager::FCManager(const std::filesystem::path& directory, const std::vector<std::shared_ptr<KGL::Texture>>& textures)
 {
+	this->textures = textures;
 	demo_frame_number = 0;
 	select_demo_number = 0;
 	demo_play = false;
@@ -69,6 +70,33 @@ HRESULT FCManager::Load(const std::filesystem::path& directory) noexcept
 	return hr;
 }
 
+static void FireworksDescSetTextureID(FireworksDesc* desc, const std::vector<std::shared_ptr<KGL::Texture>>& textures)
+{
+	if (desc)
+	{
+		for (auto& effect : desc->effects)
+		{
+			if (effect.has_child)
+			{
+				FireworksDescSetTextureID(&effect.child, textures);
+			}
+			else
+			{
+				UINT id = 0u;
+				for (const auto& tex : textures)
+				{
+					if (tex->GetPath().string() == effect.texture_name)
+					{
+						effect.id = id;
+						break;
+					}
+					id++;
+				}
+			}
+		}
+	}
+}
+
 HRESULT FCManager::ReloadDesc() noexcept
 {
 	desc_list.clear();
@@ -86,6 +114,8 @@ HRESULT FCManager::ReloadDesc() noexcept
 			std::shared_ptr<FireworksDesc> desc;
 			cereal::BinaryInputArchive i_archive(ifs);
 			i_archive(KGL_NVP(file_name.string(), desc));
+			
+			FireworksDescSetTextureID(desc.get(), textures);
 			Create(file_name.string(), desc.get());
 		}
 		//std::cout << ss.str() << std::endl;
@@ -336,6 +366,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 			}
 			ptcs[i].reserve(resource->Size());
 
+			// パーティクル生成
 			for (UINT idx = 0; idx < fws.size(); idx++)
 			{
 				// Fireworks Sort
@@ -462,7 +493,10 @@ void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const Partic
 	}
 };
 
-HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept
+HRESULT FCManager::ImGuiUpdate(
+	KGL::ComPtrC<ID3D12Device> device,
+	const ParticleParent* p_parent,
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept
 {
 	if (ImGui::Begin("Fireworks Editor", nullptr, ImGuiWindowFlags_MenuBar))
 	{
@@ -511,7 +545,7 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 				{
 					bool edited = false;
 					// DescのGuiを更新
-					state = DescImGuiUpdate(device, &desc, p_parent, &edited);
+					state = DescImGuiUpdate(device, &desc, p_parent, &edited, srv_gui_handles);
 					if (edited && desc.second == select_desc)
 					{
 						create_select_demo = true;
@@ -677,7 +711,10 @@ HRESULT FCManager::ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const Particle
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
-FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited)
+FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
+	KGL::ComPtrC<ID3D12Device> device, Desc* desc,
+	const ParticleParent* p_parent, bool* edited,
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
 {
 	FWDESC_STATE result = FWDESC_STATE::NONE;
 	if (desc && desc->second)
@@ -753,7 +790,7 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> de
 			}
 
 			
-			bool edited_update = FWDescImGuiUpdate(desc->second.get());
+			bool edited_update = FWDescImGuiUpdate(desc->second.get(), srv_gui_handles);
 			if (edited) *edited = edited_update || *edited;
 			ImGui::TreePop();
 		}
@@ -761,7 +798,7 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> de
 	return result;
 }
 
-bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
+bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
 {
 	bool edited = false;
 	bool fresult;
@@ -904,6 +941,36 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 
 						EditCheck(ImGui::Checkbox(u8"ブルーム", &effect.bloom), edited, fresult);
 
+						const auto imgui_window_size = ImGui::GetWindowSize();
+						if (ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar))
+						{
+							UINT image_count = 0u;
+							UINT side_image_count = 0u;
+							for (auto& handle : srv_gui_handles)
+							{
+								side_image_count++;
+								const ImVec2 image_size = { 90, 90 };
+								if (ImGui::ImageButton((ImTextureID)handle.Gpu().ptr, image_size))
+								{
+									edited = true;
+									effect.texture_name = textures[image_count]->GetPath().string();
+									effect.id = image_count;
+								}
+								//ImGui::SameLine();
+								const auto imgui_window_child_size = ImGui::GetWindowSize();
+								if (imgui_window_child_size.x < ((side_image_count + 2) * image_size.x + 20))
+								{
+									side_image_count = 0u;
+								}
+								else
+								{
+									ImGui::SameLine();
+								}
+								image_count++;
+							}
+						}
+						ImGui::EndChild();
+
 						ImGui::TreePop();
 					}
 
@@ -914,7 +981,7 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc)
 					);
 					if (effect.has_child)
 					{
-						EditCheck(FWDescImGuiUpdate(&effect.child), edited, fresult);
+						EditCheck(FWDescImGuiUpdate(&effect.child, srv_gui_handles), edited, fresult);
 					}
 
 					ImGui::TreePop();

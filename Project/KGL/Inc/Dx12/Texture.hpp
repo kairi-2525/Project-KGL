@@ -56,7 +56,7 @@ namespace KGL
 				auto hr = Create(device, path, mip_level, mgr); AssertLoadResult(hr, m_path.string());
 				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
-			// 画像テクスチャ(GPUロード)
+			// 画像テクスチャ(GPUロード : ※コマンドリストを実行完了して初めてロードされる)
 			explicit Texture(ComPtrC<ID3D12Device> device,
 				ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 				std::vector<ComPtr<ID3D12Resource>>* upload_resources,
@@ -106,10 +106,10 @@ namespace KGL
 			// 画像テクスチャ(CPUロード)
 			HRESULT Create(ComPtrC<ID3D12Device> device,
 				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept;
-			// 画像テクスチャ(GPUロード)
+			// 画像テクスチャ(GPUロード : ※コマンドリストを実行完了して初めてロードされる)
 			HRESULT Create(ComPtrC<ID3D12Device> device,
 				ComPtrC<ID3D12GraphicsCommandList> cmd_list,
-				std::vector<ComPtr<ID3D12Resource>>* upload_resources,
+				std::vector<ComPtr<ID3D12Resource>>* upload_heaps,
 				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept;
 			// 単色最小テクスチャ
 			HRESULT Create(ComPtrC<ID3D12Device> device,

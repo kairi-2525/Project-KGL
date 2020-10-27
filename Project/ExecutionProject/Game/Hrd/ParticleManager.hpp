@@ -5,6 +5,7 @@
 #include <Dx12/Texture.hpp>
 #include <Base/Directory.hpp>
 #include <vector>
+#include <Dx12/CommandQueue.hpp>
 
 class ParticleManager
 {
@@ -36,16 +37,36 @@ public:
 	UINT32 Size();
 };
 
+
 class ParticleTextureManager
 {
 private:
 	KGL::Files files;
 	std::shared_ptr<KGL::TextureManager>		tex_mgr;
 	std::vector<std::shared_ptr<KGL::Texture>>	textures;
+	std::shared_ptr<KGL::DescriptorManager>		srv_descriptor;
+	std::vector<KGL::DescriptorHandle>			handles;
+
+	// “Ç‚İ‚İ‚Ég—p‚µALoadWait‚Å”jŠü‚³‚ê‚é•Ï”
+	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
+	std::unique_ptr<KGL::CommandQueue>			cmd_queue;
+	std::vector<ComPtr<ID3D12Resource>>			upload_heaps;
+
 public:
 	ParticleTextureManager(
 		KGL::ComPtrC<ID3D12Device> device,
 		const std::filesystem::path& dir,
 		std::shared_ptr<KGL::DX12::TextureManager> texture_mgr = nullptr
 	);
+	void CreateSRV(
+		KGL::ComPtrC<ID3D12Device> device,
+		std::vector<KGL::DescriptorHandle>* out_handles,
+		std::shared_ptr<KGL::DescriptorManager> srv_descriptor
+	);
+	void LoadWait();
+	bool IsLoaded() const { return cmd_queue.operator bool(); }
+	const std::vector<std::shared_ptr<KGL::Texture>>& GetTextures() const { return textures; }
+
+	const KGL::DescriptorHandle& GetHandle() const { return *(handles.begin()); }
 } typedef PTCTexMgr;

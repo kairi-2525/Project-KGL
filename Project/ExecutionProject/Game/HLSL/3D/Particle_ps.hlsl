@@ -1,6 +1,6 @@
 #include "Particle.hlsli"
 
-Texture2D<float4> tex : register(t0);
+Texture2D<float4> tex[] : register(t0);
 SamplerState smp : register(s0);
 
 struct PSOut
@@ -12,7 +12,7 @@ struct PSOut
 PSOut PSMain(PSInput input) : SV_TARGET
 {
 	PSOut output = (PSOut)0;
-	const float4 color = tex.SampleLevel(smp, input.uv, 0) * input.color;
+	const float4 color = tex[input.tex_id - (input.tex_id * int(zero_texture))].SampleLevel(smp, input.uv, 0) * input.color;
 	if (input.bloom)
 	{
 		output.bloom_color = color;

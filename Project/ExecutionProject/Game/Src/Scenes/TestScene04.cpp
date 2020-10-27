@@ -174,6 +174,15 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		RCHECK(FAILED(hr), "コマンドキューの生成に失敗！", hr);
 	}
 
+	ptc_tex_mgr = std::make_shared<ParticleTextureManager>(device, "./Assets/Textures/Particles");
+	ptc_tex_mgr->CreateSRV(device, &ptc_tex_srv_gui_handles, desc.imgui_heap_mgr);
+	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
+	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 100000u);
+
+	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
+	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
+	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
+
 
 	{	// スプライト用PSOの作成(半透明、加算、高輝度抽出)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
@@ -380,18 +389,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	hr = scene_buffer.Load(desc);
 	RCHECK(FAILED(hr), "SceneBaseDx12::Loadに失敗", hr);
 
-	ptc_tex_mgr = std::make_shared<ParticleTextureManager>(device, "./Assets/Textures/Particles");
-	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
-	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 100000u);
-
-	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
-	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
-	b_tex_data[0].tex = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Particles/Big_Glow/Big_Glow_10.DDS", 10u);
-	b_tex_data[1].tex = std::make_shared<KGL::Texture>(device);
-
-	b_srv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
-
 	{
 		constexpr UINT grid_size = 100u;
 		std::vector<DirectX::XMFLOAT4> grid_vertices(grid_size * grid_size);
@@ -452,24 +449,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 		grid_buffer.Load(desc);
 	}
-	{	// パーティクルのテクスチャ用SRVを作成
-		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srv_desc.Format = b_tex_data[0].tex->Data()->GetDesc().Format;
-		srv_desc.Texture2D.MipLevels = 10u;
-		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		b_tex_data[0].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
-		b_tex_data[0].imgui_handle = desc.imgui_heap_mgr->Alloc();
-		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].handle->Cpu());
-		device->CreateShaderResourceView(b_tex_data[0].tex->Data().Get(), &srv_desc, b_tex_data[0].imgui_handle.Cpu());
-		srv_desc.Format = b_tex_data[1].tex->Data()->GetDesc().Format;
-		srv_desc.Texture2D.MipLevels = 1u;
-		b_tex_data[1].handle = std::make_shared<KGL::DescriptorHandle>(b_srv_descmgr->Alloc());
-		b_tex_data[1].imgui_handle = desc.imgui_heap_mgr->Alloc();
-		device->CreateShaderResourceView(b_tex_data[1].tex->Data().Get(), &srv_desc, b_tex_data[1].handle->Cpu());
-		device->CreateShaderResourceView(b_tex_data[1].tex->Data().Get(), &srv_desc, b_tex_data[1].imgui_handle.Cpu());
-		b_select_srv_handle = b_tex_data[0].handle;
-	}
 	{
 		b_ptc_vbv.BufferLocation = ptc_mgr->Resource()->Data()->GetGPUVirtualAddress();
 		b_ptc_vbv.SizeInBytes = SCAST<UINT>(ptc_mgr->Resource()->SizeInBytes());
@@ -521,7 +500,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		}
 	}
 
-	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/");
+	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/", ptc_tex_mgr->GetTextures());
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_desc);
 
@@ -545,6 +524,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
+
+	ptc_tex_mgr->LoadWait();
 
 	return hr;
 }
@@ -805,7 +786,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			pp = *p_pp;
 			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pp);
+		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pp, ptc_tex_srv_gui_handles);
 
 		if (ImGui::Begin("Info"))
 		{
@@ -1288,30 +1269,26 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
 				{
 					const auto imgui_window_size = ImGui::GetWindowSize();
-					ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar);
-					for (auto& it : b_tex_data)
+					if (ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar))
 					{
-						const ImVec2 image_size = { 90, 90 };
-						ImGui::Image((ImTextureID)it.imgui_handle.Gpu().ptr,
-							image_size, ImVec2(0, 0), ImVec2(1, 1));
-						ImGui::SameLine();
-						const auto imgui_window_child_size = ImGui::GetWindowSize();
-						std::string path = it.tex->GetPath().string();
-						auto path_size = ImGui::CalcTextSize(path.c_str());
-						const float string_draw_width = std::max(0.f, (imgui_window_child_size.x - image_size.x) - 20);
-						UINT str_line_count = KGL::SCAST<UINT>(path_size.x / string_draw_width);
-						UINT line_size = KGL::SCAST<UINT>(string_draw_width / (path_size.x / path.length()));
-						for (UINT i = 0u; i < str_line_count; i++)
+						UINT image_count = 0u;
+						UINT side_image_count = 0u;
+						for (auto& handle : ptc_tex_srv_gui_handles)
 						{
-							path.insert(i + ((i + 1) * line_size), "\n");
-						}
-						if (it.handle == b_select_srv_handle)
-						{
-							ImGui::TextColored({ 0.8f, 0.8f, 0.8f, 1.f }, path.c_str());
-						}
-						else if (ImGui::Button(path.c_str()))
-						{
-							b_select_srv_handle = it.handle;
+							side_image_count++;
+							const ImVec2 image_size = { 90, 90 };
+							ImGui::ImageButton((ImTextureID)handle.Gpu().ptr, image_size);
+							//ImGui::SameLine();
+							const auto imgui_window_child_size = ImGui::GetWindowSize();
+							if (imgui_window_child_size.x < ((side_image_count + 2) * image_size.x + 20))
+							{
+								side_image_count = 0u;
+							}
+							else
+							{
+								ImGui::SameLine();
+							}
+							image_count++;
 						}
 					}
 					ImGui::EndChild();
@@ -1358,6 +1335,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		debug_mgr->Update(tc, sc, use_gui);
 	}
+
+	scene_buffer.mapped_data->zero_texture = particle_wire;
 
 	tm_update.Count();
 
@@ -1456,11 +1435,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-		if (b_select_srv_handle)
-		{
-			cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
-			cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
-		}
+		
+		cmd_list->SetDescriptorHeaps(1, ptc_tex_mgr->GetHandle().Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(2, ptc_tex_mgr->GetHandle().Gpu());
 
 		if (ptc_size > 0)
 		{
@@ -1480,11 +1457,10 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			ptc_renderer.dsv->SetState(cmd_list);
 			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
 			cmd_list->SetGraphicsRootDescriptorTable(0, scene_buffer.handle.Gpu());
-			if (b_select_srv_handle)
-			{
-				cmd_list->SetDescriptorHeaps(1, b_select_srv_handle->Heap().GetAddressOf());
-				cmd_list->SetGraphicsRootDescriptorTable(2, b_select_srv_handle->Gpu());
-			}
+			
+			cmd_list->SetDescriptorHeaps(1, ptc_tex_mgr->GetHandle().Heap().GetAddressOf());
+			cmd_list->SetGraphicsRootDescriptorTable(2, ptc_tex_mgr->GetHandle().Gpu());
+
 			if (ptc_size > 0)
 			{
 				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
@@ -1643,10 +1619,10 @@ HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> ne
 {
 	sky_mgr->Uninit(desc.imgui_heap_mgr);
 
-	for (auto& it : b_tex_data)
+	for (auto& handle : ptc_tex_srv_gui_handles)
 	{
-		if (it.imgui_handle.Heap())
-			desc.imgui_heap_mgr->Free(it.imgui_handle);
+		if (handle.Heap())
+			desc.imgui_heap_mgr->Free(handle);
 	}
 
 	for (const auto& rtrs : rt_resources)

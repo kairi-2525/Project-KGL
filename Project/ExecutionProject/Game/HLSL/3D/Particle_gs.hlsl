@@ -284,6 +284,7 @@ void GSMain(
 	PSInput element = (PSInput)0;
 	element.color = input[0].color;
 	element.bloom = input[0].bloom;
+	element.tex_id = input[0].tex_num;
 
 	float3 pos = input[0].pos.xyz;
 	float3 vel = input[0].velocity.xyz;

@@ -6,6 +6,7 @@ struct PSInput
 	float4 pos				: SV_POSITION;
 	float2 uv				: TEXCOORD;
 	bool bloom				: RENDER_MODE;
+	uint tex_id				: TEXTURE_ID;
 };
 
 cbuffer scene_buff : register(b0)
@@ -15,4 +16,5 @@ cbuffer scene_buff : register(b0)
 	row_major matrix light_camera;
 	float3 eye;							// Ž‹“_
 	float3 light_vec;
+	bool zero_texture;
 }

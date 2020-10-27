@@ -12,6 +12,7 @@
 #include <map>
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/DescriptorHeap.hpp>
+#include <Dx12/Texture.hpp>
 #include <mutex>
 #include <thread>
 #include <list>
@@ -139,7 +140,11 @@ private:
 		std::mutex											build_mutex;
 		bool												exist;
 
-		DemoData(KGL::ComPtrC<ID3D12Device> device, std::shared_ptr<FireworksDesc> desc, UINT64 capacity);
+		DemoData(
+			KGL::ComPtrC<ID3D12Device> device,
+			std::shared_ptr<FireworksDesc> desc,
+			UINT64 capacity
+		);
 		DemoData(const DemoData& data);
 		DemoData& operator=(const DemoData& data);
 		void SetResource(UINT num);
@@ -180,6 +185,7 @@ private:
 
 	std::unique_ptr<std::pair<const std::string, FireworksDesc>> cpy_fw_desc;
 	std::unique_ptr<EffectDesc>									cpy_ef_desc;
+	std::vector<std::shared_ptr<KGL::Texture>>					textures;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
@@ -197,17 +203,20 @@ private:
 		const bool* stop_flg,
 		std::mutex* mt_clear
 	) noexcept;
-	bool FWDescImGuiUpdate(FireworksDesc* desc);
+	bool FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
-	FWDESC_STATE DescImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited);
+	FWDESC_STATE DescImGuiUpdate(
+		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited,
+		const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
 	void CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent);
-	FCManager(const std::filesystem::path& directory);
+	FCManager(const std::filesystem::path& directory, const std::vector<std::shared_ptr<KGL::Texture>>& textures);
 	~FCManager();
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
-	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent) noexcept;
+	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+		const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept;
 	HRESULT Update(float update_time) noexcept;
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
