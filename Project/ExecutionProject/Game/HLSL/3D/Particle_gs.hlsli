@@ -1,5 +1,7 @@
 #include "Particle.hlsli"
 
+#define FLT_EPSILON     1.192092896e-07
+
 [maxvertexcount(VERTEX_COUNT)]
 void GSMain(
 	point Particle input[1],
@@ -13,14 +15,16 @@ void GSMain(
 	float3 vel = input[0].velocity.xyz;
 	float3 vel_norm = normalize(vel);
 	float scale_width = input[0].scale_width * 0.5f;
+	float scale_front = max(input[0].scale_front, scale_width);
+	float scale_back = max(input[0].scale_back, scale_width);
 	float scale_speed_width = input[0].scale_speed_width * 0.5f;
 
 	// front
-	float3 front_v = vel_norm * input[0].scale_front + vel * input[0].scale_speed_front;
-	float3 front_pos = pos + normalize(front_v) * max(length(front_v) - scale_width, 0.f);
+	float3 front_v = vel_norm * scale_front + vel * input[0].scale_speed_front;
+	float3 front_pos = pos + normalize(front_v) * max(length(front_v) - scale_width, 0.001f);
 	// back
-	float3 back_v = -(vel_norm * input[0].scale_back + vel * input[0].scale_speed_back);
-	float3 back_pos = pos + normalize(back_v) * max(length(back_v) - scale_width, 0.f);
+	float3 back_v = -(vel_norm * scale_back + vel * input[0].scale_speed_back);
+	float3 back_pos = pos + normalize(back_v) * max(length(back_v) - scale_width, 0.001f);
 
 	// 0地点がカメラ位置なのでそのままベクトルとしてポジションを扱う
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);

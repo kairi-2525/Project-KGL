@@ -8,6 +8,7 @@ DebugManager::DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BA
 	s_obj_wire = false;
 	s_obj_changed = false;
 	s_obj_vertices_offset = 0u;
+	render_flg = false;
 
 	s_obj_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
 	s_obj_tc_handle = s_obj_cbv_descmgr->Alloc();
