@@ -465,7 +465,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
 
 	{
-		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0), max_sample_desc);
+		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
 		
 		const auto& tex = bloom_generator->GetTextures();
 		UINT idx = 0u;
@@ -1448,11 +1448,11 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	if (ptc_render)
 	{
-		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport, 0u);
+		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport);
 		// ƒuƒ‹[ƒ€‚ÍMSAA‚Ås‚í‚È‚¢
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
-		bloom_generator->Render(cmd_list, 0u);
+		bloom_generator->Render(cmd_list);
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 	}
 

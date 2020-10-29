@@ -26,27 +26,34 @@ public:
 		std::shared_ptr<KGL::RenderTargetView> rtvs;
 	};
 private:
-	std::vector<std::shared_ptr<KGL::BaseRenderer>>		bloom_renderers;
-	std::vector<std::shared_ptr<KGL::BaseRenderer>>		renderers;
-	std::vector<RTVResources>							rtv_rs;
+	std::shared_ptr<KGL::BaseRenderer>					bloom_renderer;
+	std::shared_ptr<KGL::BaseRenderer>					compression_renderer;
+	std::shared_ptr<KGL::BaseRenderer>					gaussian_renderer_w;
+	std::shared_ptr<KGL::BaseRenderer>					gaussian_renderer_h;
+	RTVResources										gaussian_rtvr_w;
+	RTVResources										gaussian_rtvr_h;
+	std::shared_ptr<KGL::RenderTargetView>				bloom_rtv;
+	std::shared_ptr<KGL::Texture>						bloom_texture;
+
 	std::shared_ptr<KGL::Sprite>						sprite;
-	std::shared_ptr<KGL::Resource<Buffer>>				buffer_res;
-	std::shared_ptr<KGL::DescriptorManager>				rtv_num_dsmgr;
-	KGL::DescriptorHandle								rtv_num_handle;
+	std::shared_ptr<KGL::Resource<Buffer>>				frame_buffer;
+	std::shared_ptr<KGL::Resource<float>>				gaussian_buffer;
+	std::shared_ptr<KGL::DescriptorManager>				constant_buffer_dsmgr;
+	KGL::DescriptorHandle								frame_buffer_handle;
+	KGL::DescriptorHandle								gausian_buffer_handle;
 public:
 	BloomGenerator(KGL::ComPtrC<ID3D12Device> device, 
-		const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc,
-		DXGI_SAMPLE_DESC max_sample_desc);
+		const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc);
 	void Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
-		const KGL::DescriptorHandle& srv_handle, D3D12_VIEWPORT view_port, UINT msaa_scale)
+		const KGL::DescriptorHandle& srv_handle, D3D12_VIEWPORT view_port)
 	{
-		return Generate(cmd_list, srv_handle.Heap(), srv_handle.Gpu(), view_port, msaa_scale);
+		return Generate(cmd_list, srv_handle.Heap(), srv_handle.Gpu(), view_port);
 	}
 	void Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		KGL::ComPtrC<ID3D12DescriptorHeap> srv_heap, D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle,
-		D3D12_VIEWPORT view_port, UINT msaa_scale);
-	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale);
-	const std::array<std::shared_ptr<KGL::Texture>, 8u>& GetTextures(UINT msaa_scale = 0u) const noexcept { return rtv_rs[msaa_scale].textures; }
+		D3D12_VIEWPORT view_port);
+	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
+	const std::array<std::shared_ptr<KGL::Texture>, RTV_MAX>& GetTextures() const noexcept { return gaussian_rtvr_w.textures; }
 	void SetKernel(UINT8 num) noexcept;
 	UINT8 GetKernel() const noexcept;
 	void SetWeights(Weights weights) noexcept;

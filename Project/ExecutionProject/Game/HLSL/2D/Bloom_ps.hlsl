@@ -1,17 +1,21 @@
 #include "../GaussianBlur5x5.hlsli"
 
-Texture2D<float4> tex[8] : register (t0);
-Texture2DMS<float4> texms[8] : register (t0);
+Texture2D<float4> tex : register (t0);
 
 SamplerState smp : register (s0);
 
-cbuffer RTV : register (b0)
+cbuffer FrameBuffer : register (b0)
 {
 	uint kernel;
 	unorm float4 weight[2];
 }
+cbuffer GaussianBuffer : register (b1)
+{
+	float4 bkweights[2];
+}
 
 static float temp_weight[8] = (float[8])weight;
+static float bk_weight[8] = (float[8])bkweights;
 
 struct PSInput
 {
@@ -19,26 +23,41 @@ struct PSInput
 	float2 uv : TEXCOORD;
 };
 
-float4 PSMainMS(PSInput input) : SV_TARGET
+float4 PSMainW(PSInput input) : SV_TARGET
 {
-	float4 bloom_accum = float4(0.f, 0.f, 0.f, 0.f);
+	float w, h, levels;
+	tex.GetDimensions(0, w, h, levels);
+	float dx = 1.0 / w;
 
-	for (uint i = 0; i < kernel; i++)
+	float4 col = tex.Sample(smp, input.uv);
+	float4 ret = float4(0.f, 0.f, 0.f, 0.f);
+
+	ret += bkweights[0] * col;
+
+	for (uint i = 0u; i < kernel; ++i)
 	{
-		bloom_accum += GaussianBlur5x5(texms[i], input.uv) * temp_weight[i];
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(i * dx, 0)) * temp_weight[i];
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(-int(i) * dx, 0)) * temp_weight[i];
 	}
 
-	return saturate(bloom_accum);
+	return ret;
 }
 
-float4 PSMain(PSInput input) : SV_TARGET
+float4 PSMainH(PSInput input) : SV_TARGET
 {
-	float4 bloom_accum	= float4(0.f, 0.f, 0.f, 0.f);
+	float w, h, levels;
+	tex.GetDimensions(0, w, h, levels);
+	float dy = 1.0 / h;
+	float4 col = tex.Sample(smp, input.uv);
+	float4 ret = float4(0.f, 0.f, 0.f, 0.f);
 
-	for (uint i = 0; i < kernel; i++)
+	ret += bkweights[0] * col;
+
+	for (uint i = 0u; i < 8u; ++i)
 	{
-		bloom_accum += GaussianBlur5x5(tex[i], smp, input.uv) * temp_weight[i];
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, i * dy)) * temp_weight[i];
+		ret += bkweights[i >> 2][i % 4] * tex.Sample(smp, input.uv + float2(0, -int(i) * dy)) * temp_weight[i];
 	}
 
-	return saturate(bloom_accum);
+	return ret;
 }

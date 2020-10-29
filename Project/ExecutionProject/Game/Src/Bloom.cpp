@@ -1,69 +1,69 @@
 #include "../Hrd/Bloom.hpp"
 #include "../Hrd/MSAA.hpp"
 #include <DirectXTex/d3dx12.h>
+#include <Math/Gaussian.hpp>
 
 BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
-	const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc,
-	DXGI_SAMPLE_DESC max_sample_desc)
+	const std::shared_ptr<KGL::DXC>& dxc, KGL::ComPtrC<ID3D12Resource> rsc)
 {
-	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 0.f);
+	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
 	auto desc = rsc->GetDesc();
 	const auto dx_clear_value = CD3DX12_CLEAR_VALUE(desc.Format, (float*)&clear_value);
 
-	UINT renderer_count = MSAASelector::CountToType(max_sample_desc.Count) + 1u;
-
-	rtv_rs.resize(renderer_count);
-	auto rtv_rs_itr = rtv_rs.begin();
 	const UINT64 width = desc.Width;
 	const UINT height = desc.Height;
-	for (UINT i = 1u; i <= max_sample_desc.Count; i *= 2)
-	{
-		desc.Width = width;
-		desc.Height = height;
-		desc.SampleDesc.Count = i;
+	desc.SampleDesc.Count = 1;
 
+	{
 		std::vector<KGL::ComPtr<ID3D12Resource>> resources;
-		resources.reserve(RTV_MAX);
-		for (auto& tex : (rtv_rs_itr->textures))
+		resources.reserve(1);
+		bloom_texture = std::make_shared<KGL::Texture>(
+			device, desc, dx_clear_value);
+		bloom_texture->Data()->SetName(L"bloom texture");
+		resources.emplace_back(bloom_texture->Data());
+		// Bloom用レンダーターゲットを作成
+		bloom_rtv = std::make_shared<KGL::RenderTargetView>(
+			device, resources, nullptr, D3D12_SRV_DIMENSION_TEXTURE2D
+			);
+	}
+	{
+		std::vector<KGL::ComPtr<ID3D12Resource>> resources_w, resources_h;
+		resources_w.reserve(RTV_MAX);
+		resources_h.reserve(RTV_MAX);
+		for (UINT8 i = 0u; i < RTV_MAX; i++)
 		{
 			desc.Width = std::max<UINT64>(1u, desc.Width / 2);
 			desc.Height = std::max<UINT>(1u, desc.Height / 2);;
 
-			tex = std::make_shared<KGL::Texture>(
+			gaussian_rtvr_w.textures[i] = std::make_shared<KGL::Texture>(
 				device, desc, dx_clear_value);
+			resources_w.emplace_back(gaussian_rtvr_w.textures[i]->Data());
 
-			resources.emplace_back(tex->Data());
+			gaussian_rtvr_h.textures[i] = std::make_shared<KGL::Texture>(
+				device, desc, dx_clear_value);
+			resources_h.emplace_back(gaussian_rtvr_h.textures[i]->Data());
 		}
-		rtv_rs_itr->rtvs = 
-			std::make_shared<KGL::RenderTargetView>(
-				device, resources, nullptr,
-				i == 1u ? D3D12_SRV_DIMENSION_TEXTURE2D : D3D12_SRV_DIMENSION_TEXTURE2DMS
+		// ガウス用レンダーターゲットWを作成
+		gaussian_rtvr_w.rtvs = std::make_shared<KGL::RenderTargetView>(
+				device, resources_w, nullptr, D3D12_SRV_DIMENSION_TEXTURE2D
 			);
 
-		rtv_rs_itr++;
+		// ガウス用レンダーターゲットHを作成
+		gaussian_rtvr_h.rtvs = std::make_shared<KGL::RenderTargetView>(
+			device, resources_h, nullptr, D3D12_SRV_DIMENSION_TEXTURE2D
+			);
 	}
 
 	sprite = std::make_shared<KGL::Sprite>(device);
 
 	auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
-
-	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 	auto& sampler = renderer_desc.static_samplers[0];
 	sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-	
-	bloom_renderers.reserve(renderer_count);
-	bloom_renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
-	renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
-	renderer_desc.ps_desc.entry_point = "PSMainMS";
-	// MSAA用
-	for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
-	{
-		renderer_desc.other_desc.sample_desc.Count *= 2;
-		bloom_renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
-	}
-	renderer_desc.other_desc.sample_desc.Count = 1u;
-	renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
-	renderer_desc.ps_desc.entry_point = "PSMain";
+	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
+	bloom_renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
+
+	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+	compression_renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
 
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
 	renderer_desc.ps_desc.hlsl = "./HLSL/2D/Bloom_ps.hlsl";
@@ -73,22 +73,18 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 	root_param0.InitAsDescriptorTable(1u, &range0, D3D12_SHADER_VISIBILITY_PIXEL);
 	renderer_desc.root_params[0] = root_param0;
 	auto root_param1 = CD3DX12_ROOT_PARAMETER();
-	auto range1 = CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-	root_param1.InitAsDescriptorTable(1u, &range1, D3D12_SHADER_VISIBILITY_PIXEL);
+	std::vector<D3D12_DESCRIPTOR_RANGE> ranges;
+	ranges.push_back(CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0));
+	ranges.push_back(CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 1));
+	root_param1.InitAsDescriptorTable(SCAST<UINT>(ranges.size()), ranges.data(), D3D12_SHADER_VISIBILITY_PIXEL);
 	renderer_desc.root_params.push_back(root_param1);
 
-	renderers.reserve(renderer_count);
-	renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
-	renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
-	renderer_desc.ps_desc.entry_point = "PSMainMS";
-	// MSAA用
-	for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
-	{
-		renderer_desc.other_desc.sample_desc.Count *= 2;
-		renderers.push_back(std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc));
-	}
+	renderer_desc.ps_desc.entry_point = "PSMainW";
+	gaussian_renderer_w = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
+	renderer_desc.ps_desc.entry_point = "PSMainH";
+	gaussian_renderer_h = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
 
-	buffer_res = std::make_shared<KGL::Resource<Buffer>>(device, 1u);
+	frame_buffer = std::make_shared<KGL::Resource<Buffer>>(device, 1u);
 	SetKernel(KGL::SCAST<UINT8>(RTV_MAX));
 	{
 		Weights weight;
@@ -98,18 +94,34 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 		SetWeights(weight);
 	}
 
-	rtv_num_dsmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-	rtv_num_handle = rtv_num_dsmgr->Alloc();
+	constant_buffer_dsmgr = std::make_shared<KGL::DescriptorManager>(device, 2u);
+	frame_buffer_handle = constant_buffer_dsmgr->Alloc();
+	gausian_buffer_handle = constant_buffer_dsmgr->Alloc();
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-	cbv_desc.BufferLocation = buffer_res->Data()->GetGPUVirtualAddress();
-	cbv_desc.SizeInBytes = SCAST<UINT>(buffer_res->SizeInBytes());
-	device->CreateConstantBufferView(&cbv_desc, rtv_num_handle.Cpu());
+	{
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
+		cbv_desc.BufferLocation = frame_buffer->Data()->GetGPUVirtualAddress();
+		cbv_desc.SizeInBytes = SCAST<UINT>(frame_buffer->SizeInBytes());
+		device->CreateConstantBufferView(&cbv_desc, frame_buffer_handle.Cpu());
+	}
+	// ガウス処理をあらかじめ計算しておく
+	const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
+	gaussian_buffer = std::make_shared<KGL::Resource<float>>(device, weights.size());
+	{
+		auto* mapped_weight = gaussian_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+		std::copy(weights.cbegin(), weights.cend(), mapped_weight);
+		gaussian_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
+		cbv_desc.BufferLocation = gaussian_buffer->Data()->GetGPUVirtualAddress();
+		cbv_desc.SizeInBytes = SCAST<UINT>(gaussian_buffer->SizeInBytes());
+		device->CreateConstantBufferView(&cbv_desc, gausian_buffer_handle.Cpu());
+	}
 }
 
 void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	KGL::ComPtrC<ID3D12DescriptorHeap> srv_heap, D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu_handle,
-	D3D12_VIEWPORT view_port, UINT msaa_scale)
+	D3D12_VIEWPORT view_port)
 {
 	const auto return_view_port = view_port;
 
@@ -118,29 +130,34 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	scissor_rect.right = SCAST<LONG>(view_port.Width);
 	scissor_rect.bottom = SCAST<LONG>(view_port.Height);
 	const auto return_scissor_rect = scissor_rect;
-	const auto& rtvs = rtv_rs[msaa_scale].rtvs;
-	const auto& textures = rtv_rs[msaa_scale].textures;
-
-	const auto& rtrb = rtvs->GetRtvResourceBarriers(true);
-	cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
 	
+	const auto& rtvs_w = gaussian_rtvr_w.rtvs;
+	const auto& textures_w = gaussian_rtvr_w.textures;
+	const auto& rtvs_h = gaussian_rtvr_h.rtvs;
+	const auto& textures_h = gaussian_rtvr_h.textures;
+	{
+		const auto& rtrb = rtvs_w->GetRtvResourceBarriers(true);
+		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
+	}
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	bloom_renderers[msaa_scale]->SetState(cmd_list);
+	compression_renderer->SetState(cmd_list);
 
 	cmd_list->SetDescriptorHeaps(1, srv_heap.GetAddressOf());
 	cmd_list->SetGraphicsRootDescriptorTable(0, srv_gpu_handle);
 
 	UINT32 rtv_num = 0u;
 	{
-		Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+		Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 		rtv_num = mapped_buffer->kernel;
-		buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
+
+	// 圧縮テクスチャを作成し　レンダーターゲットWへ描画
 	for (UINT32 idx = 0u; idx < rtv_num; idx++)
 	{
-		rtvs->Set(cmd_list, nullptr, idx);
-		rtvs->Clear(cmd_list, textures[idx]->GetClearColor(), idx);
-		const auto& desc = textures[idx]->Data()->GetDesc();
+		rtvs_w->Set(cmd_list, nullptr, idx);
+		rtvs_w->Clear(cmd_list, textures_w[idx]->GetClearColor(), idx);
+		const auto& desc = textures_w[idx]->Data()->GetDesc();
 
 		view_port.Width = SCAST<FLOAT>(desc.Width);
 		view_port.Height = SCAST<FLOAT>(desc.Height);
@@ -152,57 +169,106 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 		sprite->Render(cmd_list);
 	}
-	const auto& srvrb = rtvs->GetRtvResourceBarriers(false);
-	cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
+	{
+		const auto& srvrb = rtvs_w->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
+	}
+	// レンダーターゲットWをWブラーをかけてHに描画
+	gaussian_renderer_w->SetState(cmd_list);
+
+	cmd_list->SetDescriptorHeaps(1, frame_buffer_handle.Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(1, frame_buffer_handle.Gpu());
+	{
+		const auto& rtrb = rtvs_h->GetRtvResourceBarriers(true);
+		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
+	}
+	for (UINT32 idx = 0u; idx < rtv_num; idx++)
+	{
+		rtvs_h->Set(cmd_list, nullptr, idx);
+		rtvs_h->Clear(cmd_list, textures_w[idx]->GetClearColor(), idx);
+		const auto& desc = textures_w[idx]->Data()->GetDesc();
+
+		view_port.Width = SCAST<FLOAT>(desc.Width);
+		view_port.Height = SCAST<FLOAT>(desc.Height);
+		scissor_rect.right = SCAST<LONG>(desc.Width);
+		scissor_rect.bottom = SCAST<LONG>(desc.Height);
+
+		cmd_list->RSSetViewports(1, &view_port);
+		cmd_list->RSSetScissorRects(1, &scissor_rect);
+
+		cmd_list->SetDescriptorHeaps(1, rtvs_w->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs_w->GetSRVGPUHandle(idx));
+
+		sprite->Render(cmd_list);
+	}
+	{
+		const auto& srvrb = rtvs_h->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
+	}
 
 	cmd_list->RSSetViewports(1, &return_view_port);
 	cmd_list->RSSetScissorRects(1, &return_scissor_rect);
+
+	// レンダーターゲットWをWブラーをかけてHに描画
+	{
+		const auto& rtrb = bloom_rtv->GetRtvResourceBarriers(true);
+		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
+	}
+	gaussian_renderer_h->SetState(cmd_list);
+	bloom_rtv->Set(cmd_list, nullptr);
+	bloom_rtv->Clear(cmd_list, bloom_texture->GetClearColor());
+	for (UINT32 idx = 0u; idx < rtv_num; idx++)
+	{
+		cmd_list->SetDescriptorHeaps(1, rtvs_h->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs_h->GetSRVGPUHandle(idx));
+
+		sprite->Render(cmd_list);
+	}
+	{
+		const auto& srvrb = bloom_rtv->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
+	}
 }
 
-void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale)
+void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 {
-	const auto& rtvs = rtv_rs[msaa_scale].rtvs;
-
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	renderers[msaa_scale]->SetState(cmd_list);
+	const auto& rtvs = bloom_rtv;
+	bloom_renderer->SetState(cmd_list);
 
 	cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
 	cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(0));
-
-	cmd_list->SetDescriptorHeaps(1, rtv_num_handle.Heap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(1, rtv_num_handle.Gpu());
 
 	sprite->Render(cmd_list);
 }
 
 void BloomGenerator::SetKernel(UINT8 num) noexcept
 {
-	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 	mapped_buffer->kernel = (std::min)(KGL::SCAST<UINT32>(RTV_MAX), KGL::SCAST<UINT32>(num));
-	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
 UINT8 BloomGenerator::GetKernel() const noexcept
 {
 	UINT8 result;
-	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 	result = KGL::SCAST<UINT8>(mapped_buffer->kernel);
-	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 	return result;
 }
 
 void BloomGenerator::SetWeights(Weights weights) noexcept
 {
-	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 	mapped_buffer->weight = weights;
-	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
 BloomGenerator::Weights BloomGenerator::GetWeights() const noexcept
 {
 	Weights result;
-	Buffer* mapped_buffer = buffer_res->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 	result = mapped_buffer->weight;
-	buffer_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 	return result;
 }
