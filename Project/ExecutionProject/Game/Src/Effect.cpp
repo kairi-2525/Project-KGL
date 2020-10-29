@@ -122,6 +122,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				//p.scale_speed_back = p.scale_back;
 				//p.scale_back * 2.f;
 				p.mass = 1.f;
+				p.move_length = 0.f;
 				p.Update((spawn_time_counter_max - spawn_time_counter), p_parent);
 				spawn_time_counter -= spawn_elapsed;
 			}

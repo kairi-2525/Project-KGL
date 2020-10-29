@@ -304,7 +304,7 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 		D3D12_MEMORY_POOL_L0
 	);
 
-	auto res_desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4);
+	auto res_desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8G8B8A8_UNORM, 4, 4, 1u, 1u);
 
 	auto hr = device->CreateCommittedResource(
 		&tex_heap_prop,

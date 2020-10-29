@@ -76,6 +76,7 @@ static void FireworksDescSetTextureID(FireworksDesc* desc, const std::vector<std
 	{
 		for (auto& effect : desc->effects)
 		{
+			effect.id = 0u;
 			if (effect.has_child)
 			{
 				FireworksDescSetTextureID(&effect.child, textures);
@@ -386,7 +387,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 }
 
 void FCManager::CreateDemo(
-	KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+	KGL::ComPtrC<ID3D12Device> device, const ParticleParent p_parent,
 	std::mutex* mt_lock, std::mutex* mt_stop_lock,
 	std::list<std::shared_ptr<FireworksDesc>>* p_add_demo_data,
 	std::list<DemoData>* p_demo_data,
@@ -399,7 +400,7 @@ void FCManager::CreateDemo(
 	for (auto it = p_add_demo_data->begin(); it != p_add_demo_data->end();)
 	{
 		auto& data = p_demo_data->emplace_back(device, *it, 100000u);
-		data.Build(p_parent, *frame_number);
+		data.Build(&p_parent, *frame_number);
 		it = p_add_demo_data->erase(it);
 
 		if (mt_clear)
@@ -410,6 +411,7 @@ void FCManager::CreateDemo(
 				auto add_data = *p_add_demo_data->rbegin();
 				p_add_demo_data->clear();
 				p_add_demo_data->push_back(add_data);
+				it = p_add_demo_data->begin();
 			}
 		}
 
@@ -484,7 +486,7 @@ void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const Partic
 		if (demo_select_th && try_lock)
 			demo_select_th->join();
 		demo_select_th = std::make_unique<std::thread>(
-			FCManager::CreateDemo, device, p_parent,
+			FCManager::CreateDemo, device, *p_parent,
 			&demo_select_mutex, &demo_select_stop_mutex,
 			&add_demo_select_data, &demo_select_data,
 			&demo_frame_number, &demo_select_stop,
@@ -775,7 +777,7 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
 					if (demo_mg_th && try_lock)
 						demo_mg_th->join();
 					demo_mg_th = std::make_unique<std::thread>(
-						FCManager::CreateDemo, device, p_parent,
+						FCManager::CreateDemo, device, *p_parent,
 						&demo_mg_mutex, &demo_mg_stop_mutex,
 						&add_demo_data, &demo_data,
 						&demo_frame_number, &demo_mg_stop,
@@ -946,11 +948,20 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 						{
 							UINT image_count = 0u;
 							UINT side_image_count = 0u;
+							ImVec4 image_tint_col = { 1.f, 1.f, 1.f, 1.f };
 							for (auto& handle : srv_gui_handles)
 							{
 								side_image_count++;
 								const ImVec2 image_size = { 90, 90 };
-								if (ImGui::ImageButton((ImTextureID)handle.Gpu().ptr, image_size))
+								image_tint_col = { 1.f, 1.f, 1.f, 1.f };
+								if (effect.id == image_count)
+								{
+									image_tint_col = { 0.5f, 1.f, 0.5f, 1.f };
+								}
+								if (ImGui::ImageButton(
+									(ImTextureID)handle.Gpu().ptr,
+									image_size, { 0.f, 0.f }, { 1.f, 1.f },
+									-1, { 0.f, 0.f, 0.f, 0.f }, image_tint_col))
 								{
 									edited = true;
 									effect.texture_name = textures[image_count]->GetPath().string();

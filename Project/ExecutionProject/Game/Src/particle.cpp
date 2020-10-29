@@ -15,11 +15,15 @@ void Particle::Update(float time, const ParticleParent* parent)
 	float N = (G * mass * parent->center_mass) / l;
 	resultant += XMVector3Normalize(vec) * N;
 	resultant += -vel * (parent->resistivity * resistivity);
-	XMVECTOR accs = resultant / mass;
+	const XMVECTOR accs = resultant / mass;
 	XMStoreFloat3(&this->accs, accs);
 	vel += accs * time;
 	XMStoreFloat3(&velocity, vel);
-	XMStoreFloat3(&position, pos + vel * time);
+	const XMVECTOR frame_vel = vel * time;
+	float frame_length;
+	XMStoreFloat(&frame_length, XMVector3Length(frame_vel));
+	move_length += frame_length;
+	XMStoreFloat3(&position, pos + frame_vel);
 	XMStoreFloat4(&color, XMLoadFloat4(&color) + (XMLoadFloat4(&color_speed) * time));
 	exist_time -= time;
 }

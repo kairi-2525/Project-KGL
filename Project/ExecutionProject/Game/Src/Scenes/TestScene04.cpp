@@ -296,7 +296,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
-			"SPAWN_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+			"MOVE_LENGTH", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
@@ -941,36 +941,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMFLOAT4X4 viewf;
 		XMStoreFloat4x4(&viewf, view);
 
-		constexpr float center_speed = 1.f;
-		/*if (input->IsKeyHold(KGL::KEYS::D))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.x += center_speed * elapsed_time;
-		}
-		if (input->IsKeyHold(KGL::KEYS::A))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.x -= center_speed * elapsed_time;
-		}
-		if (input->IsKeyHold(KGL::KEYS::W))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.z += center_speed * elapsed_time;
-		}
-		if (input->IsKeyHold(KGL::KEYS::S))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.z -= center_speed * elapsed_time;
-		}
-		if (input->IsKeyHold(KGL::KEYS::UP))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.y += center_speed * elapsed_time;
-		}
-		if (input->IsKeyHold(KGL::KEYS::DOWN))
-		{
-			cpt_scene_buffer.mapped_data->center_pos.y -= center_speed * elapsed_time;
-		}*/
-
-		// 一秒秒間に[spawn_late]個のパーティクルを発生させる
-		//constexpr UINT spawn_late = 2500;
-
-
 		{
 			auto* ptc_parent = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
 			ptc_parent->elapsed_time = ptc_update_time;
@@ -1095,6 +1065,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 
 		scene_buffer.mapped_data->view = view;
+		scene_buffer.mapped_data->inv_view = XMMatrixInverse(nullptr, view);
 		scene_buffer.mapped_data->proj = XMLoadFloat4x4(&proj);
 		scene_buffer.mapped_data->eye = camera_pos;
 		scene_buffer.mapped_data->light_vector = { 0.f, 0.f, 1.f };
@@ -1111,43 +1082,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		pl_shot_ptc_cb = *cbp;
 		pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
-	/*constexpr float spawn_elapsed = 1.f / spawn_late;
-	spawn_counter += ptc_update_time;
-	UINT spawn_num = 0u;
-	if (spawn_counter >= spawn_elapsed)
-	{
-		float spawn_timer = spawn_counter - spawn_elapsed;
-		spawn_num = KGL::SCAST<UINT>(spawn_counter / spawn_elapsed);
-		spawn_counter = std::fmodf(spawn_counter, spawn_elapsed);
 
-		std::random_device rd;
-		std::mt19937 mt(rd());
-		std::uniform_real_distribution<float> score(-10.f, 10.f);
-		std::uniform_real_distribution<float> unorm(0.f, 1.f);
-		constexpr float rad_360min = XMConvertToRadians(360.f - FLT_MIN);
-
-		for (int i = 0; i < spawn_num; i++)
-		{
-			auto random_vec =
-				XMVector3Transform(
-					XMVectorSet(0.f, 0.f, 1.f, 0.f),
-					XMMatrixRotationRollPitchYaw(0, unorm(mt) * rad_360min, 0)
-				);
-
-			if (frame_particles.capacity() == frame_particles.size()) break;
-			auto& particle = frame_particles.emplace_back();
-			particle.exist_time = 5.f;
-			particle.color = (i % 5 == 0) ? XMFLOAT4{ 1.f, 0.0f, 0.5f, 0.1f } : XMFLOAT4{ 1.0f, 0.5f, 0.0f, 0.1f };
-			particle.position = { 0.f, 0.f, 0.f };
-			particle.mass = 1.f;
-			particle.scale_width = 0.2f;
-			particle.scale_front = 0.1f;
-			particle.scale_back = 0.1f;
-			XMStoreFloat3(&particle.velocity, random_vec * 3.1);
-			particle.Update(spawn_timer, cb);
-			spawn_timer -= spawn_elapsed;
-		}
-	}*/
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
 		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks))
@@ -1234,6 +1169,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				TimerGui("Render Count Total ", tm_render);
 				TimerGui("Particle Update Gpu", tm_ptc_update_gpu);
 				TimerGui("Particle Update Cpu", tm_ptc_update_cpu);
+
+				ct_ptc_total_max = (std::max)(counter, ct_ptc_total_max);
 				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
 
 				ct_fw_max = (std::max)(fireworks.size(), ct_fw_max);
@@ -1266,35 +1203,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				}
 				ImGui::Checkbox("After blooming", &after_blooming);
 
-				if (reset_max_counter0 || reset_max_counter1) ResetCounterMax();
-				{
-					const auto imgui_window_size = ImGui::GetWindowSize();
-					if (ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar))
-					{
-						UINT image_count = 0u;
-						UINT side_image_count = 0u;
-						for (auto& handle : ptc_tex_srv_gui_handles)
-						{
-							side_image_count++;
-							const ImVec2 image_size = { 90, 90 };
-							ImGui::ImageButton((ImTextureID)handle.Gpu().ptr, image_size);
-							//ImGui::SameLine();
-							const auto imgui_window_child_size = ImGui::GetWindowSize();
-							if (imgui_window_child_size.x < ((side_image_count + 2) * image_size.x + 20))
-							{
-								side_image_count = 0u;
-							}
-							else
-							{
-								ImGui::SameLine();
-							}
-							image_count++;
-						}
-					}
-					ImGui::EndChild();
-				}
-				ImGui::NewLine();
-				//ImGui::
+				if (reset_max_counter0 || reset_max_counter1) 
+					ResetCounterMax();
 			}
 			ImGui::End();
 		}

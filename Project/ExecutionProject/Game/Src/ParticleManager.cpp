@@ -203,6 +203,7 @@ ParticleTextureManager::ParticleTextureManager(
 	HRESULT hr;
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗");
+	cmd_list->Close();
 
 	textures.reserve(files.size() + 1u);
 
@@ -211,17 +212,19 @@ ParticleTextureManager::ParticleTextureManager(
 
 	const std::string directory_pass = directory.GetPath().string() + "\\";
 	for (const auto& file : files)
-	{		textures.emplace_back(std::make_shared<KGL::Texture>(
+	{		
+		cmd_list->Reset(cmd_allocator.Get(), nullptr);
+		textures.emplace_back(std::make_shared<KGL::Texture>(
 			device, cmd_list, &upload_heaps,
 			directory_pass + file.string(), 1u, tex_mgr.get())
 		);
+		cmd_list->Close();
+		//コマンドの実行
+		ID3D12CommandList* cmd_lists[] = {
+		   cmd_list.Get(),
+		};
+		cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
 	}
-	cmd_list->Close();
-	//コマンドの実行
-	ID3D12CommandList* cmd_lists[] = {
-	   cmd_list.Get(),
-	};
-	cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
 	cmd_queue->Signal();
 
 	// SRV作成
@@ -268,6 +271,7 @@ void ParticleTextureManager::LoadWait()
 	{
 		cmd_queue->Wait();
 		cmd_queue = nullptr;
+		cmd_allocator->Reset();
 		cmd_allocator = nullptr;
 		cmd_list = nullptr;
 		upload_heaps.clear();

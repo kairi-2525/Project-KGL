@@ -78,6 +78,7 @@ class TestScene04 : public SceneBase
 	};
 	struct SceneBuffers : public SceneBase::SceneBuffers
 	{
+		DirectX::XMMATRIX inv_view;
 		bool zero_texture;
 	};
 private:

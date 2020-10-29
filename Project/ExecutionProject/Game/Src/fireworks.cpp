@@ -50,9 +50,10 @@ bool Fireworks::Update(float time, std::vector<Particle>* p_particles, const Par
 		XMVECTOR xm_velocity = XMLoadFloat3(&velocity);
 		{
 			XMVECTOR xm_vec = XMLoadFloat3(&p_parent->center_pos) - xm_pos;
-			XMVector3LengthSq(xm_vec);
 			float l;
 			XMStoreFloat(&l, XMVector3LengthSq(xm_vec));
+			// 0‚É‚È‚é‰Â”\«‚ª‚ ‚é‚Ì‚ÅEPSILON‚ðÅ¬’l‚É‚·‚é
+			// l = (std::max)(l, FLT_EPSILON);
 			float N = (G * mass * p_parent->center_mass) / l;
 			XMVECTOR resultant = XMVector3Normalize(xm_vec) * N;
 			resultant += (-xm_velocity * (p_parent->resistivity * resistivity));

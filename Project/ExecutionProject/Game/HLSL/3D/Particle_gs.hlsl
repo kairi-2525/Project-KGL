@@ -328,19 +328,23 @@ void GSMain(
 	v[2] = float4(view_back_pos + view_back_side_v, 1.f);
 	v[3] = float4(view_back_pos - view_back_side_v, 1.f);
 
-	element.pos = mul(v[0], proj);
+	element.pos = mul(v[0], inv_view);
+	element.sv_pos = mul(v[0], proj);
 	element.uv = float2(0.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[1], proj);
+	element.pos = mul(v[1], inv_view);
+	element.sv_pos = mul(v[1], proj);
 	element.uv = float2(1.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[2], proj);
+	element.pos = mul(v[2], inv_view);
+	element.sv_pos = mul(v[2], proj);
 	element.uv = float2(0.f, 0.f);
 	output.Append(element);
 
-	element.pos = mul(v[3], proj);
+	element.pos = mul(v[3], inv_view);
+	element.sv_pos = mul(v[3], proj);
 	element.uv = float2(1.f, 0.f);
 	output.Append(element);
 

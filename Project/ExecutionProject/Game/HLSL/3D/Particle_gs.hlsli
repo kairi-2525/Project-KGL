@@ -1,4 +1,5 @@
 #include "Particle.hlsli"
+#include "../Easings.hlsli"
 
 #define FLT_EPSILON     1.192092896e-07
 
@@ -25,7 +26,7 @@ void GSMain(
 	float3 front_pos = pos + normalize(front_v) * max(length(front_v) - scale_width, 0.001f);
 	// back
 	float3 back_v = -(vel_norm * scale_back + vel * input[0].scale_speed_back);
-	float3 back_pos = pos + normalize(back_v) * max(length(back_v) - scale_width, 0.001f);
+	float3 back_pos = pos + normalize(back_v) * max(min(length(back_v), input[0].move_length) -scale_width, 0.001f);
 
 	// 0地点がカメラ位置なのでそのままベクトルとしてポジションを扱う
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
@@ -57,19 +58,23 @@ void GSMain(
 	v[2] = float4(view_bottom_pos + view_back_side_v, 1.f);
 	v[3] = float4(view_bottom_pos - view_back_side_v, 1.f);
 
-	element.pos = mul(v[0], proj);
+	element.pos = mul(v[0], inv_view);
+	element.sv_pos = mul(v[0], proj);
 	element.uv = float2(0.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[1], proj);
+	element.pos = mul(v[1], inv_view);
+	element.sv_pos = mul(v[1], proj);
 	element.uv = float2(1.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[2], proj);
+	element.pos = mul(v[2], inv_view);
+	element.sv_pos = mul(v[2], proj);
 	element.uv = float2(0.f, 0.f);
 	output.Append(element);
 
-	element.pos = mul(v[3], proj);
+	element.pos = mul(v[3], inv_view);
+	element.sv_pos = mul(v[3], proj);
 	element.uv = float2(1.f, 0.f);
 	output.Append(element);
 
@@ -85,35 +90,43 @@ void GSMain(
 	v[6] = float4(view_bottom_pos + view_back_side_v, 1.f);
 	v[7] = float4(view_bottom_pos - view_back_side_v, 1.f);
 
-	element.pos = mul(v[0], proj);
+	element.pos = mul(v[0], inv_view);
+	element.sv_pos = mul(v[0], proj);
 	element.uv = float2(0.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[1], proj);
+	element.pos = mul(v[1], inv_view);
+	element.sv_pos = mul(v[1], proj);
 	element.uv = float2(1.f, 1.f);
 	output.Append(element);
 
-	element.pos = mul(v[2], proj);
+	element.pos = mul(v[2], inv_view);
+	element.sv_pos = mul(v[2], proj);
 	element.uv = float2(0.f, 0.5f);
 	output.Append(element);
 
-	element.pos = mul(v[3], proj);
+	element.pos = mul(v[3], inv_view);
+	element.sv_pos = mul(v[3], proj);
 	element.uv = float2(1.f, 0.5f);
 	output.Append(element);
 
-	element.pos = mul(v[4], proj);
+	element.pos = mul(v[4], inv_view);
+	element.sv_pos = mul(v[4], proj);
 	element.uv = float2(0.f, 0.5f);
 	output.Append(element);
 
-	element.pos = mul(v[5], proj);
+	element.pos = mul(v[5], inv_view);
+	element.sv_pos = mul(v[5], proj);
 	element.uv = float2(1.f, 0.5f);
 	output.Append(element);
 
-	element.pos = mul(v[6], proj);
+	element.pos = mul(v[6], inv_view);
+	element.sv_pos = mul(v[6], proj);
 	element.uv = float2(0.f, 0.f);
 	output.Append(element);
 
-	element.pos = mul(v[7], proj);
+	element.pos = mul(v[7], inv_view);
+	element.sv_pos = mul(v[7], proj);
 	element.uv = float2(1.f, 0.f);
 	output.Append(element);
 #endif

@@ -195,7 +195,7 @@ private:
 	void StopDemo() noexcept;
 	void UpdateDemo(float update_time) noexcept;
 	static void CreateDemo(
-		KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+		KGL::ComPtrC<ID3D12Device> device, const ParticleParent p_parent,
 		std::mutex* mt_lock, std::mutex* mt_stop_lock,
 		std::list<std::shared_ptr<FireworksDesc>>* p_add_demo_data,
 		std::list<DemoData>* p_demo_data,

@@ -30,7 +30,9 @@ void CSMain( uint3 dtid : SV_DispatchThreadID )
 	resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
 	particles[id].acceleration = resultant / particles[id].mass;
 	particles[id].velocity.xyz += particles[id].acceleration * elapsed_time;
-	particles[id].pos.xyz += particles[id].velocity.xyz * elapsed_time;
+	float3 frame_velocity = particles[id].velocity.xyz * elapsed_time;
+	particles[id].move_length += length(frame_velocity);
+	particles[id].pos.xyz += frame_velocity;
 	particles[id].color += particles[id].color_speed * elapsed_time;
 	particles[id].exist_time -= elapsed_time;
 }
