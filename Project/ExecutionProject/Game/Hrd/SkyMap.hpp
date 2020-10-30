@@ -57,6 +57,7 @@ private:
 	KGL::DescriptorHandle										buffer_handle;
 
 	std::shared_ptr<Tex>										select;
+	bool														render_flg;
 private:
 	void Change(bool next);
 public:

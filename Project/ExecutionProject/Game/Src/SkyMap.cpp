@@ -163,11 +163,14 @@ void SkyManager::Init(DirectX::CXMMATRIX viewproj)
 	W = S * R * T;
 	XMMATRIX WVP = W * viewproj;
 	SetWVP(WVP);
+
+	render_flg = true;
 }
 
 void SkyManager::UpdateGui()
 {
 	const auto imgui_window_size = ImGui::GetWindowSize();
+	ImGui::Checkbox("Render", &render_flg);
 	ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(imgui_window_size.y - 100, 0)), ImGuiWindowFlags_NoTitleBar);
 	for (auto& it : tex_data)
 	{
@@ -244,16 +247,19 @@ void SkyManager::SetWVP(DirectX::CXMMATRIX wvp)
 
 void SkyManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale)
 {
-	RCHECK(SCAST<size_t>(msaa_scale) >= renderers.size(), "msaa_scale ‚ª‘å‚«‚·‚¬‚Ü‚·");
-	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	renderers[msaa_scale]->SetState(cmd_list);
-	cmd_list->SetDescriptorHeaps(1, desc_mgr->Heap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(0, buffer_handle.Gpu());
-	for (int i = 0; i < CUBE::NUM; i++)
+	if (render_flg)
 	{
-		cmd_list->IASetVertexBuffers(0, 1, &vbv[i]);
-		cmd_list->SetGraphicsRootDescriptorTable(1, select->handle[i].Gpu());
-		cmd_list->DrawInstanced(4, 1, 0, 0);
+		RCHECK(SCAST<size_t>(msaa_scale) >= renderers.size(), "msaa_scale ‚ª‘å‚«‚·‚¬‚Ü‚·");
+		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+		renderers[msaa_scale]->SetState(cmd_list);
+		cmd_list->SetDescriptorHeaps(1, desc_mgr->Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, buffer_handle.Gpu());
+		for (int i = 0; i < CUBE::NUM; i++)
+		{
+			cmd_list->IASetVertexBuffers(0, 1, &vbv[i]);
+			cmd_list->SetGraphicsRootDescriptorTable(1, select->handle[i].Gpu());
+			cmd_list->DrawInstanced(4, 1, 0, 0);
+		}
 	}
 }
 

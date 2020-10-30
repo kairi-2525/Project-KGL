@@ -17,6 +17,7 @@ public:
 	struct Buffer
 	{
 		UINT32	kernel;
+		UINT32	gaussian_kernel;
 		Weights	weight;
 	};
 
@@ -60,6 +61,8 @@ public:
 	const std::shared_ptr<KGL::Texture>& GetTexture() const noexcept { return bloom_texture; }
 	void SetKernel(UINT8 num) noexcept;
 	UINT8 GetKernel() const noexcept;
+	void SetGaussianKernel(UINT8 num) noexcept;
+	UINT8 GetGaussianKernel() const noexcept;
 	void SetWeights(Weights weights) noexcept;
 	Weights GetWeights() const noexcept;
 };

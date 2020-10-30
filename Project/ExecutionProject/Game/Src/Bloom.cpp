@@ -74,7 +74,6 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 	renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 	compression_renderer = std::make_shared<KGL::BaseRenderer>(device, dxc, renderer_desc);
 
-	renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
 	renderer_desc.ps_desc.hlsl = "./HLSL/2D/Bloom_ps.hlsl";
 
 	auto root_param0 = CD3DX12_ROOT_PARAMETER();
@@ -114,6 +113,7 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 		device->CreateConstantBufferView(&cbv_desc, frame_buffer_handle.Cpu());
 	}
 	// ÉKÉEÉXèàóùÇÇ†ÇÁÇ©Ç∂ÇﬂåvéZÇµÇƒÇ®Ç≠
+	SetGaussianKernel(8u);
 	const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
 	gaussian_buffer = std::make_shared<KGL::Resource<float>>(device, weights.size());
 	{
@@ -218,6 +218,9 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	}
 	// HÉuÉâÅ[Çï`âÊ
 	gaussian_renderer_h->SetState(cmd_list);
+
+	cmd_list->SetDescriptorHeaps(1, frame_buffer_handle.Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(1, frame_buffer_handle.Gpu());
 	{
 		const auto& rtrb = rtvs_h->GetRtvResourceBarriers(true);
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
@@ -293,6 +296,22 @@ UINT8 BloomGenerator::GetKernel() const noexcept
 	UINT8 result;
 	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
 	result = KGL::SCAST<UINT8>(mapped_buffer->kernel);
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	return result;
+}
+
+void BloomGenerator::SetGaussianKernel(UINT8 num) noexcept
+{
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	mapped_buffer->gaussian_kernel = (std::min)(KGL::SCAST<UINT32>(RTV_MAX), KGL::SCAST<UINT32>(num));
+	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+}
+
+UINT8 BloomGenerator::GetGaussianKernel() const noexcept
+{
+	UINT8 result;
+	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	result = KGL::SCAST<UINT8>(mapped_buffer->gaussian_kernel);
 	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 	return result;
 }
