@@ -27,13 +27,18 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 			);
 	}
 	{
-		std::vector<KGL::ComPtr<ID3D12Resource>> resources_w, resources_h;
+		std::vector<KGL::ComPtr<ID3D12Resource>> resources_c, resources_w, resources_h;
+		resources_c.reserve(RTV_MAX);
 		resources_w.reserve(RTV_MAX);
 		resources_h.reserve(RTV_MAX);
 		for (UINT8 i = 0u; i < RTV_MAX; i++)
 		{
 			desc.Width = std::max<UINT64>(1u, desc.Width / 2);
 			desc.Height = std::max<UINT>(1u, desc.Height / 2);;
+
+			compression_rtvr.textures[i] = std::make_shared<KGL::Texture>(
+				device, desc, dx_clear_value);
+			resources_c.emplace_back(compression_rtvr.textures[i]->Data());
 
 			gaussian_rtvr_w.textures[i] = std::make_shared<KGL::Texture>(
 				device, desc, dx_clear_value);
@@ -43,6 +48,10 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 				device, desc, dx_clear_value);
 			resources_h.emplace_back(gaussian_rtvr_h.textures[i]->Data());
 		}
+		// 圧縮用レンダーターゲットを作成
+		compression_rtvr.rtvs = std::make_shared<KGL::RenderTargetView>(
+			device, resources_c, nullptr, D3D12_SRV_DIMENSION_TEXTURE2D
+			);
 		// ガウス用レンダーターゲットWを作成
 		gaussian_rtvr_w.rtvs = std::make_shared<KGL::RenderTargetView>(
 				device, resources_w, nullptr, D3D12_SRV_DIMENSION_TEXTURE2D
@@ -131,12 +140,14 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	scissor_rect.bottom = SCAST<LONG>(view_port.Height);
 	const auto return_scissor_rect = scissor_rect;
 	
+	const auto& rtvs_c = compression_rtvr.rtvs;
+	const auto& textures_c = compression_rtvr.textures;
 	const auto& rtvs_w = gaussian_rtvr_w.rtvs;
 	const auto& textures_w = gaussian_rtvr_w.textures;
 	const auto& rtvs_h = gaussian_rtvr_h.rtvs;
 	const auto& textures_h = gaussian_rtvr_h.textures;
 	{
-		const auto& rtrb = rtvs_w->GetRtvResourceBarriers(true);
+		const auto& rtrb = rtvs_c->GetRtvResourceBarriers(true);
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
 	}
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -152,7 +163,36 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 
-	// 圧縮テクスチャを作成し　レンダーターゲットWへ描画
+	// 圧縮テクスチャを作成
+	for (UINT32 idx = 0u; idx < rtv_num; idx++)
+	{
+		rtvs_c->Set(cmd_list, nullptr, idx);
+		rtvs_c->Clear(cmd_list, textures_c[idx]->GetClearColor(), idx);
+		const auto& desc = textures_c[idx]->Data()->GetDesc();
+
+		view_port.Width = SCAST<FLOAT>(desc.Width);
+		view_port.Height = SCAST<FLOAT>(desc.Height);
+		scissor_rect.right = SCAST<LONG>(desc.Width);
+		scissor_rect.bottom = SCAST<LONG>(desc.Height);
+
+		cmd_list->RSSetViewports(1, &view_port);
+		cmd_list->RSSetScissorRects(1, &scissor_rect);
+
+		sprite->Render(cmd_list);
+	}
+	{
+		const auto& srvrb = rtvs_c->GetRtvResourceBarriers(false);
+		cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
+	}
+	// Wブラーを描画
+	gaussian_renderer_w->SetState(cmd_list);
+
+	cmd_list->SetDescriptorHeaps(1, frame_buffer_handle.Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(1, frame_buffer_handle.Gpu());
+	{
+		const auto& rtrb = rtvs_w->GetRtvResourceBarriers(true);
+		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
+	}
 	for (UINT32 idx = 0u; idx < rtv_num; idx++)
 	{
 		rtvs_w->Set(cmd_list, nullptr, idx);
@@ -167,17 +207,17 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 		cmd_list->RSSetViewports(1, &view_port);
 		cmd_list->RSSetScissorRects(1, &scissor_rect);
 
+		cmd_list->SetDescriptorHeaps(1, rtvs_c->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs_c->GetSRVGPUHandle(idx));
+
 		sprite->Render(cmd_list);
 	}
 	{
 		const auto& srvrb = rtvs_w->GetRtvResourceBarriers(false);
 		cmd_list->ResourceBarrier(SCAST<UINT>(srvrb.size()), srvrb.data());
 	}
-	// レンダーターゲットWをWブラーをかけてHに描画
-	gaussian_renderer_w->SetState(cmd_list);
-
-	cmd_list->SetDescriptorHeaps(1, frame_buffer_handle.Heap().GetAddressOf());
-	cmd_list->SetGraphicsRootDescriptorTable(1, frame_buffer_handle.Gpu());
+	// Hブラーを描画
+	gaussian_renderer_h->SetState(cmd_list);
 	{
 		const auto& rtrb = rtvs_h->GetRtvResourceBarriers(true);
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
@@ -209,12 +249,12 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 	cmd_list->RSSetViewports(1, &return_view_port);
 	cmd_list->RSSetScissorRects(1, &return_scissor_rect);
 
-	// レンダーターゲットWをWブラーをかけてHに描画
+	// ブラーのかかったテクスチャを拡大しながら加算合成
 	{
 		const auto& rtrb = bloom_rtv->GetRtvResourceBarriers(true);
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrb.size()), rtrb.data());
 	}
-	gaussian_renderer_h->SetState(cmd_list);
+	bloom_renderer->SetState(cmd_list);
 	bloom_rtv->Set(cmd_list, nullptr);
 	bloom_rtv->Clear(cmd_list, bloom_texture->GetClearColor());
 	for (UINT32 idx = 0u; idx < rtv_num; idx++)

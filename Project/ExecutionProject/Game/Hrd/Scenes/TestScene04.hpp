@@ -169,7 +169,10 @@ private:
 	bool												sky_draw;
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
-	std::array<KGL::DescriptorHandle, 8u>				bloom_imgui_handles;
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_c_imgui_handles;
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_w_imgui_handles;
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_h_imgui_handles;
+	KGL::DescriptorHandle								bl_bloom_imgui_handle;
 
 	bool												dof_flg;
 	std::shared_ptr<DOFGenerator>						dof_generator;

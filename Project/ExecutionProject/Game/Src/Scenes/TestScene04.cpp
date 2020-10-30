@@ -467,19 +467,43 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{
 		bloom_generator = std::make_shared<BloomGenerator>(device, desc.dxc, desc.app->GetRtvBuffers().at(0));
 		
-		const auto& tex = bloom_generator->GetTextures();
+		const auto& tex_c = bloom_generator->GetTexturesC();
+		const auto& tex_w = bloom_generator->GetTexturesW();
+		const auto& tex_h = bloom_generator->GetTexturesH();
+		const auto& tex = bloom_generator->GetTexture();
+
 		UINT idx = 0u;
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		for (auto& imgui_handle : bloom_imgui_handles)
+		for (auto& imgui_handle : bl_c_imgui_handles)
 		{
 			imgui_handle = desc.imgui_heap_mgr->Alloc();
-			srv_desc.Format = tex[idx]->Data()->GetDesc().Format;
-			device->CreateShaderResourceView(tex[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			srv_desc.Format = tex_c[idx]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex_c[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
 			idx++;
 		}
+		idx = 0u;
+		for (auto& imgui_handle : bl_w_imgui_handles)
+		{
+			imgui_handle = desc.imgui_heap_mgr->Alloc();
+			srv_desc.Format = tex_w[idx]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex_w[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			idx++;
+		}
+		idx = 0u;
+		for (auto& imgui_handle : bl_h_imgui_handles)
+		{
+			imgui_handle = desc.imgui_heap_mgr->Alloc();
+			srv_desc.Format = tex_h[idx]->Data()->GetDesc().Format;
+			device->CreateShaderResourceView(tex_h[idx]->Data().Get(), &srv_desc, imgui_handle.Cpu());
+			idx++;
+		}
+
+		bl_bloom_imgui_handle = desc.imgui_heap_mgr->Alloc();
+		srv_desc.Format = tex->Data()->GetDesc().Format;
+		device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, bl_bloom_imgui_handle.Cpu());
 	}
 
 	{	// ”íŽÊŠE[“x
@@ -670,8 +694,10 @@ void TestScene04::ResetCounterMax()
 	tm_ptc_update_cpu.Clear();
 }
 
+#define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
 void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 {
+	const auto bd_color = ImGui::GetStyle().Colors[ImGuiCol_Border];
 	auto gui_size = ImGui::GetWindowSize();
 	ImVec2 image_size = { gui_size.x * 0.8f, gui_size.y * 0.8f };
 	if (ImGui::TreeNode("DSV"))
@@ -679,26 +705,45 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 		
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].depth_gui_srv_handle.Gpu().ptr, image_size);
+		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
 		msaa_depth_draw = true;
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
 	{
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size);
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size);
+		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Bloom"))
 	{
 		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
 		UINT idx = 0u;
-		for (const auto& handle : bloom_imgui_handles)
+		ImGui::Text("Compression");
+		for (const auto& handle : bl_c_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
+		idx = 0u;
+		ImGui::Text("Width Blur");
+		for (const auto& handle : bl_h_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		idx = 0u;
+		ImGui::Text("Height Blur");
+		for (const auto& handle : bl_w_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		ImGui::Text("Result");
+		ImGui::Image((ImTextureID)bl_bloom_imgui_handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("DOF"))
@@ -707,7 +752,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		UINT idx = 0u;
 		for (const auto& handle : dof_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size);
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}

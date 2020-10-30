@@ -200,6 +200,10 @@ void FCManager::StopDemo() noexcept
 	{
 		data.SetResource(demo_frame_number);
 	}
+	for (auto& data : demo_select_data)
+	{
+		data.SetResource(demo_frame_number);
+	}
 }
 
 void FCManager::UpdateDemo(float update_time) noexcept
@@ -270,7 +274,7 @@ FCManager::DemoData::DemoData(KGL::ComPtrC<ID3D12Device> device,
 		std::lock_guard<std::mutex> lock(build_mutex);
 		build_flg = true;
 		exist = true;
-		fw_desc = desc;
+		fw_desc = desc;\
 	}
 
 	world_resource = std::make_shared<KGL::Resource<World>>(device, 1u);
