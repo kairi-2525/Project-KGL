@@ -1,8 +1,7 @@
 #include "../GaussianBlur5x5.hlsli"
 
 Texture2D<float> depth_tex	: register (t0);
-Texture2D<float4> non_blur_tex	: register (t1);
-Texture2D<float4> tex[8]	: register (t2);
+Texture2D<float4> tex[8]	: register (t1);
 
 SamplerState smp			: register (s0);
 
@@ -32,13 +31,13 @@ float4 PSMain(PSInput input) : SV_TARGET
 
 	if (no == 0)
 	{
-		color[0] = non_blur_tex.Sample(smp, input.uv);
+		color[0] = tex[0].Sample(smp, input.uv);
 	}
 	else
 	{
-		color[0] = tex[tex_num_0].Sample(smp, input.uv);
+		color[0] = GaussianBlur5x5(tex[tex_num_0], smp, input.uv);
 	}
-	color[1] = tex[tex_num_1].Sample(smp, input.uv);
+	color[1] = GaussianBlur5x5(tex[tex_num_1], smp, input.uv);
 
 	return lerp(color[0], color[1], t);
 }
