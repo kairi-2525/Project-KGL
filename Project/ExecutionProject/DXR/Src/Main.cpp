@@ -56,10 +56,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 		std::shared_ptr<KGL::DXC> dxc;
 #ifdef _WIN64
-		dxc = std::make_shared<KGL::DXC>("./DLL/x64/dxcompiler.dll");
+		SetDllDirectoryA("./DLL/x64");
 #else
-		dxc = std::make_shared<KGL::DXC>("./DLL/Win32/dxcompiler.dll");
+		SetDllDirectoryA("./DLL/Win32");
 #endif
+		dxc = std::make_shared<KGL::DXC>("./dxcompiler.dll");
 
 		{
 			HRESULT hr = S_OK;
