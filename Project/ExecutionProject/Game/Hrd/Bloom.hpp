@@ -20,7 +20,7 @@ public:
 		UINT32	gaussian_kernel;
 		Weights	weight;
 	};
-
+private:
 	struct RTVResources
 	{
 		std::array<std::shared_ptr<KGL::Texture>, RTV_MAX> textures;

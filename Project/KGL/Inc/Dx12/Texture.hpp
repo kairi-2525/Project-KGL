@@ -9,6 +9,7 @@
 #include "../Helper/ComPtr.hpp"
 #include "../Helper/ThrowAssert.hpp"
 #include "../Loader/Loader.hpp"
+#include "DescriptorHeap.hpp"
 #include "SetName.hpp"
 #include <DirectXMath.h>
 #include <vector>
@@ -132,12 +133,13 @@ namespace KGL
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept;
 			
 			HRESULT Save(const std::filesystem::path& dir) const noexcept;
-
 			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
 			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
 			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }
 			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept;
 			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES after) noexcept { return RB(m_resource_state, after); }
+			HRESULT CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension = D3D12_SRV_DIMENSION_TEXTURE2D) const noexcept;
+			HRESULT CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
 		};
 		
 		namespace TEXTURE

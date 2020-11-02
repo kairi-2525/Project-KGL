@@ -1504,7 +1504,12 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	// DOF‚Ìê‡‚ÍGenerator‚©‚ç•`‰æ‚³‚¹A‚»‚¤‚Å‚È‚¢ê‡‚ÍSprite‚Å•`‰æ‚·‚é
 	if (dof_flg)
 	{
-		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), viewport);
+		dof_generator->Generate(cmd_list,
+			rtrc_off.render_targets[RT::MAIN].tex,
+			rtrc_off.rtvs->GetSRVHeap(),
+			rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN),
+			viewport
+		);
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
 		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
