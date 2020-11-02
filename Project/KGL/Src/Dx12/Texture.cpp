@@ -488,3 +488,61 @@ D3D12_RESOURCE_BARRIER Texture::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_
 	m_resource_state = after;
 	return CD3DX12_RESOURCE_BARRIER::Transition(m_buffer.Get(), before, after);
 }
+
+// SRVÇçÏê¨
+HRESULT Texture::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension) const noexcept
+{
+	HRESULT hr = S_OK;
+	if (p_handle)
+	{
+		const auto& desc = m_buffer->GetDesc();
+		// SRVópDesc
+		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+		srv_desc.ViewDimension = srv_dimension;
+		srv_desc.Texture2D.MipLevels = desc.MipLevels;
+		srv_desc.Format = desc.Format;
+		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+		ComPtr<ID3D12Device> device;
+		hr = m_buffer->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+		RCHECK_HR(hr, "m_buffer->GetDeviceÇ…é∏îs");
+		device->CreateShaderResourceView(
+			m_buffer.Get(),
+			&srv_desc,
+			p_handle->Cpu()
+		);
+	}
+	else
+	{
+		hr = E_FAIL;
+	}
+	return hr;
+}
+// RTVÇçÏê¨
+HRESULT Texture::CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
+{
+	HRESULT hr = S_OK;
+	if (p_handle)
+	{
+		const auto& desc = m_buffer->GetDesc();
+		// RTVópDesc
+		D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+		rtv_desc.Format = desc.Format;
+		rtv_desc.ViewDimension = desc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+
+		ComPtr<ID3D12Device> device;
+		hr = m_buffer->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+		RCHECK_HR(hr, "m_buffer->GetDeviceÇ…é∏îs");
+
+		device->CreateRenderTargetView(
+			m_buffer.Get(),
+			&rtv_desc,
+			p_handle->Cpu()
+		);
+	}
+	else
+	{
+		hr = E_FAIL;
+	}
+	return hr;
+}
