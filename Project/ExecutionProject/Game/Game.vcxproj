@@ -101,6 +101,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(SolutionDir)KGL\Inc;$(SolutionDir)ImGui\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>Default</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -121,6 +122,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(SolutionDir)KGL\Inc;$(SolutionDir)ImGui\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>Default</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,6 +145,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(SolutionDir)KGL\Inc;$(SolutionDir)ImGui\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>Default</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -167,6 +170,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(SolutionDir)KGL\Inc;$(SolutionDir)ImGui\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <CompileAs>Default</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -186,6 +190,7 @@
     <ClCompile Include="Src\Effect.cpp" />
     <ClCompile Include="Src\FireworkCerialManager.cpp" />
     <ClCompile Include="Src\fireworks.cpp" />
+    <ClCompile Include="Src\FireworksSpawnerManager.cpp" />
     <ClCompile Include="Src\FXAA.cpp" />
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\MSAA.cpp" />
@@ -213,6 +218,7 @@
     <ClInclude Include="Hrd\Effects.hpp" />
     <ClInclude Include="Hrd\FireworkCerialManager.hpp" />
     <ClInclude Include="Hrd\Fireworks.hpp" />
+    <ClInclude Include="Hrd\FireworksSpawnerManager.hpp" />
     <ClInclude Include="Hrd\FXAA.hpp" />
     <ClInclude Include="Hrd\MSAA.hpp" />
     <ClInclude Include="Hrd\Obj3D.hpp" />

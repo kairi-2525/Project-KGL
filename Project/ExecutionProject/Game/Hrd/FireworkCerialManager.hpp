@@ -221,11 +221,5 @@ public:
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
 	size_t Size() const;
-};
-
-class FC
-{
-public:
-	FC() = default;
-	~FC() = default;
+	const std::map<const std::string, std::shared_ptr<FireworksDesc>>& GetDescList() const noexcept { return desc_list; }
 };

@@ -525,6 +525,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/", ptc_tex_mgr->GetTextures());
+	fs_mgr = std::make_shared<FSManager>("./Assets/Effects/Spawners/", fc_mgr->GetDescList());
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_desc);
 
@@ -977,6 +978,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			}
 		}
 		ImGui::End();
+
+		fs_mgr->GUIUpdate();
 	}
 
 	using namespace DirectX;
@@ -1032,6 +1035,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_key_spawn_counter += ptc_update_time;
 		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
 			ptc_key_spawn_counter += key_spawn_time;
+
+		fs_mgr->Update(elapsed_time, &fireworks);
 
 		while (ptc_key_spawn_counter >= key_spawn_time)
 		{

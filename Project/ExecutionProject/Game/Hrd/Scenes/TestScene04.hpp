@@ -25,6 +25,7 @@
 #include "../Camera.hpp"
 #include "../DepthOfField.hpp"
 #include "../FireworkCerialManager.hpp"
+#include "../FireworksSpawnerManager.hpp"
 #include "../ParticleManager.hpp"
 #include "../Debug.hpp"
 #include "../MSAA.hpp"
@@ -189,6 +190,7 @@ private:
 	bool												msaa_depth_draw;	// MSAA描画時に深度テクスチャをチェックしている際に使用されます。
 
 	std::shared_ptr<FXAAManager>						fxaa_mgr;
+	std::shared_ptr<FSManager>							fs_mgr;
 private:
 	// レンダーターゲットとデプスステンシルを作成します。
 	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);
