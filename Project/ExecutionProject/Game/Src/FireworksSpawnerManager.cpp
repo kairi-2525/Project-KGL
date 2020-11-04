@@ -35,15 +35,15 @@ void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		// エフェクト変更
 		{
 			// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
-			if (ImGui::BeginCombo((u8"エフェクト変更##" + std::to_string(RCAST<intptr_t>(this))).c_str(), obj_desc.set_name.c_str()))
+			if (ImGui::BeginCombo((u8"エフェクト変更##" + std::to_string(RCAST<intptr_t>(this))).c_str(), obj_desc.fw_name.c_str()))
 			{
 				for (const auto& desc : desc_list)
 				{
 					// オブジェクトの外側または内側に、選択内容を好きなように保存できます
-					bool is_selected = (obj_desc.set_name == desc.first);
+					bool is_selected = (obj_desc.fw_name == desc.first);
 					if (ImGui::Selectable(desc.first.c_str(), is_selected))
 					{
-						obj_desc.set_name = desc.first;
+						obj_desc.fw_name = desc.first;
 						fw_desc = desc.second;
 					}
 					if (is_selected)
