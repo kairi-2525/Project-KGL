@@ -7,6 +7,10 @@ using namespace KGL;
 Directory::Directory(const std::filesystem::path& dir)
 {
 	m_path = dir.lexically_normal();
+	if (std::filesystem::create_directory(m_path))
+	{
+		KGLDebugOutPutString(m_path.string() + "フォルダが見つからなかったため作成しました。");
+	}
 	Reload();
 }
 

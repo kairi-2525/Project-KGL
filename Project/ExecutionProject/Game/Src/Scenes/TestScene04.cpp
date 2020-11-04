@@ -979,7 +979,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 		ImGui::End();
 
-		fs_mgr->GUIUpdate();
+		fs_mgr->GUIUpdate(fc_mgr->GetDescList());
 	}
 
 	using namespace DirectX;

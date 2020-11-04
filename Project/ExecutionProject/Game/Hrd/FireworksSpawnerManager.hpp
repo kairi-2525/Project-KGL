@@ -9,6 +9,7 @@
 // Cereal入出力用構造体
 struct FS_Obj_Desc
 {
+	std::string			set_name;
 	std::string			name;		// スポナーの名前
 	std::string			fw_name;	// 使用する花火の名前
 	DirectX::XMFLOAT2	start_time;	// 生成開始
@@ -25,29 +26,40 @@ class FS_Obj
 public:
 	FS_Obj_Desc						obj_desc;
 public:
+	void SetDesc(std::shared_ptr<FireworksDesc> desc) { fw_desc = desc; }
 	void Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
+	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 // スポナーの一覧を管理するクラス
 class FS
 {
 public:
+	std::string						set_name;
+	std::string						create_name;
+	std::string						name;
 	std::vector<FS_Obj>				objects;
+private:
+	void Create(std::string name, std::shared_ptr<FireworksDesc> desc);
 public:
 	void Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
+	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 class FSManager : private KGL::Directory
 {
 private:
+	std::string						set_name;
 	std::list<std::shared_ptr<FS>>	fs_list;
 	std::shared_ptr<FS>				select_fs;
+private:
+	void Create(std::string name);
 public:
 	FSManager(const std::filesystem::path& path, const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list) noexcept;
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
-	void GUIUpdate();
+	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 #define EV_0_FSODC_ARCHIVE \
@@ -73,6 +85,7 @@ enum class FSDC_VERSION
 };
 
 #define EV_0_FS_ARCHIVE \
+	KGL_NVP("name", m.name), \
 	KGL_NVP("objects", m.objects)
 
 enum class FS_VERSION
