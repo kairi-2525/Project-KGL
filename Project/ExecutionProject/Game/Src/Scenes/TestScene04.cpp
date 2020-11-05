@@ -228,6 +228,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	{	// パーティクル用PSOを作成(描画用)
 		bd_rndrs.resize(msaa_selector->GetMaxScale() + 1u);
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
+		renderer_desc.static_samplers[0].MaxLOD = 1.f;
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/Particle_vs.hlsl";
 		renderer_desc.gs_desc.hlsl = "./HLSL/3D/" + PTC_VT_TABLE.at(SCAST<PTC_VT>(count));
 		renderer_desc.input_layouts.clear();

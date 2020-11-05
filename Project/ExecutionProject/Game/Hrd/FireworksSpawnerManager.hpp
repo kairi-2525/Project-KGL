@@ -20,6 +20,7 @@ struct FS_Obj_Desc
 	DirectX::XMFLOAT2	spawn_late;		// 生成開始時の生成レート
 	DirectX::XMFLOAT2	spawn_power;	// 射出速度をpower倍します。
 	bool				infinity;		// 生成開始後、生存時間が無限
+	bool				random_color;	// 色をランダムに変更する
 };
 
 // 実用構造体
@@ -32,6 +33,8 @@ class FS_Obj
 	float							counter;
 public:
 	FS_Obj_Desc						obj_desc;
+public:
+	static void SetRandomColor(FireworksDesc* desc);
 public:
 	void SetDesc(std::shared_ptr<FireworksDesc> desc) { fw_desc = desc; }
 	void Init();
@@ -53,7 +56,7 @@ private:
 public:
 	void Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
-	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
+	bool GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 class FSManager : private KGL::Directory

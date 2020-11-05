@@ -7,6 +7,8 @@
 #include <imgui.h>
 #include <imgui_helper.h>
 #include <random>
+#include <Helper/ThrowAssert.hpp>
+#include <Helper/Color.hpp>
 
 #define MINMAX_TEXT u8"ランダムで変動する(x = min, y = max)"
 
@@ -26,6 +28,45 @@ void FS_Obj::Init(const std::map<const std::string, std::shared_ptr<FireworksDes
 		fw_desc = desc_list.at(obj_desc.fw_name);
 	}
 	Init();
+}
+
+void FS_Obj::SetRandomColor(FireworksDesc* desc)
+{
+	RCHECK(!desc, "FS_Obj::SetRandomColor で desc が nullptr");
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	using rmd_float = std::uniform_real_distribution<float>;
+	static rmd_float rmd_color_h(0.f, 360.f);
+
+	for (auto& effect : desc->effects)
+	{
+		if (effect.has_child)
+		{
+			SetRandomColor(&effect.child);
+		}
+		else
+		{
+			auto hsv_bc = KGL::ConvertToHSL(effect.begin_color);
+			auto hsv_ec = KGL::ConvertToHSL(effect.end_color);
+			auto hsv_erc = KGL::ConvertToHSL(effect.erase_color);
+
+			float add_h = rmd_color_h(mt);
+
+			hsv_bc.x += add_h;
+			if (360.f <= hsv_bc.x)
+				hsv_bc.x -= 360.f;
+			hsv_ec.x += add_h;
+			if (360.f <= hsv_ec.x)
+				hsv_ec.x -= 360.f;
+			hsv_erc.x += add_h;
+			if (360.f <= hsv_erc.x)
+				hsv_erc.x -= 360.f;
+
+			effect.begin_color = KGL::ConvertToRGB(hsv_bc);
+			effect.end_color = KGL::ConvertToRGB(hsv_ec);
+			effect.erase_color = KGL::ConvertToRGB(hsv_erc);
+		}
+	}
 }
 
 // ここでFireworksを生成する
@@ -71,7 +112,7 @@ void FS_Obj::Update(float update_time, std::vector<Fireworks>* pout_fireworks)
 		{
 			// 一回分の生成時間を減らす
 			counter -= spawn_late;
-
+			
 			desc.pos = { 0.f, 0.f, 0.f };
 
 			rmd_float rmd_spawn_power(obj_desc.spawn_power.x, obj_desc.spawn_power.y);
@@ -104,6 +145,9 @@ void FS_Obj::Update(float update_time, std::vector<Fireworks>* pout_fireworks)
 			R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
 			XMVECTOR spawn_v = XMVector3Transform(axis, R);
 			XMStoreFloat3(&desc.velocity, spawn_v * XMVector3Length(velocity));
+
+			// ランダムな色をセット(HSV空間でHのみ変更)
+			SetRandomColor(&desc);
 
 			pout_fireworks->emplace_back(desc);
 		}
@@ -163,6 +207,10 @@ void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		{
 			ImGui::InputFloat2(u8"生成時間", (float*)&obj_desc.time);
 			obj_desc.time.y = (std::max)(obj_desc.time.x, obj_desc.time.y);
+			if (obj_desc.time.y < 1.f / obj_desc.spawn_late.y)
+			{
+				obj_desc.spawn_late.y = 1.f / obj_desc.time.y;
+			}
 			ImGui::SameLine(); ImGui::Checkbox(u8"無限", &obj_desc.infinity);
 			ImGui::SameLine(); HelpMarker(u8"この時間だけパーティクルを生成します。\n" MINMAX_TEXT);
 		}
@@ -181,11 +229,15 @@ void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 
 		ImGui::InputFloat2(u8"生成レート", (float*)&obj_desc.spawn_late);
 		obj_desc.spawn_late.y = (std::max)(obj_desc.spawn_late.x, obj_desc.spawn_late.y);
+		obj_desc.time.y = (std::max)(obj_desc.time.y, 1.f / obj_desc.spawn_late.y);
+		obj_desc.time.x = (std::min)(obj_desc.time.x, obj_desc.time.y);
 		ImGui::SameLine(); HelpMarker(u8"1秒間に何個生成するか。\n(待機時間を挟んで更新)\n" MINMAX_TEXT);
 
 		ImGui::InputFloat2(u8"射出速度スケール", (float*)&obj_desc.spawn_power);
 		obj_desc.spawn_power.y = (std::max)(obj_desc.spawn_power.x, obj_desc.spawn_power.y);
 		ImGui::SameLine(); HelpMarker(u8"元の射出速度をスケール倍します\n(元の速度はFireworksが持っている)\n" MINMAX_TEXT);
+
+		
 
 		ImGui::TreePop();
 	}
@@ -217,8 +269,9 @@ void FS::Update(float update_time, std::vector<Fireworks>* pout_fireworks)
 	}
 }
 
-void FS::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
+bool FS::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
 {
+	bool result = true;
 	const std::string ptr_str0 = std::to_string(RCAST<intptr_t>(this));
 	const std::string ptr_str1 = std::to_string(1 + RCAST<intptr_t>(this));
 	if (ImGui::TreeNode((name + "##" + ptr_str0).c_str()))
@@ -231,6 +284,11 @@ void FS::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDe
 		if (ImGui::Button(u8"名前変更") && !set_name.empty())
 		{
 			name = set_name;
+		}
+
+		if (ImGui::Button(u8"削除"))
+		{
+			result = false;
 		}
 
 		// 新規作成
@@ -280,6 +338,8 @@ void FS::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDe
 		}
 		ImGui::TreePop();
 	}
+
+	return result;
 }
 
 FSManager::FSManager(const std::filesystem::path& path, const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list) noexcept :
@@ -388,9 +448,9 @@ void FSManager::GUIUpdate(const std::map<const std::string, std::shared_ptr<Fire
 			if (ImGui::TreeNode(u8"一覧"))
 			{
 				UINT i = 0u;
-				for (auto& fs : fs_list)
+				for (auto itr = fs_list.begin(); itr != fs_list.end();)
 				{
-					if (fs == select_fs)
+					if ((*itr) == select_fs)
 					{
 						if (ImGui::Button((u8"解除##" + std::to_string(i)).c_str()))
 						{
@@ -401,11 +461,18 @@ void FSManager::GUIUpdate(const std::map<const std::string, std::shared_ptr<Fire
 					{
 						if (ImGui::Button((u8"選択##" + std::to_string(i)).c_str()))
 						{
-							select_fs = fs;
+							select_fs = (*itr);
 						}
 					}
 					ImGui::SameLine();
-					fs->GUIUpdate(desc_list);
+					if ((*itr)->GUIUpdate(desc_list))
+					{
+						itr++;
+					}
+					else
+					{
+						itr = fs_list.erase(itr);
+					}
 					i++;
 				}
 				ImGui::TreePop();

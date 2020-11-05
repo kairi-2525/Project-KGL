@@ -18,18 +18,19 @@ PSOut PSMain(PSInput input) : SV_TARGET
 {
 	PSOut output = (PSOut)0;
 
-	uint width, height, mip_level_max;
+	//uint width, height, mip_level_max;
 	const int id = input.tex_id - (input.tex_id * int(zero_texture));
 
-	// LODスケールを決める
-	float eye_length = length(eye - input.pos);
-	float lod_scale = (clamp(eye_length, LOD_MIN, LOD_MAX) / LOD_DIST_MAX);
-	//float lod_scale = EaseOutQuart(clamp(eye_length, LOD_MIN, LOD_MAX) / LOD_DIST_MAX);
+	//// LODスケールを決める
+	//float eye_length = length(eye - input.pos);
+	//float lod_scale = (clamp(eye_length, LOD_MIN, LOD_MAX) / LOD_DIST_MAX);
+	////float lod_scale = EaseOutQuart(clamp(eye_length, LOD_MIN, LOD_MAX) / LOD_DIST_MAX);
 
-	tex[id].GetDimensions(0, width, height, mip_level_max);
-	const float mip_level = lod_scale * (mip_level_max - 1.f);
+	//tex[id].GetDimensions(0, width, height, mip_level_max);
+	//const float mip_level = lod_scale * (mip_level_max - 1.f);
 
-	const float4 color = tex[id].SampleLevel(smp, input.uv, mip_level) * input.color;
+	//const float4 color = tex[id].SampleLevel(smp, input.uv, mip_level) * input.color;
+	const float4 color = tex[id].Sample(smp, input.uv) * input.color;
 	if (input.bloom)
 	{
 		output.bloom_color = color;
