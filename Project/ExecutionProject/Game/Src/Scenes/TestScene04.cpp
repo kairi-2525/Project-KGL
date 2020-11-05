@@ -1036,9 +1036,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
 			ptc_key_spawn_counter += key_spawn_time;
 
-		fs_mgr->Update(elapsed_time, &fireworks);
+		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
 
-		while (ptc_key_spawn_counter >= key_spawn_time)
+		/*while (ptc_key_spawn_counter >= key_spawn_time)
 		{
 			FireworksDesc desc{};
 			std::random_device rd;
@@ -1100,7 +1100,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 			fireworks.emplace_back(desc);
 			ptc_key_spawn_counter -= key_spawn_time;
-		}
+		}*/
 		// プレイヤーショット
 		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
 		{

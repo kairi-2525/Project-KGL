@@ -9,21 +9,9 @@
 #include "../Hrd/Particle.hpp"
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
+#include <imgui_helper.h>
 
 #define EditCheck(func, result, func_result) func_result = func; result = result || func_result;
-
-static void HelpMarker(const char* desc)
-{
-	ImGui::TextDisabled("(?)");
-	if (ImGui::IsItemHovered())
-	{
-		ImGui::BeginTooltip();
-		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
-		ImGui::TextUnformatted(desc);
-		ImGui::PopTextWrapPos();
-		ImGui::EndTooltip();
-	}
-}
 
 FCManager::FCManager(const std::filesystem::path& directory, const std::vector<std::shared_ptr<KGL::Texture>>& textures)
 {

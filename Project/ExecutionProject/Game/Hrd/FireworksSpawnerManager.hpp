@@ -10,23 +10,31 @@
 struct FS_Obj_Desc
 {
 	std::string			set_name;
-	std::string			name;		// スポナーの名前
-	std::string			fw_name;	// 使用する花火の名前
-	DirectX::XMFLOAT2	start_time;	// 生成開始
-	DirectX::XMFLOAT2	time;		// 生成開始からの生存時間
-	DirectX::XMFLOAT2	wait_time;	// 生存時間後の再生成までの時間
-	DirectX::XMFLOAT2	spawn_late;	// 生成開始時の生成レート
-	bool				infinity;	// 生成開始後、生存時間が無限
+	std::string			name;			// スポナーの名前
+	std::string			fw_name;		// 使用する花火の名前
+	DirectX::XMFLOAT2	start_time;		// 生成開始
+	DirectX::XMFLOAT2	time;			// 生成開始からの生存時間
+	DirectX::XMFLOAT2	wait_time;		// 生存時間後の再生成までの時間
+	float				spawn_radius;	// 生成位置範囲
+	DirectX::XMFLOAT2	spawn_angle;	// 射出角度
+	DirectX::XMFLOAT2	spawn_late;		// 生成開始時の生成レート
+	DirectX::XMFLOAT2	spawn_power;	// 射出速度をpower倍します。
+	bool				infinity;		// 生成開始後、生存時間が無限
 };
 
 // 実用構造体
 class FS_Obj
 {
 	std::shared_ptr<FireworksDesc>  fw_desc;
+	float							start_time;
+	float							time;
+	float							spawn_late;
+	float							counter;
 public:
 	FS_Obj_Desc						obj_desc;
 public:
 	void SetDesc(std::shared_ptr<FireworksDesc> desc) { fw_desc = desc; }
+	void Init();
 	void Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
 	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
@@ -56,6 +64,7 @@ private:
 	std::shared_ptr<FS>				select_fs;
 private:
 	void Create(std::string name);
+	void Export();
 public:
 	FSManager(const std::filesystem::path& path, const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list) noexcept;
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
@@ -68,7 +77,10 @@ public:
 	KGL_NVP("start_time", m.start_time), \
 	KGL_NVP("time", m.time), \
 	KGL_NVP("wait_time", m.wait_time), \
+	KGL_NVP("spawn_radius", m.spawn_radius), \
+	KGL_NVP("spawn_angle", m.spawn_angle), \
 	KGL_NVP("spawn_late", m.spawn_late), \
+	KGL_NVP("spawn_power", m.spawn_power), \
 	KGL_NVP("infinity", m.infinity)
 
 enum class FSODC_VERSION

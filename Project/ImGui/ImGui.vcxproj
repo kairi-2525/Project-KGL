@@ -181,6 +181,7 @@
   <ItemGroup>
     <ClInclude Include="Inc\imconfig.h" />
     <ClInclude Include="Inc\imgui.h" />
+    <ClInclude Include="Inc\imgui_helper.h" />
     <ClInclude Include="Inc\imgui_impl_dx12.h" />
     <ClInclude Include="Inc\imgui_impl_win32.h" />
     <ClInclude Include="Inc\imgui_internal.h" />
