@@ -1025,7 +1025,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ptc_mgr->Update();
 			tm_ptc_update_cpu.Count();
 		}
-
+		
 		float key_spawn_late = 5.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
@@ -1037,6 +1037,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
 			ptc_key_spawn_counter += key_spawn_time;
 
+		// スポナーからFireworksを生成
 		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
 
 		/*while (ptc_key_spawn_counter >= key_spawn_time)
@@ -1111,7 +1112,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				desc->pos = camera_pos;
 				XMVECTOR xm_xmfront = XMLoadFloat3(&camera_front);
 				XMStoreFloat3(&desc->velocity, XMVector3Normalize(xm_xmfront) * desc->speed);
-				fireworks.emplace_back(*desc);
+				auto set_desc = *desc;
+				FS_Obj::SetRandomColor(&set_desc);
+				fireworks.emplace_back(set_desc);
 			}
 		}
 

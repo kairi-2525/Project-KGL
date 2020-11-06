@@ -809,7 +809,7 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 		}
 		if (ImGui::TreeNode(u8"エフェクト"))
 		{
-			if (ImGui::TreeNode(u8"エフェクト作成/破棄"))
+			if (ImGui::TreeNode(u8"エフェクト作成"))
 			{
 				if (ImGui::Button(u8"エフェクト追加"))
 				{
@@ -824,88 +824,84 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 						desc->effects.emplace_back(*cpy_ef_desc);
 					}
 				}
-				if (ImGui::TreeNode(u8"エフェクト削除"))
-				{
-					if (ImGui::Button(u8"削除する"))
-					{
-						edited = true;
-						desc->effects.pop_back();
-					}
-					ImGui::TreePop();
-				}
 				ImGui::TreePop();
 			}
 
 			UINT idx = 0;
-			for (auto& effect : desc->effects)
+			for (auto itr = desc->effects.begin(); itr != desc->effects.end();)
 			{
 				if (ImGui::TreeNode(std::string("[" + std::to_string(idx) + 
-				(effect.name.empty() ? "]" : "] - " + effect.name)).c_str()))
+				(itr->name.empty() ? "]" : "] - " + itr->name)).c_str()))
 				{
-					if (effect.set_name.size() < 64)
-						effect.set_name.resize(64u);
+					if (itr->set_name.size() < 64)
+						itr->set_name.resize(64u);
 					ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(),
-						effect.set_name.data(), effect.set_name.size());
+						itr->set_name.data(), itr->set_name.size());
 					ImGui::SameLine();
 					if (ImGui::Button(u8"名前変更"))
 					{
-						effect.name = effect.set_name;
+						itr->name = itr->set_name;
 						ImGui::TreePop();
 					}
 					if (ImGui::Button(u8"コピー"))
 					{
-						cpy_ef_desc = std::make_unique<EffectDesc>(effect);
+						cpy_ef_desc = std::make_unique<EffectDesc>(*itr);
+					}
+					if (ImGui::Button(u8"削除"))
+					{
+						itr = desc->effects.erase(itr);
+						continue;
 					}
 					if (ImGui::TreeNode(u8"パラメーター"))
 					{
-						EditCheck(ImGui::InputFloat(u8"開始時間(s)", &effect.start_time), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"開始時間(s)", &itr->start_time), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"開始時間が経過後出現します。");
 
-						EditCheck(ImGui::InputFloat(u8"表示時間(s)", &effect.time);
+						EditCheck(ImGui::InputFloat(u8"表示時間(s)", &itr->time);
 						ImGui::SameLine(); HelpMarker(u8"出現してから消滅するまでの時間"), edited, fresult);
 
-						EditCheck(ImGui::InputFloat(u8"開始時加速倍数", &effect.start_accel), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"開始時加速倍数", &itr->start_accel), edited, fresult);
 						ImGui::SameLine(); HelpMarker(
 							u8"出現したときに親の速度にこの値をかける。\n"
 							u8"(速度を変えない場合は[1.0f])"
 						);
-						EditCheck(ImGui::InputFloat(u8"消滅時加速倍数", &effect.end_accel), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"消滅時加速倍数", &itr->end_accel), edited, fresult);
 						ImGui::SameLine(); HelpMarker(
 							u8"消滅したときに親の速度にこの値をかける。\n"
 							u8"(速度を変えない場合は[1.0f])"
 						);
 
-						EditCheck(ImGui::InputFloat2(u8"パーティクルの表示時間", (float*)&effect.alive_time), edited, fresult);
-						effect.alive_time.y = (std::max)(effect.alive_time.x, effect.alive_time.y);
+						EditCheck(ImGui::InputFloat2(u8"パーティクルの表示時間", (float*)&itr->alive_time), edited, fresult);
+						itr->alive_time.y = (std::max)(itr->alive_time.x, itr->alive_time.y);
 						ImGui::SameLine(); HelpMarker(MINMAX_TEXT);
 
-						EditCheck(ImGui::InputFloat2(u8"生成レート(s)", (float*)&effect.late), edited, fresult);
-						effect.late.y = (std::max)(effect.late.x, effect.late.y);
+						EditCheck(ImGui::InputFloat2(u8"生成レート(s)", (float*)&itr->late), edited, fresult);
+						itr->late.y = (std::max)(itr->late.x, itr->late.y);
 						ImGui::SameLine(); HelpMarker(u8"一秒間にレート個のパーティクルが発生します\n" MINMAX_TEXT);
 
-						EditCheck(ImGui::InputFloat(u8"生成レート更新頻度(s)", (float*)&effect.late_update_time), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"生成レート更新頻度(s)", (float*)&itr->late_update_time), edited, fresult);
 
-						EditCheck(ImGui::InputFloat2(u8"パーティクル射出速度(m/s)", (float*)&effect.speed), edited, fresult);
-						effect.speed.y = (std::max)(effect.speed.x, effect.speed.y);
+						EditCheck(ImGui::InputFloat2(u8"パーティクル射出速度(m/s)", (float*)&itr->speed), edited, fresult);
+						itr->speed.y = (std::max)(itr->speed.x, itr->speed.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の速度\n" MINMAX_TEXT);
-						EditCheck(ImGui::InputFloat2(u8"射出元速度の影響度", (float*)&effect.base_speed), edited, fresult);
-						effect.base_speed.y = (std::max)(effect.base_speed.x, effect.base_speed.y);
+						EditCheck(ImGui::InputFloat2(u8"射出元速度の影響度", (float*)&itr->base_speed), edited, fresult);
+						itr->base_speed.y = (std::max)(itr->base_speed.x, itr->base_speed.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の射出元速度の影響度\n" MINMAX_TEXT);
 
-						EditCheck(ImGui::InputFloat2(u8"パーティクル射出サイズ(m)", (float*)&effect.scale), edited, fresult);
-						effect.scale.y = (std::max)(effect.scale.x, effect.scale.y);
+						EditCheck(ImGui::InputFloat2(u8"パーティクル射出サイズ(m)", (float*)&itr->scale), edited, fresult);
+						itr->scale.y = (std::max)(itr->scale.x, itr->scale.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出時の大きさ\n" MINMAX_TEXT);
 
-						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(前)", &effect.scale_front), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(前)", &itr->scale_front), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"移動方向前方へ速度に影響を受け変動するサイズ");
-						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(後)", &effect.scale_back), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"移動方向へのサイズ(後)", &itr->scale_back), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"移動方向後方へ速度に影響を受け変動するサイズ");
 
-						DirectX::XMFLOAT2 def_angle = { DirectX::XMConvertToDegrees(effect.angle.x), DirectX::XMConvertToDegrees(effect.angle.y) };
+						DirectX::XMFLOAT2 def_angle = { DirectX::XMConvertToDegrees(itr->angle.x), DirectX::XMConvertToDegrees(itr->angle.y) };
 						if (ImGui::InputFloat2(u8"射出角度(def)", (float*)&def_angle))
 						{
 							edited = true;
-							effect.angle = { DirectX::XMConvertToRadians(def_angle.x), DirectX::XMConvertToRadians(def_angle.y) };
+							itr->angle = { DirectX::XMConvertToRadians(def_angle.x), DirectX::XMConvertToRadians(def_angle.y) };
 						}
 						ImGui::SameLine(); HelpMarker(
 							u8"min(x)からmax(y)の間の角度でランダムに射出する\n"
@@ -913,27 +909,27 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 							u8"射出方向反対へ飛ばす場合は deg(180)"
 						);
 
-						EditCheck(ImGui::InputFloat2(u8"射出方向スペース", (float*)&effect.spawn_space), edited, fresult);
-						effect.spawn_space.y = (std::max)(effect.spawn_space.x, effect.spawn_space.y);
+						EditCheck(ImGui::InputFloat2(u8"射出方向スペース", (float*)&itr->spawn_space), edited, fresult);
+						itr->spawn_space.y = (std::max)(itr->spawn_space.x, itr->spawn_space.y);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル射出方向へspawn_space分位置をずらします。\n" MINMAX_TEXT);
 
-						EditCheck(ImGui::ColorEdit4(u8"エフェクト生成時カラー", (float*)&effect.begin_color), edited, fresult);
+						EditCheck(ImGui::ColorEdit4(u8"エフェクト生成時カラー", (float*)&itr->begin_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(
 							u8"エフェクト生成時のパーティクル生成時のカラーです。\n"
 							u8"消滅時カラーに向かって変化していきます"
 						);
-						EditCheck(ImGui::ColorEdit4(u8"エフェクト消滅時カラー", (float*)&effect.end_color), edited, fresult);
+						EditCheck(ImGui::ColorEdit4(u8"エフェクト消滅時カラー", (float*)&itr->end_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"エフェクト消滅時のパーティクル生成時のカラーです。");
 
-						EditCheck(ImGui::ColorEdit4(u8"パーティクル消滅時カラー", (float*)&effect.erase_color), edited, fresult);
+						EditCheck(ImGui::ColorEdit4(u8"パーティクル消滅時カラー", (float*)&itr->erase_color), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"パーティクル消滅時のカラーです。");
 
-						EditCheck(ImGui::InputFloat(u8"効力", &effect.resistivity), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"効力", &itr->resistivity), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度");
-						EditCheck(ImGui::InputFloat(u8"効力S", &effect.scale_resistivity), edited, fresult);
+						EditCheck(ImGui::InputFloat(u8"効力S", &itr->scale_resistivity), edited, fresult);
 						ImGui::SameLine(); HelpMarker(u8"不可の影響度（スケールから影響を受ける）");
 
-						EditCheck(ImGui::Checkbox(u8"ブルーム", &effect.bloom), edited, fresult);
+						EditCheck(ImGui::Checkbox(u8"ブルーム", &itr->bloom), edited, fresult);
 
 						const auto imgui_window_size = ImGui::GetWindowSize();
 						if (ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.9f, std::max<float>(std::min<float>(imgui_window_size.y - 100, 200.f), 0)), ImGuiWindowFlags_NoTitleBar))
@@ -946,7 +942,7 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 								side_image_count++;
 								const ImVec2 image_size = { 90, 90 };
 								image_tint_col = { 1.f, 1.f, 1.f, 1.f };
-								if (effect.id == image_count)
+								if (itr->id == image_count)
 								{
 									image_tint_col = { 0.5f, 1.f, 0.5f, 1.f };
 								}
@@ -956,8 +952,8 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 									-1, { 0.f, 0.f, 0.f, 0.f }, image_tint_col))
 								{
 									edited = true;
-									effect.texture_name = textures[image_count]->GetPath().string();
-									effect.id = image_count;
+									itr->texture_name = textures[image_count]->GetPath().string();
+									itr->id = image_count;
 								}
 								//ImGui::SameLine();
 								const auto imgui_window_child_size = ImGui::GetWindowSize();
@@ -977,18 +973,18 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 						ImGui::TreePop();
 					}
 
-					EditCheck(ImGui::Checkbox(u8"子供", &effect.has_child), edited, fresult);
+					EditCheck(ImGui::Checkbox(u8"子供", &itr->has_child), edited, fresult);
 					ImGui::SameLine(); HelpMarker(
 						u8"子供のエフェクトを持つかどうか\n"
 						u8"(このフラグを持つ場合パーティクルではなくエフェクトを射出します)"
 					);
-					if (effect.has_child)
+					if (itr->has_child)
 					{
-						EditCheck(FWDescImGuiUpdate(&effect.child, srv_gui_handles), edited, fresult);
+						EditCheck(FWDescImGuiUpdate(&itr->child, srv_gui_handles), edited, fresult);
 					}
-
 					ImGui::TreePop();
 				}
+				itr++;
 				idx++;
 			}
 

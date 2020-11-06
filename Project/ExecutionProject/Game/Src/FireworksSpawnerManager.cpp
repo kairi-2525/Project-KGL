@@ -157,8 +157,9 @@ void FS_Obj::Update(float update_time, std::vector<Fireworks>* pout_fireworks)
 	}
 }
 
-void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
+bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
 {
+	bool result = true;
 	if (ImGui::TreeNode((obj_desc.name + "##" + std::to_string(RCAST<intptr_t>(this))).c_str()))
 	{
 		// 名前変更
@@ -169,6 +170,10 @@ void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		if (ImGui::Button(u8"名前変更") && !obj_desc.set_name.empty())
 		{
 			obj_desc.name = obj_desc.set_name;
+		}
+		if (ImGui::Button(u8"削除"))
+		{
+			result = false;
 		}
 
 		// エフェクト変更
@@ -237,10 +242,10 @@ void FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		obj_desc.spawn_power.y = (std::max)(obj_desc.spawn_power.x, obj_desc.spawn_power.y);
 		ImGui::SameLine(); HelpMarker(u8"元の射出速度をスケール倍します\n(元の速度はFireworksが持っている)\n" MINMAX_TEXT);
 
-		
-
 		ImGui::TreePop();
 	}
+
+	return result;
 }
 
 void FS::Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
@@ -329,9 +334,16 @@ bool FS::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDe
 		{
 			if (ImGui::TreeNode(u8"一覧"))
 			{
-				for (auto& obj : objects)
+				for (auto itr = objects.begin(); itr != objects.end();)
 				{
-					obj.GUIUpdate(desc_list);
+					if (!itr->GUIUpdate(desc_list))
+					{
+						itr = objects.erase(itr);
+					}
+					else
+					{
+						itr++;
+					}
 				}
 				ImGui::TreePop();
 			}

@@ -40,7 +40,7 @@ public:
 	void Init();
 	void Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
-	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
+	bool GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 // スポナーの一覧を管理するクラス
