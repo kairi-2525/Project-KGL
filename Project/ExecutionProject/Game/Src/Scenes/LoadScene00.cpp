@@ -27,9 +27,12 @@ HRESULT LoadScene00Base::Load(const SceneDesc& desc)
 	frame_buffer_resource->CreateCBV(frame_buffer_handle);
 
 	// ノイズテクスチャ
-	noise_texture = std::make_shared<KGL::Texture>(device, "./Assets/Textures/Noise/noise-01.png");
-	noise_srv_handle = std::make_shared<KGL::DescriptorHandle>(cbv_srv_descriptor->Alloc());
-	noise_texture->CreateSRVHandle(noise_srv_handle);
+	std::vector<ComPtr<ID3D12Resource>> upload_heaps;
+	noise_texture = std::make_shared<KGL::Texture>(device, cmd_list, &upload_heaps, "./Assets/Textures/Noise/noise-01.dds");
+	cmd_list->Close();
+	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+	desc.app->GetQueue()->Signal();
 
 	{	// ノイズ スプライト レンダラー
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
@@ -49,6 +52,14 @@ HRESULT LoadScene00Base::Load(const SceneDesc& desc)
 		noise_anim_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 	}
 
+	// テクスチャの読み込み完了を待つ
+	desc.app->GetQueue()->Wait();
+	cmd_allocator->Reset();
+	cmd_list->Reset(cmd_allocator.Get(), nullptr);
+
+	noise_srv_handle = std::make_shared<KGL::DescriptorHandle>(cbv_srv_descriptor->Alloc());
+	noise_texture->CreateSRVHandle(noise_srv_handle);
+
 	return hr;
 }
 
@@ -56,15 +67,15 @@ HRESULT LoadScene00Base::Init(const SceneDesc& desc)
 {
 
 	clear_color = { 1.f, 1.f, 1.f, 1.f };
-
+	SetMoveSceneFlg(false);
 	SetLoadScene(desc);
 
 	{	// フレームバッファを初期化
 		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
 		mapped_fresource->time = 0.f;
 		auto resolution = desc.app->GetResolution();
-		mapped_fresource->resolution.x = 1.f / SCAST<float>(resolution.x);
-		mapped_fresource->resolution.y = 1.f / SCAST<float>(resolution.y);
+		mapped_fresource->resolution.x = SCAST<float>(resolution.x);
+		mapped_fresource->resolution.y = SCAST<float>(resolution.y);
 		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
 	}
 
@@ -77,6 +88,11 @@ HRESULT LoadScene00Base::Update(const SceneDesc& desc, float elapsed_time)
 		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
 		mapped_fresource->time += elapsed_time / 10;
 		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+	}
+
+	if (desc.input->IsMouseAnyPressed() || desc.input->IsKeyAnyPressed())
+	{
+		SetMoveSceneFlg(true);
 	}
 
 	return Render(desc);

@@ -28,14 +28,19 @@ cbuffer FrameBuffer : register (b0)
 
 static const float TAU = 6.2831853f;
 
-static const float2x2 M2 = { 0.8f, 0.6f, -0.6f, 0.8f };
+static const row_major float2x2 M2 = { 0.8f, -0.6f, 0.6f, 0.8f };
 
-float2x2 Makem2(float thata)
+float mod(float x, float y)
+{
+	return x - y * floor(x / y);
+}
+
+row_major float2x2 Makem2(float thata)
 {
 	float c = cos(thata);
 	float s = sin(thata);
 
-	return float2x2( c, -s, s, c );
+	return (row_major float2x2)( c, s, -s, c );
 }
 
 float Noise(float2 x)
@@ -63,8 +68,8 @@ float Flow(float2 p)
 		gr.y = Grid(p * 3.f + 4.f - time * 2.f);
 
 		gr = normalize(gr) * 0.4f;
-		//gr = mul(gr, Makem2((p.x + p.y) * 0.3f + time * 10.f));
-		gr = mul(Makem2((p.x + p.y) * 0.3f + time * 10.f), gr);
+		gr = mul(gr, Makem2((p.x + p.y) * 0.3f + time * 10.f));
+		//gr = mul(Makem2((p.x + p.y) * 0.3f + time * 10.f), gr);
 		p += gr * 0.5f;
 
 		rz += (sin(Noise(p) * 8.f) * 0.5f + 0.5f) / z;
@@ -72,11 +77,11 @@ float Flow(float2 p)
 		p = lerp(bp, p, 0.5f);
 		z *= 1.7f;
 		p *= 2.5f;
-		//p = mul(p, M2);
-		p = mul(M2, p);
+		p = mul(p, M2);
+		//p = mul(M2, p);
 		bp *= 2.5f;
-		//bp = mul(bp, M2);
-		bp = mul(M2, bp);
+		bp = mul(bp, M2);
+		//bp = mul(M2, bp);
 	}
 	return rz;
 }
@@ -86,22 +91,23 @@ float Spiral(float2 p, float scl)
 	float r = length(p);
 	r = log(r);
 	float a = atan2(p.y, p.x);
-	return abs(fmod(scl * (r - 2.f / scl * a), TAU) - 1.f) * 2.f;
+	return abs(mod(scl * (r - 2.f / scl * a), TAU) - 1.f) * 2.f;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
 	float2 p;
-	p.x = (input.uv.x - 0.5f) / resolution.x - 0.5f;
-	p.y = (input.uv.y - 0.5f) / resolution.y - 0.5f;
-	// = (input.uv /*- float2(0.5f, 0.5f)*/) / resolution;
-	p.x *= resolution.x / resolution.y;
+
+	float2 uv = ((input.uv * resolution.xy) - 0.5 * resolution.xy) / resolution.y;
+	
+	p = uv;
+
 	p *= 3.f;
 
 	float rz = Flow(p);
-	p /= exp(fmod(time * 3.f, 2.1f));
+	p /= exp(mod(time * 3.f, 2.1f));
 	rz *= (6.f - Spiral(p, 3.f)) * 0.9f;
-	float3 col = float3(0.2f, 0.07f, 0.01f) / rz;
+	float3 col = float3(0.2f, 0.27f, 0.51f) / rz;
 	col = pow(abs(col), float3(1.01f, 1.01f, 1.01f));
 
 	return float4(col, 1.0f);
