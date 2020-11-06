@@ -93,6 +93,9 @@
     <ClCompile Include="Src\FireworksSpawnerManager.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Scenes\LoadScene00.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\SceneGame.hpp">
@@ -170,6 +173,9 @@
     <ClInclude Include="Hrd\FireworksSpawnerManager.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\Scenes\LoadScene00.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
@@ -220,6 +226,7 @@
     <FxCompile Include="HLSL\3D\StaticObject_gs.hlsl" />
     <FxCompile Include="HLSL\3D\Particle4_gs.hlsl" />
     <FxCompile Include="HLSL\3D\Particle8_gs.hlsl" />
+    <FxCompile Include="HLSL\2D\NoiseEffect_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

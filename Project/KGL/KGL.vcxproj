@@ -75,6 +75,7 @@
     <ClCompile Include="Src\Base\Directory.cpp" />
     <ClCompile Include="Src\Base\Input.cpp" />
     <ClCompile Include="Src\Base\DLL.cpp" />
+    <ClCompile Include="Src\Dx12\ConstantBuffer.cpp" />
     <ClCompile Include="Src\Helper\JIS_X_0208.cpp" />
     <ClCompile Include="Src\Helper\Other.cpp" />
     <ClCompile Include="Src\Helper\Scene.cpp" />

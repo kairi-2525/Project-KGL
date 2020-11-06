@@ -10,6 +10,7 @@ namespace KGL
 {
 	inline namespace DX12
 	{
+		class DescriptorHandle;
 		class ResourcesBase
 		{
 		protected:
@@ -22,6 +23,7 @@ namespace KGL
 
 			size_t Size() const noexcept { return m_size; }
 			UINT64 SizeInBytes() const noexcept { return m_size_in_bytes; }
+			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
 		};
 
 		template <class _Ty>
