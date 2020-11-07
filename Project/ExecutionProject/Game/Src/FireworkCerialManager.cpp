@@ -342,7 +342,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 				{
 					if (ptc.Alive())
 					{
-						ptc.Update(parent.elapsed_time, &parent);
+						ptc.Update(parent.elapsed_time, &parent, {});
 					}
 				}
 
@@ -363,7 +363,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 			for (UINT idx = 0; idx < fws.size(); idx++)
 			{
 				// Fireworks Sort
-				if (!fws[idx].Update(parent.elapsed_time, &ptcs[i], &parent, &fws))
+				if (!fws[idx].Update(parent.elapsed_time, &ptcs[i], &parent, &fws, {}))
 				{
 					fws[idx] = fws.back();
 					fws.pop_back();

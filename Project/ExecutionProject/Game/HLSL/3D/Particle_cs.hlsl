@@ -1,12 +1,17 @@
 #include "ParticleStruct.hlsli"
 
-cbuffer parent : register(b0)
+cbuffer FrameBuffer : register(b0)
 {
-	float3					center_pos;
+	uint					center_count;
 	float					center_mass;
 	float					elapsed_time;
 	float					resistivity;
 }
+struct Parent
+{
+	float3 position;
+};
+ConstantBuffer<Parent> parents[] : register(b1);
 
 //RWStructuredBuffer<uint> counter : register(u0);
 RWStructuredBuffer<Particle> particles : register(u0);
@@ -21,15 +26,20 @@ void CSMain( uint3 dtid : SV_DispatchThreadID )
 	if (particles[id].exist_time <= 0.f) return;
 	particles.IncrementCounter();
 
-	float3 resultant = float3(0, 0, 0);
+	float3 resultant = (float3)0;
+	particles[id].acceleration = (float3)0;
 
-	float3 vec = center_pos - particles[id].pos;
+	for (uint i = 0; i < center_count; i++)
+	{
+		float3 vec = parents[i].position - particles[id].pos;
+		float N = (G * particles[id].mass * center_mass) / dot(vec, vec);
+		resultant += normalize(vec) * N;
+		resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
+		particles[id].acceleration += resultant / particles[id].mass;
+	}
 
-	float N = (G * particles[id].mass * center_mass) / dot(vec, vec);
-	resultant += normalize(vec) * N;
-	resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
-	particles[id].acceleration = resultant / particles[id].mass;
 	particles[id].velocity.xyz += particles[id].acceleration * elapsed_time;
+
 	float3 frame_velocity = particles[id].velocity.xyz * elapsed_time;
 	particles[id].move_length += length(frame_velocity);
 	particles[id].pos.xyz += frame_velocity;

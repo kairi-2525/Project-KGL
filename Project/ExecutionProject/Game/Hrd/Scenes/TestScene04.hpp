@@ -92,6 +92,7 @@ private:
 private:
 	KGL::Timer											tm_update;
 	KGL::Timer											tm_render;
+	KGL::Timer											tm_ptc_sort;
 	KGL::Timer											tm_ptc_update_gpu;
 	KGL::Timer											tm_ptc_update_cpu;
 	UINT64												ct_ptc_total_max;
@@ -150,6 +151,7 @@ private:
 	float												spawn_counter;
 
 	std::vector<Fireworks>								fireworks;
+	std::vector<Fireworks>								player_fireworks;
 
 	struct AlphaBuffer
 	{

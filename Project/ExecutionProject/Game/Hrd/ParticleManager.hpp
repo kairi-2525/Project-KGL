@@ -6,13 +6,16 @@
 #include <Base/Directory.hpp>
 #include <vector>
 #include <Dx12/CommandQueue.hpp>
+#include "Fireworks.hpp"
 
 class ParticleManager
 {
 private:
 
 	std::shared_ptr<KGL::Resource<ParticleParent>>	parent_res;
+	std::shared_ptr<KGL::Resource<DirectX::XMFLOAT3>> parent_pos_resource;
 	KGL::DescriptorHandle							parent_begin_handle;
+	KGL::DescriptorHandle							parent_pos_begin_handle;
 
 	std::shared_ptr<KGL::Resource<Particle>>		resource;
 	std::shared_ptr<KGL::Resource<UINT32>>			counter_res;
@@ -26,8 +29,9 @@ public:
 public:
 	explicit ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept;
 	void SetParent(const ParticleParent& particle_parent);
+	void SetParentFW(const std::vector<Fireworks>& particle_parent_fw);
 	void Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList>);
-	void Update();
+	void Update(const std::vector<Fireworks>& parent_fireworks);
 	void Sort();
 	void AddToFrameParticle();
 	void Clear();

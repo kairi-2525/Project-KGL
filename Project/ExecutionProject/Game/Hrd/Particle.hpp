@@ -1,10 +1,14 @@
 #pragma once
 
 #include <DirectXMath.h>
+#include <vector>
+
+using UINT32 = unsigned __int32;
+class Fireworks;
 
 struct ParticleParent
 {
-	DirectX::XMFLOAT3	center_pos;
+	UINT32				center_count;
 	float				center_mass;
 	float				elapsed_time;
 	float				resistivity;
@@ -32,5 +36,5 @@ struct Particle
 	uint32_t			texture_num;
 public:
 	bool Alive() { return exist_time > 0; }
-	void Update(float time, const ParticleParent* parent);
+	void Update(float time, const ParticleParent* parent, const std::vector<Fireworks>& fireworks);
 };

@@ -1,21 +1,39 @@
 #include "../Hrd/Particle.hpp"
+#include "../Hrd/Fireworks.hpp"
 
 static constexpr float G = 6.67e-11f;
 
-void Particle::Update(float time, const ParticleParent* parent)
+void Particle::Update(float time, const ParticleParent* parent, const std::vector<Fireworks>& fireworks)
 {
 	using namespace DirectX;
 	
-	auto resultant = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+	XMVECTOR resultant = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+	XMVECTOR accs = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+
 	XMVECTOR pos = XMLoadFloat3(&position);
 	XMVECTOR vel = XMLoadFloat3(&velocity);
-	XMVECTOR vec = XMLoadFloat3(&parent->center_pos) - pos;
-	float l;
-	XMStoreFloat(&l, XMVector3LengthSq(vec));
-	float N = (G * mass * parent->center_mass) / l;
-	resultant += XMVector3Normalize(vec) * N;
-	resultant += -vel * (parent->resistivity * resistivity);
-	const XMVECTOR accs = resultant / mass;
+	
+	size_t fw_size = fireworks.size();
+	{
+		XMVECTOR vec = XMVectorSet(0.f, -6378.1f * 1000.f, 0.f, 0.f) - pos;
+		float l;
+		XMStoreFloat(&l, XMVector3LengthSq(vec));
+		float N = (G * mass * parent->center_mass) / l;
+		resultant += XMVector3Normalize(vec) * N;
+		resultant += -vel * (parent->resistivity * resistivity);
+		accs += resultant / mass;
+	}
+	for (size_t i = 0; i < fw_size; i++)
+	{
+		XMVECTOR vec = XMLoadFloat3(&fireworks[i].pos) - pos;
+		float l;
+		XMStoreFloat(&l, XMVector3LengthSq(vec));
+		float N = (G * mass * parent->center_mass) / l;
+		resultant += XMVector3Normalize(vec) * N;
+		resultant += -vel * (parent->resistivity * resistivity);
+		accs += resultant / mass;
+	}
+
 	XMStoreFloat3(&this->accs, accs);
 	vel += accs * time;
 	XMStoreFloat3(&velocity, vel);

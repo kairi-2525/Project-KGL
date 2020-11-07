@@ -21,5 +21,10 @@ public:
 	Fireworks(const Fireworks& fw) { Init(fw.GetDesc(), -1.f); }
 
 	const FireworksDesc& GetDesc() const { return desc; }
-	bool Update(float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent, std::vector<Fireworks>* p_fireworks);
+	bool Update(
+		float time,
+		std::vector<Particle>* p_particles,
+		const ParticleParent* p_parent,
+		std::vector<Fireworks>* p_fireworks,
+		const std::vector<Fireworks>& parent_fireworks);
 };

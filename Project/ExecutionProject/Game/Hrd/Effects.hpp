@@ -83,7 +83,8 @@ struct Effect
 	void Init(const EffectDesc& desc);
 	void Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent,
-		std::vector<Fireworks>* p_fireworks);
+		std::vector<Fireworks>* p_fireworks,
+		const std::vector<Fireworks>& parent_fireworks);
 };
 
 namespace FIREWORK_EFFECTS

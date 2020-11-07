@@ -461,6 +461,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	}
 
 	fireworks.reserve(10000u);
+	player_fireworks.reserve(10000u);
 
 	
 	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
@@ -609,7 +610,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	}
 
 	ParticleParent ptc_parent{};
-	ptc_parent.center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	//ptc_parent.center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	ptc_parent.center_count = 1u;
 	ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
@@ -694,6 +696,7 @@ void TestScene04::ResetCounterMax()
 	tm_render.Clear();
 	tm_ptc_update_gpu.Clear();
 	tm_ptc_update_cpu.Clear();
+	tm_ptc_sort.Clear();
 }
 
 #define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
@@ -966,6 +969,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		ptc_mgr->Clear();
 		pl_shot_ptc_mgr->Clear();
 		fireworks.clear();
+		player_fireworks.clear();
 	}
 	if (use_gui)
 	{
@@ -976,6 +980,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ptc_mgr->Clear();
 				pl_shot_ptc_mgr->Clear();
 				fireworks.clear();
+				player_fireworks.clear();
 			}
 		}
 		ImGui::End();
@@ -1022,7 +1027,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			tm_ptc_update_cpu.Restart();
 			if (particle_total_num > 0)
-				ptc_mgr->Update();
+				ptc_mgr->Update(player_fireworks);
 			tm_ptc_update_cpu.Count();
 		}
 		
@@ -1040,69 +1045,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		// スポナーからFireworksを生成
 		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
 
-		/*while (ptc_key_spawn_counter >= key_spawn_time)
-		{
-			FireworksDesc desc{};
-			std::random_device rd;
-			std::mt19937 mt(rd());
-			std::uniform_int_distribution<UINT> rmd_int(0u, 100u);
-			switch (rmd_int(mt))
-			{
-			case 0u: case 1u: case 2u: case 3u: case 4u:
-			case 5u: case 6u: case 7u: case 8u: case 9u:
-			{
-				desc = FIREWORK_EFFECTS::Get(0);
-				break;
-			}
-			case 10u: case 11u: case 12u: case 13u: case 14u:
-			case 15u: case 16u: case 17u: case 18u: case 19u:
-			{
-				desc = FIREWORK_EFFECTS::Get(1);
-				break;
-			}
-			case 20u: case 21u:
-			{
-				desc = FIREWORK_EFFECTS::Get(2);
-				break;
-			}
-			default:
-			{
-				desc = FIREWORK_EFFECTS::Get(3);
-				break;
-			}
-			}
-			desc.pos = { 0.f, 0.f, 0.f };
-
-			std::uniform_real_distribution<float> rmd_speed(0.9f, 1.f);
-			desc.velocity = { 0.f, desc.speed * rmd_speed(mt), 0.f };
-
-			std::uniform_real_distribution<float> rmdpos(-50.f, +50.f);
-			desc.pos.x += rmdpos(mt);
-			desc.pos.z += rmdpos(mt);
-
-			XMFLOAT2 nmangle;
-			nmangle.x = XMConvertToRadians(0.f) / XM_PI;
-			nmangle.y = XMConvertToRadians(5.f) / XM_PI;
-			std::uniform_real_distribution<float> rmdangle(nmangle.x, nmangle.y);
-			std::uniform_real_distribution<float> rmdangle360(0.f, XM_2PI);
-			constexpr float radian90f = XMConvertToRadians(90.f);
-			XMVECTOR right_axis = XMVectorSet(1.f, 0.f, 0.f, 0.f);
-			float side_angle = asinf((2.f * rmdangle(mt)) - 1.f) + radian90f;
-			XMVECTOR side_axis;
-			XMVECTOR velocity = XMLoadFloat3(&desc.velocity);
-			XMVECTOR axis = XMVector3Normalize(velocity);
-			if (XMVector3Length(XMVectorSubtract(right_axis, axis)).m128_f32[0] <= FLT_EPSILON)
-				side_axis = XMVector3Normalize(XMVector3Cross(axis, XMVectorSet(0.f, 1.f, 0.f, 0.f)));
-			else
-				side_axis = XMVector3Normalize(XMVector3Cross(axis, right_axis));
-			XMMATRIX R = XMMatrixRotationAxis(side_axis, side_angle);
-			R *= XMMatrixRotationAxis(axis, rmdangle360(mt));
-			XMVECTOR spawn_v = XMVector3Transform(axis, R);
-			XMStoreFloat3(&desc.velocity, spawn_v * XMVector3Length(velocity));
-
-			fireworks.emplace_back(desc);
-			ptc_key_spawn_counter -= key_spawn_time;
-		}*/
+		
 		// プレイヤーショット
 		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
 		{
@@ -1113,8 +1056,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				XMVECTOR xm_xmfront = XMLoadFloat3(&camera_front);
 				XMStoreFloat3(&desc->velocity, XMVector3Normalize(xm_xmfront) * desc->speed);
 				auto set_desc = *desc;
+				// ランダムカラーをセット
 				FS_Obj::SetRandomColor(&set_desc);
-				fireworks.emplace_back(set_desc);
+				player_fireworks.emplace_back(set_desc);
 			}
 		}
 
@@ -1139,10 +1083,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks))
+		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks, player_fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
+			i--;
+		}
+	}
+	for (auto i = 0; i < player_fireworks.size(); i++)
+	{
+		if (!player_fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &player_fireworks, {}))
+		{
+			player_fireworks[i] = player_fireworks.back();
+			player_fireworks.pop_back();
 			i--;
 		}
 	}
@@ -1156,10 +1109,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
 
+	tm_ptc_sort.Restart();
 	if (particle_total_num > 0)
 		ptc_mgr->Sort();
 	if (pl_shot_particle_total_num > 0)
 		pl_shot_ptc_mgr->Sort();
+	tm_ptc_sort.Count();
 
 	const auto frame_ptc_size = ptc_mgr->frame_particles.size() + pl_shot_ptc_mgr->frame_particles.size();
 	ptc_mgr->AddToFrameParticle();
@@ -1223,11 +1178,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				TimerGui("Render Count Total ", tm_render);
 				TimerGui("Particle Update Gpu", tm_ptc_update_gpu);
 				TimerGui("Particle Update Cpu", tm_ptc_update_cpu);
+				TimerGui("Particle Update Sort", tm_ptc_sort);
 
 				ct_ptc_total_max = (std::max)(counter, ct_ptc_total_max);
 				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
 
-				ct_fw_max = (std::max)(fireworks.size(), ct_fw_max);
+				ct_fw_max = (std::max)(fireworks.size() + player_fireworks.size(), ct_fw_max);
 				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw_max);
 				ct_ptc_frame_max = (std::max)(frame_ptc_size, ct_ptc_frame_max);
 				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
