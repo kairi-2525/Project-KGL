@@ -2,16 +2,19 @@
 
 cbuffer FrameBuffer : register(b0)
 {
-	uint					center_count;
-	float					center_mass;
+	uint					affect_obj_count;
 	float					elapsed_time;
 	float					resistivity;
 }
-struct Parent
+struct AffectObject
 {
-	float3 position;
+	float3 pos;
+	float mass;
 };
-ConstantBuffer<Parent> parents[] : register(b1);
+cbuffer AffectObjects : register(b1)
+{
+	AffectObject affect_objects[1000];
+}
 
 //RWStructuredBuffer<uint> counter : register(u0);
 RWStructuredBuffer<Particle> particles : register(u0);
@@ -27,16 +30,15 @@ void CSMain( uint3 dtid : SV_DispatchThreadID )
 	particles.IncrementCounter();
 
 	float3 resultant = (float3)0;
-	particles[id].acceleration = (float3)0;
 
-	for (uint i = 0; i < center_count; i++)
+	for (int i = 0; i < affect_obj_count; ++i)
 	{
-		float3 vec = parents[i].position - particles[id].pos;
-		float N = (G * particles[id].mass * center_mass) / dot(vec, vec);
+		float3 vec = affect_objects[i].pos - particles[id].pos;
+		float N = (G * particles[id].mass * affect_objects[i].mass) / dot(vec, vec);
 		resultant += normalize(vec) * N;
-		resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
-		particles[id].acceleration += resultant / particles[id].mass;
 	}
+	resultant += -(particles[id].velocity.xyz * (resistivity * particles[id].resistivity));
+	particles[id].acceleration = resultant / particles[id].mass;
 
 	particles[id].velocity.xyz += particles[id].acceleration * elapsed_time;
 

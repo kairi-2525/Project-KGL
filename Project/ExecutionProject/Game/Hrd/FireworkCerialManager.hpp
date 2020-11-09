@@ -148,7 +148,9 @@ private:
 		DemoData(const DemoData& data);
 		DemoData& operator=(const DemoData& data);
 		void SetResource(UINT num);
-		void Build(const ParticleParent* p_parent, UINT set_frame_num);
+		void Build(const ParticleParent* p_parent, UINT set_frame_num,
+			const std::vector<AffectObjects>& affect_objects
+		);
 		void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list, UINT num) const noexcept;
 		size_t Size(UINT num) const;
 	};
@@ -186,6 +188,8 @@ private:
 	std::unique_ptr<std::pair<const std::string, FireworksDesc>> cpy_fw_desc;
 	std::unique_ptr<EffectDesc>									cpy_ef_desc;
 	std::vector<std::shared_ptr<KGL::Texture>>					textures;
+public:
+	std::vector<AffectObjects>									affect_objects;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
@@ -201,7 +205,8 @@ private:
 		std::list<DemoData>* p_demo_data,
 		const UINT* frame_number,
 		const bool* stop_flg,
-		std::mutex* mt_clear
+		std::mutex* mt_clear,
+		std::vector<AffectObjects> affect_objects
 	) noexcept;
 	bool FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	static float GetMaxTime(const FireworksDesc& desc);

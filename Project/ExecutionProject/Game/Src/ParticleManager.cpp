@@ -8,13 +8,8 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capac
 {
 	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 3u);
 	parent_res = std::make_shared<KGL::Resource<ParticleParent>>(device, 1u);
-	parent_pos_resource = std::make_shared<KGL::Resource<DirectX::XMFLOAT3>>(device, 100u);
+	affect_obj_resource = std::make_shared<KGL::Resource<AffectObjects>>(device, 100u);
 
-	{
-		auto* parent_data = parent_pos_resource->Map(0, &CD3DX12_RANGE(0, 0));
-		parent_data[0] = { 0.f, -6378.1f * 1000.f, 0.f };
-		parent_pos_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-	}
 	{
 		parent_begin_handle = desc_mgr->Alloc();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
@@ -23,11 +18,11 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capac
 		device->CreateConstantBufferView(&cbv_desc, parent_begin_handle.Cpu());
 	}
 	{
-		parent_pos_begin_handle = desc_mgr->Alloc();
+		affect_obj_begin_handle = desc_mgr->Alloc();
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-		cbv_desc.BufferLocation = parent_pos_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = SCAST<UINT>(parent_pos_resource->SizeInBytes());
-		device->CreateConstantBufferView(&cbv_desc, parent_pos_begin_handle.Cpu());
+		cbv_desc.BufferLocation = affect_obj_resource->Data()->GetGPUVirtualAddress();
+		cbv_desc.SizeInBytes = SCAST<UINT>(affect_obj_resource->SizeInBytes());
+		device->CreateConstantBufferView(&cbv_desc, affect_obj_begin_handle.Cpu());
 	}
 
 	D3D12_HEAP_PROPERTIES prop = {};
@@ -59,21 +54,30 @@ void ParticleManager::SetParent(const ParticleParent& particle_parent)
 	parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 }
 
-void ParticleManager::SetParentFW(const std::vector<Fireworks>& particle_parent_fw)
+void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks)
 {
-	const UINT32 fw_size = SCAST<UINT32>(particle_parent_fw.size());
+	const UINT32 oj_size = affect_objects.size();
+	const UINT32 fw_size = affect_fireworks.size();
+	const UINT32 size = oj_size + fw_size;
 	{
 		auto* parent_data = parent_res->Map(0, &CD3DX12_RANGE(0, 0));
-		parent_data->center_count = fw_size + 1;
+		parent_data->affect_obj_count = size;
 		parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 	{
-		auto* parent_data = parent_pos_resource->Map(0, &CD3DX12_RANGE(0, 0));
-		for (UINT32 i = 1; i < fw_size + 1; i++)
+		auto* mp_affect_objects = affect_obj_resource->Map(0, &CD3DX12_RANGE(0, 0));
+
+		UINT32 i = 0u;
+		for (; i < oj_size; i++)
 		{
-			parent_data[i] = particle_parent_fw[i - 1].pos;
+			mp_affect_objects[i] = affect_objects[i];
 		}
-		parent_pos_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		for (; i < size; i++)
+		{
+			mp_affect_objects[i].pos = affect_fireworks[i - oj_size].pos;
+			mp_affect_objects[i].mass = affect_fireworks[i - oj_size].mass;
+		}
+		affect_obj_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 }
 
@@ -87,8 +91,8 @@ void ParticleManager::Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	cmd_list->SetDescriptorHeaps(1, parent_begin_handle.Heap().GetAddressOf());
 	cmd_list->SetComputeRootDescriptorTable(0, parent_begin_handle.Gpu());
 
-	cmd_list->SetDescriptorHeaps(1, parent_pos_begin_handle.Heap().GetAddressOf());
-	cmd_list->SetComputeRootDescriptorTable(1, parent_pos_begin_handle.Gpu());
+	cmd_list->SetDescriptorHeaps(1, affect_obj_begin_handle.Heap().GetAddressOf());
+	cmd_list->SetComputeRootDescriptorTable(1, affect_obj_begin_handle.Gpu());
 
 	const UINT ptcl_size = std::min<UINT>(SCAST<UINT>(particle_total_num), SCAST<UINT>(resource->Size()));
 	DirectX::XMUINT3 patch = {};
@@ -101,7 +105,10 @@ void ParticleManager::Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	cmd_list->Dispatch(patch.x, patch.y, patch.z);
 }
 
-void ParticleManager::Update(const std::vector<Fireworks>& parent_fireworks)
+void ParticleManager::Update(
+	const std::vector<AffectObjects>& affect_objects,
+	const std::vector<Fireworks>& affect_fireworks
+)
 {
 	using namespace DirectX;
 
@@ -112,7 +119,7 @@ void ParticleManager::Update(const std::vector<Fireworks>& parent_fireworks)
 	for (int i = 0; i < i_max; i++)
 	{
 		if (!particles[i].Alive()) continue;
-		particles[i].Update(cb->elapsed_time, cb, parent_fireworks);
+		particles[i].Update(cb->elapsed_time, cb, affect_objects, affect_fireworks);
 		(*p_counter)++;
 	}
 	parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));

@@ -18,8 +18,10 @@ class LoadScene00Base : public SceneBase
 public:
 	struct FrameBuffer
 	{
-		DirectX::XMFLOAT2	resolution;
+		DirectX::XMFLOAT3	color;
 		float				time;
+		DirectX::XMFLOAT2	resolution;
+		float				rotate_scale;
 	};
 private:
 	KGL::VecCamera camera;
@@ -36,6 +38,10 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>				noise_anim_renderer;
 
 	DirectX::XMFLOAT4								clear_color;
+	DirectX::XMFLOAT3								begin_color;
+	DirectX::XMFLOAT3								end_color;
+	float											counter;
+	float											counter_max;
 protected:
 	virtual void SetLoadScene(const SceneDesc& desc) = 0;
 public:

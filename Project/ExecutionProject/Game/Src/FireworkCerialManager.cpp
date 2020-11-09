@@ -23,6 +23,11 @@ FCManager::FCManager(const std::filesystem::path& directory, const std::vector<s
 	//demo_data.reserve(100u);
 	demo_mg_stop = false;
 
+	// ’n‹…
+	affect_objects.resize(1u);
+	affect_objects[0].pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	affect_objects[0].mass = 5.9724e24f;
+
 	Load(directory);
 }
 FCManager::~FCManager()
@@ -316,7 +321,9 @@ void FCManager::DemoData::SetResource(UINT num)
 	}
 }
 
-void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_num)
+void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_num,
+	const std::vector<AffectObjects>& affect_objects
+)
 {
 	if (fw_desc)
 	{
@@ -342,7 +349,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 				{
 					if (ptc.Alive())
 					{
-						ptc.Update(parent.elapsed_time, &parent, {});
+						ptc.Update(parent.elapsed_time, &parent, affect_objects, {});
 					}
 				}
 
@@ -363,7 +370,7 @@ void FCManager::DemoData::Build(const ParticleParent* p_parent, UINT set_frame_n
 			for (UINT idx = 0; idx < fws.size(); idx++)
 			{
 				// Fireworks Sort
-				if (!fws[idx].Update(parent.elapsed_time, &ptcs[i], &parent, &fws, {}))
+				if (!fws[idx].Update(parent.elapsed_time, &ptcs[i], &parent, &fws, affect_objects, {}))
 				{
 					fws[idx] = fws.back();
 					fws.pop_back();
@@ -385,14 +392,15 @@ void FCManager::CreateDemo(
 	std::list<DemoData>* p_demo_data,
 	const UINT* frame_number,
 	const bool* stop_flg,
-	std::mutex* mt_clear
+	std::mutex* mt_clear,
+	std::vector<AffectObjects> affect_objects
 ) noexcept
 {
 	std::lock_guard<std::mutex> lock(*mt_lock);
 	for (auto it = p_add_demo_data->begin(); it != p_add_demo_data->end();)
 	{
 		auto& data = p_demo_data->emplace_back(device, *it, 100000u);
-		data.Build(&p_parent, *frame_number);
+		data.Build(&p_parent, *frame_number, affect_objects);
 		it = p_add_demo_data->erase(it);
 
 		if (mt_clear)
@@ -482,7 +490,8 @@ void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const Partic
 			&demo_select_mutex, &demo_select_stop_mutex,
 			&add_demo_select_data, &demo_select_data,
 			&demo_frame_number, &demo_select_stop,
-			&demo_select_clear_mutex
+			&demo_select_clear_mutex,
+			affect_objects
 			);
 	}
 };
@@ -773,7 +782,8 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
 						&demo_mg_mutex, &demo_mg_stop_mutex,
 						&add_demo_data, &demo_data,
 						&demo_frame_number, &demo_mg_stop,
-						nullptr
+						nullptr,
+						affect_objects
 						);
 				}
 			}

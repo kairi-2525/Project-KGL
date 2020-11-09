@@ -8,10 +8,15 @@ class Fireworks;
 
 struct ParticleParent
 {
-	UINT32				center_count;
-	float				center_mass;
+	UINT32				affect_obj_count;
 	float				elapsed_time;
 	float				resistivity;
+};
+
+struct AffectObjects
+{
+	DirectX::XMFLOAT3 pos;
+	float mass;
 };
 
 struct Particle
@@ -34,7 +39,11 @@ struct Particle
 	float				exist_time;
 	float				move_length;
 	uint32_t			texture_num;
+	float				scale_front_max;
+	float				scale_back_max;
 public:
 	bool Alive() { return exist_time > 0; }
-	void Update(float time, const ParticleParent* parent, const std::vector<Fireworks>& fireworks);
+	void Update(float time, const ParticleParent* parent, 
+		const std::vector<AffectObjects>& affect_objects,
+		const std::vector<Fireworks>& affect_fireworks);
 };

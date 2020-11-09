@@ -13,9 +13,9 @@ class ParticleManager
 private:
 
 	std::shared_ptr<KGL::Resource<ParticleParent>>	parent_res;
-	std::shared_ptr<KGL::Resource<DirectX::XMFLOAT3>> parent_pos_resource;
+	std::shared_ptr<KGL::Resource<AffectObjects>>	affect_obj_resource;
 	KGL::DescriptorHandle							parent_begin_handle;
-	KGL::DescriptorHandle							parent_pos_begin_handle;
+	KGL::DescriptorHandle							affect_obj_begin_handle;
 
 	std::shared_ptr<KGL::Resource<Particle>>		resource;
 	std::shared_ptr<KGL::Resource<UINT32>>			counter_res;
@@ -29,9 +29,9 @@ public:
 public:
 	explicit ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept;
 	void SetParent(const ParticleParent& particle_parent);
-	void SetParentFW(const std::vector<Fireworks>& particle_parent_fw);
+	void SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
 	void Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList>);
-	void Update(const std::vector<Fireworks>& parent_fireworks);
+	void Update(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
 	void Sort();
 	void AddToFrameParticle();
 	void Clear();

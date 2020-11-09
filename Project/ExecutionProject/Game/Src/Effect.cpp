@@ -16,7 +16,8 @@ void Effect::Init(const EffectDesc& desc)
 void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 	float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent,
 	std::vector<Fireworks>* p_fireworks,
-	const std::vector<Fireworks>& parent_fireworks)
+	const std::vector<AffectObjects>& affect_objects,
+	const std::vector<Fireworks>& affect_fireworks)
 {
 	using namespace DirectX;
 	std::random_device rd;
@@ -112,6 +113,10 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				p.scale_width *= 2.f;
 				p.scale_speed_front = p.scale_front * effect.scale_front;
 				p.scale_speed_back = p.scale_back * effect.scale_back;
+
+				p.scale_front_max = p.scale_front + p.scale_speed_front * 100.f;
+				p.scale_back_max = p.scale_back + p.scale_speed_back * 100.f;
+
 				p.resistivity = effect.resistivity;
 				p.resistivity += effect.scale_resistivity * p.scale_width;
 				p.bloom = effect.bloom;
@@ -124,7 +129,7 @@ void Effect::Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 				//p.scale_back * 2.f;
 				p.mass = 1.f;
 				p.move_length = 0.f;
-				p.Update((spawn_time_counter_max - spawn_time_counter), p_parent, parent_fireworks);
+				p.Update((spawn_time_counter_max - spawn_time_counter), p_parent, affect_objects, affect_fireworks);
 				spawn_time_counter -= spawn_elapsed;
 			}
 		}

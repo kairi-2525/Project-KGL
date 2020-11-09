@@ -23,10 +23,10 @@ void GSMain(
 
 	// front
 	float3 front_v = vel_norm * scale_front + vel * input[0].scale_speed_front;
-	float3 front_pos = pos + normalize(front_v) * max(length(front_v) - scale_width, 0.001f);
+	float3 front_pos = pos + normalize(front_v) * max(min(length(front_v), input[0].scale_front_max) - scale_width, 0.001f);
 	// back
 	float3 back_v = -(vel_norm * scale_back + vel * input[0].scale_speed_back);
-	float3 back_pos = pos + normalize(back_v) * max(min(length(back_v), input[0].move_length) -scale_width, 0.001f);
+	float3 back_pos = pos + normalize(back_v) * max(min(min(length(back_v), input[0].move_length), input[0].scale_back_max) -scale_width, 0.001f);
 
 	// 0地点がカメラ位置なのでそのままベクトルとしてポジションを扱う
 	float4 view_front_pos = mul(float4(front_pos, 1.0), view);

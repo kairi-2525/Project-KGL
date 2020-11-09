@@ -19,4 +19,6 @@ struct Particle
 	float	exist_time				: EXIST;
 	float	move_length				: MOVE_LENGTH;
 	uint	tex_num					: TEXTURE_NUM;
+	float	scale_front_max			: SCALE_FRONT_MAX;
+	float	scale_back_max			: SCALE_BACK_MAX;
 };

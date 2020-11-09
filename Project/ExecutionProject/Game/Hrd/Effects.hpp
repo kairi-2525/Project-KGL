@@ -23,6 +23,7 @@ enum class FIREWORKS_VERSION : UINT
 struct Particle;
 struct ParticleParent;
 class Fireworks;
+struct AffectObjects;
 struct EffectDesc;
 
 struct FireworksDesc
@@ -84,7 +85,8 @@ struct Effect
 	void Update(DirectX::CXMVECTOR pos, DirectX::CXMVECTOR velocity,
 		float time, std::vector<Particle>* p_particles, const ParticleParent* p_parent,
 		std::vector<Fireworks>* p_fireworks,
-		const std::vector<Fireworks>& parent_fireworks);
+		const std::vector<AffectObjects>& affect_objects,
+		const std::vector<Fireworks>& affect_fireworks);
 };
 
 namespace FIREWORK_EFFECTS

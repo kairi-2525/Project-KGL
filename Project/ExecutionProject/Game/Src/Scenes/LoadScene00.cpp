@@ -5,6 +5,9 @@
 #include <Helper/Debug.hpp>
 #include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
+#include <Math/Easing.hpp>
+#include <Helper/Color.hpp>
+#include <random>
 
 HRESULT LoadScene00Base::Load(const SceneDesc& desc)
 {
@@ -74,8 +77,25 @@ HRESULT LoadScene00Base::Init(const SceneDesc& desc)
 		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
 		mapped_fresource->time = 0.f;
 		auto resolution = desc.app->GetResolution();
+
+		begin_color = { 0.2f, 0.27f, 0.51f };
+		{
+			std::random_device rd;
+			std::mt19937 mt(rd());
+
+			auto hsv_color = KGL::COLOR::ConvertToHSL(begin_color);
+			hsv_color.x = std::uniform_real_distribution<float>(0.f, 360.f)(mt);
+			begin_color = KGL::COLOR::ConvertToRGB(hsv_color);
+		}
+
+		end_color = { 0.f, 0.f, 0.f };
+		counter = 0.f;
+		counter_max = 2.f;
+
+		mapped_fresource->color = begin_color;
 		mapped_fresource->resolution.x = SCAST<float>(resolution.x);
 		mapped_fresource->resolution.y = SCAST<float>(resolution.y);
+		mapped_fresource->rotate_scale = 1.f;
 		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
 	}
 
@@ -84,16 +104,30 @@ HRESULT LoadScene00Base::Init(const SceneDesc& desc)
 
 HRESULT LoadScene00Base::Update(const SceneDesc& desc, float elapsed_time)
 {
-	{	// フレームバッファを更新
+	using namespace DirectX;
+	// フレームバッファを更新
+	{
 		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+		if (GetNextScene()->IsLoaded())
+		{
+			counter = (std::min(counter + elapsed_time, counter_max));
+			if (counter >= counter_max)
+			{
+				SetMoveSceneFlg(true);
+			}
+			const float dist = KGL::EASE::InCubic(counter / counter_max);
+			XMVECTOR color = XMLoadFloat3(&begin_color) + (XMLoadFloat3(&end_color) - XMLoadFloat3(&begin_color)) * dist;
+			XMStoreFloat3(&mapped_fresource->color, color);
+			mapped_fresource->rotate_scale = 1.f + 2.f * dist;
+		}
 		mapped_fresource->time += elapsed_time / 10;
 		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
 	}
 
-	if (desc.input->IsMouseAnyPressed() || desc.input->IsKeyAnyPressed())
+	/*if (desc.input->IsMouseAnyPressed() || desc.input->IsKeyAnyPressed())
 	{
 		SetMoveSceneFlg(true);
-	}
+	}*/
 
 	return Render(desc);
 }

@@ -61,6 +61,7 @@
     <ClInclude Include="Inc\Input\Pad.hpp" />
     <ClInclude Include="Inc\Input\X.hpp" />
     <ClInclude Include="Inc\Loader\FBXLoader.hpp" />
+    <ClInclude Include="Inc\Math\Easing.hpp" />
     <ClInclude Include="Inc\Math\Gaussian.hpp" />
     <ClInclude Include="Inc\Math\Matrix.hpp" />
     <ClInclude Include="Inc\Helper\ThrowAssert.hpp" />

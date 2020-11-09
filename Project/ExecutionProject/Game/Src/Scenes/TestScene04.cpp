@@ -16,9 +16,6 @@
 
 #include <algorithm>
 
-#define USE_GPU
-#define USE_GPU_OPTION1
-
 HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc)
 {
 	HRESULT hr = S_OK;
@@ -302,6 +299,14 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.input_layouts.push_back({
 			"TEXTURE_NUM", 0, DXGI_FORMAT_R32_UINT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_FRONT_MAX", 0, DXGI_FORMAT_R32_FLOAT, 0,
+			D3D12_APPEND_ALIGNED_ELEMENT,
+			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
+		renderer_desc.input_layouts.push_back({
+			"SCALE_BACK_MAX", 0, DXGI_FORMAT_R32_FLOAT, 0,
 			D3D12_APPEND_ALIGNED_ELEMENT,
 			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 });
 		renderer_desc.other_desc.topology_type = D3D12_PRIMITIVE_TOPOLOGY_TYPE_POINT;
@@ -611,11 +616,13 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	ParticleParent ptc_parent{};
 	//ptc_parent.center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
-	ptc_parent.center_count = 1u;
-	ptc_parent.center_mass = 5.9724e24f;
+	ptc_parent.affect_obj_count = 0.f;
+	//ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
+	ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, player_fireworks);
 	pl_shot_ptc_mgr->SetParent(ptc_parent);
+	pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
 	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent);
 
 	spawn_counter = 0.f;
@@ -830,13 +837,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	if (use_gui)
 	{
-		ParticleParent pp{};
+		ParticleParent pparent{};
 		{
 			auto* p_pp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
-			pp = *p_pp;
+			pparent = *p_pp;
 			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pp, ptc_tex_srv_gui_handles);
+		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
 
 		if (ImGui::Begin("Info"))
 		{
@@ -1005,6 +1012,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_parent->elapsed_time = ptc_update_time;
 			pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
+		ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, player_fireworks);
+		pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
 		if (use_gpu)
 		{
 			particle_pipeline->SetState(cpt_cmd_list);
@@ -1027,7 +1036,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			tm_ptc_update_cpu.Restart();
 			if (particle_total_num > 0)
-				ptc_mgr->Update(player_fireworks);
+				ptc_mgr->Update(fc_mgr->affect_objects, player_fireworks);
+			if (pl_shot_particle_total_num > 0)
+				pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
 			tm_ptc_update_cpu.Count();
 		}
 		
@@ -1045,7 +1056,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		// スポナーからFireworksを生成
 		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
 
-		
 		// プレイヤーショット
 		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
 		{
@@ -1058,6 +1068,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				auto set_desc = *desc;
 				// ランダムカラーをセット
 				FS_Obj::SetRandomColor(&set_desc);
+				set_desc.mass = -5.9724e24f / 100000000;
 				player_fireworks.emplace_back(set_desc);
 			}
 		}
@@ -1083,7 +1094,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	for (auto i = 0; i < fireworks.size(); i++)
 	{
-		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks, player_fireworks))
+		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks, fc_mgr->affect_objects, player_fireworks))
 		{
 			fireworks[i] = fireworks.back();
 			fireworks.pop_back();
@@ -1092,7 +1103,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	for (auto i = 0; i < player_fireworks.size(); i++)
 	{
-		if (!player_fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &player_fireworks, {}))
+		if (!player_fireworks[i].Update(ptc_update_time, &pl_shot_ptc_mgr->frame_particles, &ptc_cb, &player_fireworks, fc_mgr->affect_objects, {}))
 		{
 			player_fireworks[i] = player_fireworks.back();
 			player_fireworks.pop_back();
@@ -1336,8 +1347,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 
 	const auto ptc_size = ptc_mgr->Size();
+	const auto pl_shot_ptc_size = pl_shot_ptc_mgr->Size();
 	const auto fc_mgr_size = fc_mgr->Size();
-	const bool ptc_render = ptc_size + fc_mgr_size > 0;
+	const bool ptc_render = ptc_size + pl_shot_ptc_size + fc_mgr_size > 0;
 	if (ptc_render)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
@@ -1364,6 +1376,11 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
 			cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
 		}
+		if (pl_shot_ptc_size > 0)
+		{
+			cmd_list->IASetVertexBuffers(0, 1, &b_pl_shot_ptc_vbv);
+			cmd_list->DrawInstanced(SCAST<UINT>(pl_shot_ptc_size), 1, 0, 0);
+		}
 
 		particle_wire ? 
 			ptc_renderer.add_pos_wire->SetState(cmd_list) : 
@@ -1385,6 +1402,11 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			{
 				cmd_list->IASetVertexBuffers(0, 1, &b_ptc_vbv);
 				cmd_list->DrawInstanced(SCAST<UINT>(ptc_size), 1, 0, 0);
+			}
+			if (pl_shot_ptc_size > 0)
+			{
+				cmd_list->IASetVertexBuffers(0, 1, &b_pl_shot_ptc_vbv);
+				cmd_list->DrawInstanced(SCAST<UINT>(pl_shot_ptc_size), 1, 0, 0);
 			}
 
 			ptc_renderer.dsv_add_pos->SetState(cmd_list);

@@ -36,7 +36,8 @@ bool Fireworks::Update(
 	std::vector<Particle>* p_particles,
 	const ParticleParent* p_parent,
 	std::vector<Fireworks>* p_fireworks,
-	const std::vector<Fireworks>& parent_fireworks)
+	const std::vector<AffectObjects>& affect_objects,
+	const std::vector<Fireworks>& affect_fireworks)
 {
 	if (this->time > 0.f)
 	{
@@ -53,30 +54,30 @@ bool Fireworks::Update(
 		// Fireworksの位置を更新
 		XMVECTOR xm_pos = XMLoadFloat3(&pos);
 		XMVECTOR xm_velocity = XMLoadFloat3(&velocity);
-		XMVECTOR xm_accs = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+
+		XMVECTOR resultant = XMVectorSet(0.f, 0.f, 0.f, 0.f);
+		for (auto& affect_obj : affect_objects)
 		{
-			XMVECTOR xm_vec = XMVectorSet(0.f, -6378.1f * 1000.f, 0.f, 0.f) - xm_pos;
+			XMVECTOR xm_vec = XMLoadFloat3(&affect_obj.pos) - xm_pos;
 			float l;
 			XMStoreFloat(&l, XMVector3LengthSq(xm_vec));
 			// 0になる可能性があるのでEPSILONを最小値にする
 			// l = (std::max)(l, FLT_EPSILON);
-			float N = (G * mass * p_parent->center_mass) / l;
-			XMVECTOR resultant = XMVector3Normalize(xm_vec) * N;
-			resultant += (-xm_velocity * (p_parent->resistivity * resistivity));
-			xm_accs += (resultant / mass);
+			float N = (G * mass * affect_obj.mass) / l;
+			resultant += XMVector3Normalize(xm_vec) * N;
 		}
-		for (const auto& parent_fw : parent_fireworks)
+		for (const auto& affect_fw : affect_fireworks)
 		{
-			XMVECTOR xm_vec = XMLoadFloat3(&parent_fw.pos) - xm_pos;
+			XMVECTOR xm_vec = XMLoadFloat3(&affect_fw.pos) - xm_pos;
 			float l;
 			XMStoreFloat(&l, XMVector3LengthSq(xm_vec));
 			// 0になる可能性があるのでEPSILONを最小値にする
 			// l = (std::max)(l, FLT_EPSILON);
-			float N = (G * mass * p_parent->center_mass) / l;
-			XMVECTOR resultant = XMVector3Normalize(xm_vec) * N;
-			resultant += (-xm_velocity * (p_parent->resistivity * resistivity));
-			xm_accs += (resultant / mass);
+			float N = (G * mass * affect_fw.mass) / l;
+			resultant += XMVector3Normalize(xm_vec) * N;
 		}
+		resultant += (-xm_velocity * (p_parent->resistivity * resistivity));
+		XMVECTOR xm_accs = (resultant / mass);
 		xm_velocity += xm_accs * time;
 		xm_pos += xm_velocity * time;
 		for (auto& data : effects)
@@ -130,9 +131,9 @@ bool Fireworks::Update(
 					data.late = std::uniform_real_distribution<float>(data.effect.late.x, data.effect.late.y)(mt);
 				}
 				if (XMVector3LengthSq(xm_velocity).m128_f32[0] <= FLT_EPSILON)
-					data.Update(xm_pos, XMVectorSet(0.f, 1.f, 0.f, 0.f), update_time, p_particles, p_parent, p_fireworks, parent_fireworks);
+					data.Update(xm_pos, XMVectorSet(0.f, 1.f, 0.f, 0.f), update_time, p_particles, p_parent, p_fireworks, affect_objects, affect_fireworks);
 				else
-					data.Update(xm_pos, xm_velocity, update_time, p_particles, p_parent, p_fireworks, parent_fireworks);
+					data.Update(xm_pos, xm_velocity, update_time, p_particles, p_parent, p_fireworks, affect_objects, affect_fireworks);
 			}
 		}
 		XMStoreFloat3(&pos, xm_pos);

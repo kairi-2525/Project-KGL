@@ -22,8 +22,10 @@ SamplerState smp : register (s0, space0);
 
 cbuffer FrameBuffer : register (b0)
 {
-	float2 resolution;
+	float3 color;
 	float time;
+	float2 resolution;
+	float rotate_scale;
 }
 
 static const float TAU = 6.2831853f;
@@ -105,9 +107,9 @@ float4 PSMain(PSInput input) : SV_TARGET
 	p *= 3.f;
 
 	float rz = Flow(p);
-	p /= exp(mod(time * 3.f, 2.1f));
+	p /= exp(mod(time * 3.f * rotate_scale, 2.1f));
 	rz *= (6.f - Spiral(p, 3.f)) * 0.9f;
-	float3 col = float3(0.2f, 0.27f, 0.51f) / rz;
+	float3 col = color / rz;
 	col = pow(abs(col), float3(1.01f, 1.01f, 1.01f));
 
 	return float4(col, 1.0f);
