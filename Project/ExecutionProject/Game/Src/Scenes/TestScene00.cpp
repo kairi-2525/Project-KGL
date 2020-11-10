@@ -149,6 +149,7 @@ HRESULT TestScene00::Init(const SceneDesc& desc)
 
 HRESULT TestScene00::Update(const SceneDesc& desc, float elapsed_time)
 {
+	// [←][→]キーでシーン移動
 	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<LoadScene00<TestScene04>>(desc);
