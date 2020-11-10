@@ -192,6 +192,7 @@
     <ClCompile Include="Src\fireworks.cpp" />
     <ClCompile Include="Src\FireworksSpawnerManager.cpp" />
     <ClCompile Include="Src\FXAA.cpp" />
+    <ClCompile Include="Src\GUIManager.cpp" />
     <ClCompile Include="Src\Main.cpp" />
     <ClCompile Include="Src\MSAA.cpp" />
     <ClCompile Include="Src\Obj3D.cpp" />
@@ -221,12 +222,14 @@
     <ClInclude Include="Hrd\Fireworks.hpp" />
     <ClInclude Include="Hrd\FireworksSpawnerManager.hpp" />
     <ClInclude Include="Hrd\FXAA.hpp" />
+    <ClInclude Include="Hrd\GUIManager.h" />
     <ClInclude Include="Hrd\MSAA.hpp" />
     <ClInclude Include="Hrd\Obj3D.hpp" />
     <ClInclude Include="Hrd\ParticleManager.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />
     <ClInclude Include="Hrd\Scenes\LoadScene00.hpp" />
+    <ClInclude Include="Hrd\Scenes\Scenes.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene00.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene01.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene02.hpp" />

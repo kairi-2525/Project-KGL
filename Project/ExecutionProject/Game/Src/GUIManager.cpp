@@ -1,0 +1,1 @@
+#include "../Hrd/GUIManager.h"

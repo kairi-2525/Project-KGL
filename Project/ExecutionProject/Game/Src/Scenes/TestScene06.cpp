@@ -1,6 +1,4 @@
-#include "../../Hrd/Scenes/TestScene04.hpp"
-#include "../../Hrd/Scenes/TestScene06.hpp"
-#include "../../Hrd/Scenes/TestScene00.hpp"
+#include "../../Hrd/Scenes/Scenes.hpp"
 
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
@@ -67,9 +65,9 @@ HRESULT TestScene06::Update(const SceneDesc& desc, float elapsed_time)
 {
 	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
-		SetNextScene<TestScene04>(desc);
+		SetNextScene<LoadScene00<TestScene04>>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
-		SetNextScene<TestScene00>(desc);
+		SetNextScene<LoadScene00<TestScene00>>(desc);
 
 	using namespace DirectX;
 
