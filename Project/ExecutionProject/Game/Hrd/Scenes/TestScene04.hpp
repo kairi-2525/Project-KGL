@@ -31,6 +31,7 @@
 #include "../MSAA.hpp"
 #include "../FXAA.hpp"
 #include "../Scene.hpp"
+#include "../GUIManager.h"
 #include <unordered_map>
 
 class TestScene04 : public SceneBase
@@ -90,6 +91,7 @@ private:
 		"Particle8_gs.hlsl"
 	};
 private:
+	// タイムカウンター
 	KGL::Timer											tm_update;
 	KGL::Timer											tm_render;
 	KGL::Timer											tm_ptc_sort;
@@ -99,7 +101,6 @@ private:
 	UINT64												ct_ptc_frame_max;
 	UINT64												ct_fw_max;
 
-	float												ptc_key_spawn_counter;
 	float												time_scale;
 	bool												use_gpu;
 	bool												spawn_fireworks;
@@ -193,6 +194,7 @@ private:
 
 	std::shared_ptr<FXAAManager>						fxaa_mgr;
 	std::shared_ptr<FSManager>							fs_mgr;
+	std::shared_ptr<GUIManager>							gui_mgr;
 private:
 	// レンダーターゲットとデプスステンシルを作成します。
 	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);

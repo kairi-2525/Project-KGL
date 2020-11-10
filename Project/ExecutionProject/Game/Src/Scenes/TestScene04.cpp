@@ -555,6 +555,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
+	gui_mgr = std::make_shared<GUIManager>(device, desc.imgui_heap_mgr);
+
 	ptc_tex_mgr->LoadWait();
 
 	return hr;
@@ -624,7 +626,6 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent);
 
 	spawn_counter = 0.f;
-	ptc_key_spawn_counter = 0.f;
 
 	camera_angle = { 0.f, 0.f };
 
@@ -649,6 +650,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	sky_draw = true;
 	particle_wire = false;
+
+	gui_mgr->Init();
 
 	ptc_vt_type = PTC_VT::COUNT4;
 
@@ -780,6 +783,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	const float ptc_update_time = stop_time ? 0.f : elapsed_time * time_scale;
 
 	auto input = desc.input;
+	const auto resolution = desc.app->GetResolution();
 
 	if (input->IsKeyPressed(KGL::KEYS::ENTER) && input->IsKeyHold(KGL::KEYS::LCONTROL))
 	{
@@ -789,6 +793,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
+
+	gui_mgr->Update(resolution);
 
 	{
 		float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
@@ -1046,10 +1052,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			spawn_fireworks = !spawn_fireworks;
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
 			stop_time = !stop_time;
-		if (spawn_fireworks)
-			ptc_key_spawn_counter += ptc_update_time;
-		else if (input->IsKeyPressed(KGL::KEYS::MINUS))
-			ptc_key_spawn_counter += key_spawn_time;
 
 		// スポナーからFireworksを生成
 		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
