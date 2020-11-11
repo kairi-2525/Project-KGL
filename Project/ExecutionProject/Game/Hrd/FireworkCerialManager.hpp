@@ -223,6 +223,7 @@ public:
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept;
 	HRESULT Update(float update_time) noexcept;
+	void UpdateDemoGui();
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
 	size_t Size() const;

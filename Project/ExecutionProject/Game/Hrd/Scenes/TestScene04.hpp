@@ -31,7 +31,7 @@
 #include "../MSAA.hpp"
 #include "../FXAA.hpp"
 #include "../Scene.hpp"
-#include "../GUIManager.h"
+#include "../GUIManager.hpp"
 #include <unordered_map>
 
 class TestScene04 : public SceneBase
@@ -103,8 +103,6 @@ private:
 
 	float												time_scale;
 	bool												use_gpu;
-	bool												spawn_fireworks;
-	bool												after_blooming;
 	bool												rt_gui_windowed;
 	bool												sky_gui_windowed;
 

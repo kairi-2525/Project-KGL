@@ -179,10 +179,10 @@
     <ClInclude Include="Hrd\Scenes\LoadScene00.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Hrd\GUIManager.h">
+    <ClInclude Include="Hrd\Scenes\Scenes.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Hrd\Scenes\Scenes.hpp">
+    <ClInclude Include="Hrd\GUIManager.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

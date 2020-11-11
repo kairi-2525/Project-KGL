@@ -585,127 +585,7 @@ HRESULT FCManager::ImGuiUpdate(
 	{
 		if (ImGui::Begin("Fireworks Editor [demo]"))
 		{
-			{
-				if (ImGui::Checkbox(u8"デモ再生", &demo_play))
-				{
-					if (demo_play) PlayDemo(demo_frame_number);
-					else StopDemo();
-				}
-				ImGui::SameLine(); HelpMarker(u8"保存したデモデータを再生します。");
-
-				size_t max_frame_count = 0u;
-				for (auto& data : demo_data)
-				{
-					std::lock_guard<std::mutex> lock(data.build_mutex);
-					if (!data.build_flg && data.exist)
-					{
-						max_frame_count = std::max(max_frame_count, data.ptcs.size());
-					}
-				}
-				for (auto& data : demo_select_data)
-				{
-					std::lock_guard<std::mutex> lock(data.build_mutex);
-					if (!data.build_flg && data.exist)
-					{
-						max_frame_count = std::max(max_frame_count, data.ptcs.size());
-					}
-				}
-				int gui_use_inum;
-				if (demo_play)
-					gui_use_inum = SCAST<int>(demo_play_frame);
-				else
-					gui_use_inum = SCAST<int>(demo_frame_number);
-				gui_use_inum = std::min(gui_use_inum, SCAST<int>(max_frame_count));
-				if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, SCAST<int>(max_frame_count)))
-				{
-					demo_frame_number = SCAST<UINT>(gui_use_inum);
-					if (demo_play)
-					{
-						PlayDemo(demo_frame_number);
-					}
-					for (auto& data : demo_data)
-					{
-						std::lock_guard<std::mutex> lock(data.build_mutex);
-						if (!data.build_flg && data.exist)
-						{
-							data.SetResource(demo_frame_number);
-						}
-					}
-					for (auto& data : demo_select_data)
-					{
-						std::lock_guard<std::mutex> lock(data.build_mutex);
-						if (!data.build_flg && data.exist)
-						{
-							data.SetResource(demo_frame_number);
-						}
-					}
-				}
-				ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
-			}
-
-			if (demo_select_itr != demo_select_data.end())
-			{
-				ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, u8"[編集中] ##9999");
-				ImGui::SameLine();
-				if (ImGui::Button(demo_select_itr->draw_flg ? u8"非表示##9999" : u8"表示##9999"))
-				{
-					demo_select_itr->draw_flg = !demo_select_itr->draw_flg;
-				}
-			}
-
-			UINT idx = 0u;
-			for (auto it = demo_data.begin(); it != demo_data.end();)
-			{
-				{
-					it->build_mutex.lock();
-					if (it->build_flg || !it->exist)
-					{
-						if (!it->build_flg && !it->exist)
-						{
-							it->build_mutex.unlock();
-							it = demo_data.erase(it);
-							continue;
-						}
-
-						it->build_mutex.unlock();
-						it++;
-						continue;
-					}
-					it->build_mutex.unlock();
-				}
-				if (select_demo_number == idx)
-				{
-					ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
-				}
-				else if (ImGui::Button(("[No." + std::to_string(idx + 1) + "]").c_str()))
-				{
-					select_demo_number = idx;
-				}
-				ImGui::SameLine();
-				if (ImGui::Button(((it->draw_flg ? u8"非表示##" : u8"表示##") + std::to_string(idx)).c_str()))
-				{
-					it->draw_flg = !it->draw_flg;
-				}
-				ImGui::SameLine();
-				if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
-				{
-					it->exist = false;
-
-					// 前回描画に使用された可能性があるのでこのフレームでは消さない
-					it++;
-					idx++;
-					continue;
-				}
-
-				if (select_demo_number == idx)
-				{
-					auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
-					ImGui::InputFloat3((u8"座標##" + std::to_string(idx)).c_str(), (float*)&world->position);
-					it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-				}
-				it++;
-				idx++;
-			}
+			UpdateDemoGui();
 		}
 		ImGui::End();
 	}
@@ -1070,4 +950,129 @@ size_t FCManager::Size() const
 		}
 	}
 	return total_size;
+}
+
+void FCManager::UpdateDemoGui()
+{
+	{
+		if (ImGui::Checkbox(u8"デモ再生", &demo_play))
+		{
+			if (demo_play) PlayDemo(demo_frame_number);
+			else StopDemo();
+		}
+		ImGui::SameLine(); HelpMarker(u8"保存したデモデータを再生します。");
+
+		size_t max_frame_count = 0u;
+		for (auto& data : demo_data)
+		{
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+			{
+				max_frame_count = std::max(max_frame_count, data.ptcs.size());
+			}
+		}
+		for (auto& data : demo_select_data)
+		{
+			std::lock_guard<std::mutex> lock(data.build_mutex);
+			if (!data.build_flg && data.exist)
+			{
+				max_frame_count = std::max(max_frame_count, data.ptcs.size());
+			}
+		}
+		int gui_use_inum;
+		if (demo_play)
+			gui_use_inum = SCAST<int>(demo_play_frame);
+		else
+			gui_use_inum = SCAST<int>(demo_frame_number);
+		gui_use_inum = std::min(gui_use_inum, SCAST<int>(max_frame_count));
+		if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, SCAST<int>(max_frame_count)))
+		{
+			demo_frame_number = SCAST<UINT>(gui_use_inum);
+			if (demo_play)
+			{
+				PlayDemo(demo_frame_number);
+			}
+			for (auto& data : demo_data)
+			{
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (!data.build_flg && data.exist)
+				{
+					data.SetResource(demo_frame_number);
+				}
+			}
+			for (auto& data : demo_select_data)
+			{
+				std::lock_guard<std::mutex> lock(data.build_mutex);
+				if (!data.build_flg && data.exist)
+				{
+					data.SetResource(demo_frame_number);
+				}
+			}
+		}
+		ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
+	}
+
+	if (demo_select_itr != demo_select_data.end())
+	{
+		ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, u8"[編集中] ##9999");
+		ImGui::SameLine();
+		if (ImGui::Button(demo_select_itr->draw_flg ? u8"非表示##9999" : u8"表示##9999"))
+		{
+			demo_select_itr->draw_flg = !demo_select_itr->draw_flg;
+		}
+	}
+
+	UINT idx = 0u;
+	for (auto it = demo_data.begin(); it != demo_data.end();)
+	{
+		{
+			it->build_mutex.lock();
+			if (it->build_flg || !it->exist)
+			{
+				if (!it->build_flg && !it->exist)
+				{
+					it->build_mutex.unlock();
+					it = demo_data.erase(it);
+					continue;
+				}
+
+				it->build_mutex.unlock();
+				it++;
+				continue;
+			}
+			it->build_mutex.unlock();
+		}
+		if (select_demo_number == idx)
+		{
+			ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, ("[No." + std::to_string(idx + 1) + "]").c_str());
+		}
+		else if (ImGui::Button(("[No." + std::to_string(idx + 1) + "]").c_str()))
+		{
+			select_demo_number = idx;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(((it->draw_flg ? u8"非表示##" : u8"表示##") + std::to_string(idx)).c_str()))
+		{
+			it->draw_flg = !it->draw_flg;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button((u8"削除##" + std::to_string(idx)).c_str()))
+		{
+			it->exist = false;
+
+			// 前回描画に使用された可能性があるのでこのフレームでは消さない
+			it++;
+			idx++;
+			continue;
+		}
+
+		if (select_demo_number == idx)
+		{
+			auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
+			ImGui::InputFloat3((u8"座標##" + std::to_string(idx)).c_str(), (float*)&world->position);
+			it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		}
+		it++;
+		idx++;
+	}
 }

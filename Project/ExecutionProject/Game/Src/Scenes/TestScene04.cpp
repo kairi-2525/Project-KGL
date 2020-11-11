@@ -556,6 +556,17 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
 	gui_mgr = std::make_shared<GUIManager>(device, desc.imgui_heap_mgr);
+	{	// GUI managerが参照するクラスをセット
+		GUIManager::Desc gui_mgr_desc{};
+		gui_mgr_desc.fc_mgr = fc_mgr;
+		gui_mgr_desc.fs_mgr = fs_mgr;
+		gui_mgr_desc.main_ptc_mgr = ptc_mgr;
+		gui_mgr_desc.player_ptc_mgr = pl_shot_ptc_mgr;
+		gui_mgr_desc.sky_mgr = sky_mgr;
+		gui_mgr_desc.msaa_selector = msaa_selector;
+		gui_mgr_desc.fxaa_mgr = fxaa_mgr;
+		gui_mgr->SetDesc(gui_mgr_desc);
+	}
 
 	ptc_tex_mgr->LoadWait();
 
@@ -637,13 +648,11 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	ResetCounterMax();
 	time_scale = 1.f;
 	use_gpu = true;
-	spawn_fireworks = false;
 
 	dof_flg = true;
 	ptc_dof_flg = false;
 
 	bloom_generator->SetKernel(8u);
-	after_blooming = false;
 
 	rt_gui_windowed = false;
 	sky_gui_windowed = false;
@@ -780,7 +789,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	msaa_depth_draw = false;
 
-	const float ptc_update_time = stop_time ? 0.f : elapsed_time * time_scale;
+	const float ptc_update_time = elapsed_time * gui_mgr->GetTimeScale();
 
 	auto input = desc.input;
 	const auto resolution = desc.app->GetResolution();
@@ -1049,12 +1058,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		float key_spawn_late = 5.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
-			spawn_fireworks = !spawn_fireworks;
+			gui_mgr->spawn_fireworks = !gui_mgr->spawn_fireworks;
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
 			stop_time = !stop_time;
 
 		// スポナーからFireworksを生成
-		if (spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
+		if (gui_mgr->spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
 
 		// プレイヤーショット
 		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
@@ -1159,7 +1168,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				}
 				ImGui::Checkbox("Wire Frame", &particle_wire);
 				ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
-				ImGui::Checkbox("SpawnFireworks", &spawn_fireworks);
+				ImGui::Checkbox("SpawnFireworks", &gui_mgr->spawn_fireworks);
 				bool use_gpu_log = use_gpu;
 				if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
 				ImGui::SameLine();
@@ -1222,7 +1231,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 					if (weights_changed) bloom_generator->SetWeights(weights);
 					ImGui::TreePop();
 				}
-				ImGui::Checkbox("After blooming", &after_blooming);
 
 				if (reset_max_counter0 || reset_max_counter1) 
 					ResetCounterMax();
