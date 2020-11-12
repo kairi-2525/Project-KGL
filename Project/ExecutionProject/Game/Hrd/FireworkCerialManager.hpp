@@ -208,9 +208,9 @@ private:
 		std::mutex* mt_clear,
 		std::vector<AffectObjects> affect_objects
 	) noexcept;
-	bool FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	static float GetMaxTime(const FireworksDesc& desc);
 public:
+	bool FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	FWDESC_STATE DescImGuiUpdate(
 		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
@@ -223,9 +223,17 @@ public:
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept;
 	HRESULT Update(float update_time) noexcept;
+
+	// äOïîëÄçÏóp
+	void UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+		const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
+	FWDESC_STATE DescUpdateGui(
+		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited,
+		const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	void UpdateDemoGui();
 	std::shared_ptr<FireworksDesc> GetSelectDesc() const noexcept { return select_desc; }
 	void Render(KGL::ComPtr<ID3D12GraphicsCommandList> cmd_list) noexcept;
 	size_t Size() const;
 	const std::map<const std::string, std::shared_ptr<FireworksDesc>>& GetDescList() const noexcept { return desc_list; }
+	std::string GetName(std::shared_ptr<FireworksDesc> desc) const;
 };

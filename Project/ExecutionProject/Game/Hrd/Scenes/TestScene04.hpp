@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Dx12/Texture.hpp>
-#include <Helper/Timer.hpp>
 #include <Loader/PMDLoader.hpp>
 #include <Loader/VMDLoader.hpp>
 #include <Dx12/3D/PMDModel.hpp>
@@ -91,15 +90,6 @@ private:
 		"Particle8_gs.hlsl"
 	};
 private:
-	// タイムカウンター
-	KGL::Timer											tm_update;
-	KGL::Timer											tm_render;
-	KGL::Timer											tm_ptc_sort;
-	KGL::Timer											tm_ptc_update_gpu;
-	KGL::Timer											tm_ptc_update_cpu;
-	UINT64												ct_ptc_total_max;
-	UINT64												ct_ptc_frame_max;
-	UINT64												ct_fw_max;
 
 	float												time_scale;
 	bool												use_gpu;
@@ -203,7 +193,6 @@ public:
 	HRESULT FastRender(const SceneDesc& desc);
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
-	void ResetCounterMax();
 	void UpdateRenderTargetGui(const SceneDesc& desc);
 
 	TestScene04() = default;

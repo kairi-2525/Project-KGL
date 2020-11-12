@@ -1,4 +1,5 @@
 #include "../Hrd/GUIManager.hpp"
+#include "../Hrd/Fireworks.hpp"
 #include "../Hrd/FireworkCerialManager.hpp"
 #include "../Hrd/FireworksSpawnerManager.hpp"
 #include "../Hrd/ParticleManager.hpp"
@@ -60,11 +61,24 @@ void GUIManager::Init()
 	main_window_flag |= ImGuiWindowFlags_::ImGuiWindowFlags_NoTitleBar;
 	// ダブルクリックによる最小化の無効化
 	main_window_flag |= ImGuiWindowFlags_::ImGuiWindowFlags_NoCollapse;
+	// スクロールバー非表示
+	main_window_flag |= ImGuiWindowFlags_::ImGuiWindowFlags_NoScrollbar;
+
+	for (auto& sub_window : sub_windows)
+	{
+		sub_window = SUB_WINDOW_TYPE::NONE;
+	}
+
+	CounterReset();
 }
 
 #define FULL_UV { 0.f, 0.f }, { 1.f, 1.f }
 
-void GUIManager::Update(const DirectX::XMUINT2& rt_resolution)
+void GUIManager::Update(
+	const DirectX::XMUINT2& rt_resolution,
+	const ParticleParent* p_parent,
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles
+)
 {
 	static bool open_flg = true;
 	if (ImGui::Begin("GUIManager", &open_flg, main_window_flag))
@@ -75,6 +89,7 @@ void GUIManager::Update(const DirectX::XMUINT2& rt_resolution)
 		ImGui::SetWindowPos(ImVec2(0.f, (SCAST<float>(rt_resolution.y) / 5) * 4), ImGuiCond_::ImGuiCond_Once);
 		ImGui::SetWindowSize(ImVec2(SCAST<float>(rt_resolution.x), SCAST<float>(rt_resolution.y) / 5), ImGuiCond_::ImGuiCond_Once);
 		
+		ImGui::BeginGroup();
 		const ImVec2 window_size = ImGui::GetWindowSize();
 		const ImVec2 play_b_size = { window_size.x / 50, window_size.y / 10 };
 		const ImVec4 pause_b_tint_col = { 0.4f, 1.0f, 0.4f, 1.f };
@@ -130,75 +145,158 @@ void GUIManager::Update(const DirectX::XMUINT2& rt_resolution)
 		// Spawn Fireworks
 		ImGui::Text("Spawn Fireworks"); ImGui::SameLine();
 		ImGui::Checkbox(("##" + std::to_string(idx++)).c_str(), &spawn_fireworks);
-		ImGui::SameLine();
+		
+		const ImVec2 info_window_size = { window_size.x / 4, -1.f };
+		if (ImGui::BeginChild("Info Window", info_window_size, true, ImGuiWindowFlags_NoTitleBar))
+		{
+			HelperTimer("Update Count Total ", tm_update);
+			HelperTimer("Render Count Total ", tm_render);
+			HelperTimer("Particle Update Gpu", tm_ptc_update_gpu);
+			HelperTimer("Particle Update Cpu", tm_ptc_update_cpu);
+			HelperTimer("Particle Update Sort", tm_ptc_sort);
 
-		ImGui::BeginGroup();
-		ImGui::Text("List");
-		ImVec2 ss_window_size = { 200.f, 200.f };
-		if (ImGui::BeginChild("scrolling"), ss_window_size, true, ImGuiWindowFlags_NoTitleBar)
+			HelperCounter("Particle Count Total", ct_ptc_total, &ct_ptc_total_max);
+			HelperCounter("Firework Count Total", ct_fw, &ct_fw_max);
+			HelperCounter("Particle Count Frame", ct_ptc_frame, &ct_ptc_frame_max);
+		}
+		ImGui::EndChild();
+		ImGui::EndGroup();
+
+		ImGui::SameLine();
+		ImGui::NextColumn();
+
+		// サブウィンドウ一覧
+		const ImVec2 param_window_size = { window_size.x / 10, -1.f };
+		if (ImGui::BeginChild("Param Window", param_window_size, true, ImGuiWindowFlags_NoTitleBar))
 		{
 			if (ImGui::Button("Sky"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::SKY))
 					EraseSubWindow(SUB_WINDOW_TYPE::SKY);
 				else
-					SetSubWindow(SUB_WINDOW_TYPE::SKY);
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::SKY, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
 			}
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
-			ImGui::Button("Sky");
+			if (ImGui::Button("Particle"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::FW_EDITOR))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::FW_EDITOR);
+					EraseSubWindow(SUB_WINDOW_TYPE::FW_PARAM);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::FW_EDITOR, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
 		}
 		ImGui::EndChild();
-		ImGui::EndGroup();
+
+		ImGui::SameLine();
+		ImGui::NextColumn();
+
+		const ImVec2 ptc_demo_window_size = { -1.f, -1.f };
+		if (ImGui::BeginChild("Ptc Demo Window", ptc_demo_window_size, true, ImGuiWindowFlags_NoTitleBar))
+		{
+			desc.fc_mgr->UpdateDemoGui();
+		}
+		ImGui::EndChild();
 	}
 	ImGui::End();
 
+	// サブウィンドウを前に詰める
+	PackSubWindow();
 	// サブウィンドウ
+	UINT sub_window_idx = 0u;
+
+	ComPtr<ID3D12Device> device;
+	imgui_srv_desc->Heap()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
 	for (auto& sub_window : sub_windows)
 	{
 		switch (sub_window)
 		{
 			case SUB_WINDOW_TYPE::SKY:
 			{
-				if (BeginSubWindow(rt_resolution, 0))
+				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
 				{
 					desc.sky_mgr->UpdateGui();
 				}
-				ImGui::End();
+				ImGui::End(); break;
+			}
+			case SUB_WINDOW_TYPE::FW_EDITOR:
+			{
+				auto use_flg = main_window_flag;
+				// メニューバーを表示
+				use_flg |= ImGuiWindowFlags_::ImGuiWindowFlags_MenuBar;
+				if (BeginSubWindow(rt_resolution, sub_window_idx, use_flg))
+				{
+					desc.fc_mgr->UpdateGui(device, p_parent, srv_gui_handles);
+
+					auto fc_select = desc.fc_mgr->GetSelectDesc();
+					if (fc_select)
+					{
+						SetSubWindow(SUB_WINDOW_TYPE::FW_PARAM, 1u);
+					}
+					else
+					{
+						SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+					}
+				}
+				ImGui::End(); break;
+			}
+			case SUB_WINDOW_TYPE::FW_PARAM:
+			{
+				auto use_flg = main_window_flag;
+				// タイトルバーを戻す
+				use_flg &= (~ImGuiWindowFlags_::ImGuiWindowFlags_NoTitleBar);
+				// 横スクロールバーを追加
+				use_flg |= ImGuiWindowFlags_::ImGuiWindowFlags_HorizontalScrollbar;
+				auto fc_select = desc.fc_mgr->GetSelectDesc();
+				if (fc_select)
+				{
+					auto title = desc.fc_mgr->GetName(fc_select);
+					if (BeginSubWindow(rt_resolution, sub_window_idx, use_flg, title))
+					{
+						if (desc.fc_mgr->FWDescImGuiUpdate(fc_select.get(), srv_gui_handles))
+						{
+							desc.fc_mgr->CreateSelectDemo(device, p_parent);
+						}
+					}
+					ImGui::End();
+				}
+				break;
 			}
 		}
+		sub_window_idx++;
 	}
 }
 
 // サブウィンドウを座標などをセットした状態でBeginする
-bool GUIManager::BeginSubWindow(const DirectX::XMUINT2& rt_resolution, UINT num)
+bool GUIManager::BeginSubWindow(
+	const DirectX::XMUINT2& rt_resolution,
+	UINT num,
+	ImGuiWindowFlags flags,
+	std::string title)
 {
 	static bool open_flg = true;
 	const ImVec2 base_size = { SCAST<float>(rt_resolution.x) / 5, SCAST<float>(rt_resolution.y) / 5.f };
-	switch (num)
+	
+	UINT offset = 4 - num;
+	if (ImGui::Begin((title + "##" + std::to_string(num)).c_str(), &open_flg, flags))
 	{
-		case 0u:
-		{
-			if (ImGui::Begin("GUIManager Sub 0", &open_flg, main_window_flag))
-			{
-				ImGui::SetWindowPos(ImVec2(base_size.x * 4, 0.f), ImGuiCond_::ImGuiCond_Once);
-				ImGui::SetWindowSize(ImVec2(base_size.x * 1, base_size.y * 4), ImGuiCond_::ImGuiCond_Once);
-				return true;
-			}
-		}
+		ImGui::SetWindowPos(ImVec2(base_size.x * offset, 0.f), ImGuiCond_::ImGuiCond_Once);
+		ImGui::SetWindowSize(ImVec2(base_size.x * 1, base_size.y * 4), ImGuiCond_::ImGuiCond_Once);
+		return true;
 	}
 	return false;
 }
 
+// 空いている場所を探してサブウィンドウをセットする
+// force で最後のウィンドウを強制的に置き換える
 bool GUIManager::SetSubWindow(SUB_WINDOW_TYPE type, bool force)
 {
 	for (auto& sub_window : sub_windows)
@@ -222,6 +320,15 @@ bool GUIManager::SetSubWindow(SUB_WINDOW_TYPE type, bool force)
 	return false;
 }
 
+// num 番目のウィンドウを無理やり置き換える
+void GUIManager::SetSubWindow(SUB_WINDOW_TYPE type, UINT num)
+{
+	if (sub_windows.size() > SCAST<size_t>(num))
+	{
+		sub_windows[num] = type;
+	}
+}
+
 bool GUIManager::EraseSubWindow(SUB_WINDOW_TYPE type)
 {
 	for (auto& sub_window : sub_windows)
@@ -235,6 +342,7 @@ bool GUIManager::EraseSubWindow(SUB_WINDOW_TYPE type)
 	return false;
 }
 
+// 指定したタイプが存在するか確認する
 bool GUIManager::HasSubWindow(SUB_WINDOW_TYPE type)
 {
 	for (auto& sub_window : sub_windows)
@@ -245,4 +353,83 @@ bool GUIManager::HasSubWindow(SUB_WINDOW_TYPE type)
 		}
 	}
 	return false;
+}
+
+// NONEを見つけて前に詰める
+void GUIManager::PackSubWindow()
+{
+	SUB_WINDOW_TYPE* p_none_window = nullptr;
+	for (auto& sub_window : sub_windows)
+	{
+		if (sub_window == SUB_WINDOW_TYPE::NONE)
+		{
+			p_none_window = &sub_window;
+		}
+		else if (p_none_window)
+		{
+			*p_none_window = sub_window;
+			sub_window = SUB_WINDOW_TYPE::NONE;
+			p_none_window = &sub_window;
+		}
+	}
+}
+
+void GUIManager::CounterReset()
+{
+	ct_fw = ct_fw_max = 0u;
+	ct_ptc_total = ct_ptc_total_max = 0u;
+	ct_ptc_frame = ct_ptc_frame_max = 0u;
+
+	tm_update.Clear();
+	tm_render.Clear();
+	tm_ptc_update_gpu.Clear();
+	tm_ptc_update_cpu.Clear();
+	tm_ptc_sort.Clear();
+}
+
+// Imgui Timerクラスヘルパー
+void GUIManager::HelperTimer(const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type)
+{
+	const std::string title_text = (title + " [ %5d ][ %5d ][ %5d ][ %5d ]");
+	switch (sec_type)
+	{
+		case KGL::Timer::SEC::MICRO:
+			ImGui::Text(title_text.c_str(), timer.Last().micro, timer.Average().micro, timer.Min().micro, timer.Max().micro);
+			break;
+		case KGL::Timer::SEC::NANO:
+			ImGui::Text(title_text.c_str(), timer.Last().nano, timer.Average().nano, timer.Min().nano, timer.Max().nano);
+			break;
+		default:
+			ImGui::Text(title_text.c_str(), timer.Last().milli, timer.Average().milli, timer.Min().milli, timer.Max().milli);
+			break;
+	}
+}
+// Imgui Counter ヘルパー
+void GUIManager::HelperCounter(const std::string& title, UINT64 count, UINT64* max_count)
+{
+	if (max_count)
+	{
+		const std::string title_text = (title + " [ %5d ] : [ %5d ]");
+		*max_count = (std::max)(count, *max_count);
+		ImGui::Text(title_text.c_str(), count, *max_count);
+	}
+}
+
+DirectX::XMUINT2 GUIManager::GetNoWindowSpace(const DirectX::XMUINT2& rt_resolution) const
+{
+	const ImVec2 base_size = { SCAST<float>(rt_resolution.x) / 5, SCAST<float>(rt_resolution.y) / 5 };
+	auto result = rt_resolution;
+	UINT offset = 0u;
+	UINT i = 0u;
+	for (const auto& sub_window : sub_windows)
+	{
+		i++;
+		if (sub_window != SUB_WINDOW_TYPE::NONE)
+			offset = i;
+	}
+
+	result.x -= (base_size.x * offset);
+	result.y -= (base_size.y);
+
+	return result;
 }

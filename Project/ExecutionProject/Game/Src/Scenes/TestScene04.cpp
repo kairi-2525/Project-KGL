@@ -645,7 +645,6 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	use_gui = true;
 	stop_time = false;
 
-	ResetCounterMax();
 	time_scale = 1.f;
 	use_gpu = true;
 
@@ -701,19 +700,6 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	msaa_selector->SetScale(msaa_selector->GetMaxScale());
 
 	return S_OK;
-}
-
-void TestScene04::ResetCounterMax()
-{
-	ct_fw_max = 0u;
-	ct_ptc_total_max = 0u;
-	ct_ptc_frame_max = 0u;
-
-	tm_update.Clear();
-	tm_render.Clear();
-	tm_ptc_update_gpu.Clear();
-	tm_ptc_update_cpu.Clear();
-	tm_ptc_sort.Clear();
 }
 
 #define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
@@ -785,7 +771,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
-	tm_update.Restart();
+	gui_mgr->tm_update.Restart();
 
 	msaa_depth_draw = false;
 
@@ -802,8 +788,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-
-	gui_mgr->Update(resolution);
 
 	{
 		float camera_speed = input->IsKeyHold(KGL::KEYS::LSHIFT) ? 100.f : 50.f;
@@ -857,6 +841,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
 		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
+		gui_mgr->Update(resolution, &pparent, ptc_tex_srv_gui_handles);
 
 		if (ImGui::Begin("Info"))
 		{
@@ -1047,12 +1032,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 		else
 		{
-			tm_ptc_update_cpu.Restart();
+			gui_mgr->tm_ptc_update_cpu.Restart();
 			if (particle_total_num > 0)
 				ptc_mgr->Update(fc_mgr->affect_objects, player_fireworks);
 			if (pl_shot_particle_total_num > 0)
 				pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
-			tm_ptc_update_cpu.Count();
+			gui_mgr->tm_ptc_update_cpu.Count();
 		}
 		
 		float key_spawn_late = 5.f;
@@ -1122,19 +1107,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	if (use_gpu)
 	{
-		tm_ptc_update_gpu.Restart();
+		gui_mgr->tm_ptc_update_gpu.Restart();
 		cpt_cmd_queue->Wait();
-		tm_ptc_update_gpu.Count();
+		gui_mgr->tm_ptc_update_gpu.Count();
 		cpt_cmd_allocator->Reset();
 		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
 	}
 
-	tm_ptc_sort.Restart();
+	gui_mgr->tm_ptc_sort.Restart();
 	if (particle_total_num > 0)
 		ptc_mgr->Sort();
 	if (pl_shot_particle_total_num > 0)
 		pl_shot_ptc_mgr->Sort();
-	tm_ptc_sort.Count();
+	gui_mgr->tm_ptc_sort.Count();
 
 	const auto frame_ptc_size = ptc_mgr->frame_particles.size() + pl_shot_ptc_mgr->frame_particles.size();
 	ptc_mgr->AddToFrameParticle();
@@ -1145,6 +1130,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		KGLDebugOutPutStringNL("\r particle : " + std::to_string(counter) + std::string(10, ' '));
 		if (use_gui)
 		{
+			gui_mgr->ct_ptc_total = counter;
+			gui_mgr->ct_fw = fireworks.size() + player_fireworks.size();
+			gui_mgr->ct_ptc_frame = frame_ptc_size;
+
 			if (ImGui::Begin("Particle"))
 			{
 				{
@@ -1178,40 +1167,15 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ImGui::Checkbox("Time Stop", &stop_time);
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
-				constexpr auto TimerGui = [](const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO)
-				{
-					std::string title_text = (title + " [ %5d ][ %5d ][ %5d ][ %5d ]");
-					switch (sec_type)
-					{
-						case KGL::Timer::SEC::MICRO:
-							ImGui::Text(title_text.c_str(), timer.Last().micro, timer.Average().micro, timer.Min().micro, timer.Max().micro);
-							break;
-						case KGL::Timer::SEC::NANO:
-							ImGui::Text(title_text.c_str(), timer.Last().nano, timer.Average().nano, timer.Min().nano, timer.Max().nano);
-							break;
-						default:
-							ImGui::Text(title_text.c_str(), timer.Last().milli, timer.Average().milli, timer.Min().milli, timer.Max().milli);
-							break;
-					}
-				};
-				TimerGui("Update Count Total ", tm_update);
-				TimerGui("Render Count Total ", tm_render);
-				TimerGui("Particle Update Gpu", tm_ptc_update_gpu);
-				TimerGui("Particle Update Cpu", tm_ptc_update_cpu);
-				TimerGui("Particle Update Sort", tm_ptc_sort);
+				GUIManager::HelperTimer("Update Count Total ", gui_mgr->tm_update);
+				GUIManager::HelperTimer("Render Count Total ", gui_mgr->tm_render);
+				GUIManager::HelperTimer("Particle Update Gpu", gui_mgr->tm_ptc_update_gpu);
+				GUIManager::HelperTimer("Particle Update Cpu", gui_mgr->tm_ptc_update_cpu);
+				GUIManager::HelperTimer("Particle Update Sort", gui_mgr->tm_ptc_sort);
 
-				ct_ptc_total_max = (std::max)(counter, ct_ptc_total_max);
-				ImGui::Text("Particle Count Total [ %5d ] : [ %5d ]", counter, ct_ptc_total_max);
-
-				ct_fw_max = (std::max)(fireworks.size() + player_fireworks.size(), ct_fw_max);
-				ImGui::Text("Firework Count Total [ %5d ] : [ %5d ]", fireworks.size(), ct_fw_max);
-				ct_ptc_frame_max = (std::max)(frame_ptc_size, ct_ptc_frame_max);
-				ImGui::Text("Particle Count Frame [ %5d ] : [ %5d ]", frame_ptc_size, ct_ptc_frame_max);
-
-				//ImGui::Text("GPU Time             [ %5d ] : [ %5d ]", gputime, ct_gpu);
-				//ImGui::Text("CPU Time             [ %5d ] : [ %5d ]", cputime, ct_cpu);
-				//ImGui::Text("Firework Update Time [ %5d ] : [ %5d ]", firework_update, ct_fw_update);
-				//ImGui::Text("Map Update Time      [ %5d ] : [ %5d ]", map_update, ct_map_update);
+				GUIManager::HelperCounter("Particle Count Total", gui_mgr->ct_ptc_total, &gui_mgr->ct_ptc_total_max);
+				GUIManager::HelperCounter("Firework Count Total", gui_mgr->ct_fw, &gui_mgr->ct_fw_max);
+				GUIManager::HelperCounter("Particle Count Frame", gui_mgr->ct_ptc_frame, &gui_mgr->ct_ptc_frame_max);
 
 				ImGui::NextColumn();
 				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetKernel());
@@ -1233,7 +1197,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				}
 
 				if (reset_max_counter0 || reset_max_counter1) 
-					ResetCounterMax();
+					gui_mgr->CounterReset();
 			}
 			ImGui::End();
 		}
@@ -1277,7 +1241,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	scene_buffer.mapped_data->zero_texture = particle_wire;
 
-	tm_update.Count();
+	gui_mgr->tm_update.Count();
 
 	ImGui::Render();
 	return Render(desc);
@@ -1290,6 +1254,7 @@ HRESULT TestScene04::FastRender(const SceneDesc& desc)
 
 	//auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
+
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
 
 	// ビューとシザーをセット
@@ -1331,19 +1296,26 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 	HRESULT hr = S_OK;
 
-	tm_render.Restart();
+	gui_mgr->tm_render.Restart();
 
 	//auto window_size = desc.window->GetClientSize();
 	auto resolution = desc.app->GetResolution();
+	auto full_resolution = resolution;
+	if (use_gui) resolution = gui_mgr->GetNoWindowSpace(resolution);
+
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
-	
+	const DirectX::XMFLOAT2 full_resolutionf = { SCAST<FLOAT>(full_resolution.x), SCAST<FLOAT>(full_resolution.y) };
 	// ビューとシザーをセット
+	D3D12_VIEWPORT full_viewport =
+		CD3DX12_VIEWPORT(0.f, 0.f, full_resolutionf.x, full_resolutionf.y);
+	auto full_scissorrect =
+		CD3DX12_RECT(0, 0, full_resolution.x, full_resolution.y);
 	D3D12_VIEWPORT viewport = 
 		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
 	auto scissorrect = 
 		CD3DX12_RECT(0, 0, resolution.x, resolution.y);
-	cmd_list->RSSetViewports(1, &viewport);
-	cmd_list->RSSetScissorRects(1, &scissorrect);
+	cmd_list->RSSetViewports(1, &full_viewport);
+	cmd_list->RSSetScissorRects(1, &full_scissorrect);
 
 	// MSAA識別用
 	const bool fxaa = fxaa_mgr->GetDesc().type == FXAAManager::TYPE::FXAA_ON;
@@ -1488,7 +1460,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	if (ptc_render)
 	{
-		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), viewport);
+		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), full_viewport);
 		// ブルームはMSAAで行わない
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
@@ -1499,7 +1471,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	// DOFの場合はGeneratorから描画させ、そうでない場合はSpriteで描画する
 	if (dof_flg)
 	{
-		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), viewport);
+		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), full_viewport);
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
 		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
@@ -1520,6 +1492,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
 		sprite->Render(cmd_list);
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::FXAA_GRAY));
+		
+		cmd_list->RSSetViewports(1, &viewport);
+		cmd_list->RSSetScissorRects(1, &scissorrect);
 
 		desc.app->SetRtv(cmd_list);
 		fxaa_mgr->SetState(cmd_list);
@@ -1529,12 +1504,19 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	}
 	else
 	{
+		cmd_list->RSSetViewports(1, &viewport);
+		cmd_list->RSSetScissorRects(1, &scissorrect);
+
 		desc.app->SetRtv(cmd_list);
 		sprite_renderers[MSAASelector::MSAA_OFF]->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
 		sprite->Render(cmd_list);
 	}
+
+	// IMGUI用ビューとシザーをセット
+	fast_cmd_list->RSSetViewports(1, &full_viewport);
+	fast_cmd_list->RSSetScissorRects(1, &full_scissorrect);
 
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
@@ -1552,7 +1534,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	desc.app->GetQueue()->Signal();
 	desc.app->GetQueue()->Wait();
 
-	tm_render.Count();
+	gui_mgr->tm_render.Count();
 
 	cmd_allocator->Reset();
 	cmd_list->Reset(cmd_allocator.Get(), nullptr);

@@ -952,6 +952,172 @@ size_t FCManager::Size() const
 	return total_size;
 }
 
+FCManager::FWDESC_STATE FCManager::DescUpdateGui(
+	KGL::ComPtrC<ID3D12Device> device, Desc* desc,
+	const ParticleParent* p_parent, bool* edited,
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
+{
+	FWDESC_STATE result = FWDESC_STATE::NONE;
+	if (desc && desc->second)
+	{
+		if (ImGui::TreeNode(desc->first.c_str()))
+		{
+			if (desc->second->set_name.size() < 64)
+				desc->second->set_name.resize(64u);
+			ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(desc))).c_str(), desc->second->set_name.data(), desc->second->set_name.size());
+			ImGui::SameLine();
+			if (ImGui::Button(u8"名前変更"))
+			{
+				ChangeName(desc->first, desc->second->set_name);
+				ImGui::TreePop();
+				return FWDESC_STATE::LOOP;
+			}
+			if (desc->second == select_desc)
+			{
+				ImGui::Text(u8"選択中");
+			}
+			else if (ImGui::Button(u8"選択"))
+			{
+				select_desc = desc->second;
+				select_name = desc->first;
+				*edited = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"コピー"))
+			{
+				std::string use_name = desc->second->original_name;
+				if (use_name.empty()) use_name = desc->first;
+				cpy_fw_desc = std::make_unique<std::pair<const std::string, FireworksDesc>>(use_name, *desc->second);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8"削除"))
+			{
+				ImGui::TreePop();
+				return FWDESC_STATE::ERASE;
+			}
+			ImGui::SameLine();
+
+			UINT build_count = 0u;
+			for (const auto& data : add_demo_data)
+			{
+				if (data == desc->second)
+				{
+					build_count++;
+				}
+			}
+			if (ImGui::Button(u8"デモ作成"))
+			{
+				add_demo_data.push_back(desc->second);
+				const bool try_lock = demo_mg_mutex.try_lock();
+				if (try_lock) demo_mg_mutex.unlock();
+
+				if (!demo_mg_th || try_lock)
+				{
+					if (demo_mg_th && try_lock)
+						demo_mg_th->join();
+					demo_mg_th = std::make_unique<std::thread>(
+						FCManager::CreateDemo, device, *p_parent,
+						&demo_mg_mutex, &demo_mg_stop_mutex,
+						&add_demo_data, &demo_data,
+						&demo_frame_number, &demo_mg_stop,
+						nullptr,
+						affect_objects
+						);
+				}
+			}
+			if (build_count > 0u)
+			{
+				ImGui::SameLine();
+				ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.f }, (u8"[ " + std::to_string(build_count) + u8" 個作成中 ]").c_str());
+			}
+
+			ImGui::TreePop();
+		}
+	}
+	return result;
+}
+// パーティクルセレクト
+void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
+{
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::Button(u8"作成"))
+			{
+				Create();
+			}
+			if (ImGui::Button(u8"読み込み"))
+			{
+				ReloadDesc();
+			}
+			if (select_desc)
+			{
+				if (ImGui::Button(u8"書き出し"))
+				{
+					if (select_desc)
+					{
+						Export(directory->GetPath(), select_name, select_desc);
+					}
+				}
+				ImGui::SameLine();
+				ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.f }, (u8"[" + select_name + u8"]").c_str());
+			}
+
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+
+	if (ImGui::TreeNode(u8"一覧"))
+	{
+		FWDESC_STATE state = LOOP;
+		bool create_select_demo = false;
+		while (state == LOOP)
+		{
+			if (desc_list.empty())
+			{
+				ImGui::Text(u8"存在しません。");
+				break;
+			}
+			for (auto& desc : desc_list)
+			{
+				bool edited = false;
+				// DescのGuiを更新
+				state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles);
+				if (edited && desc.second == select_desc)
+				{
+					create_select_demo = true;
+				}
+				if (state == LOOP) break;
+				else if (state == ERASE)
+				{
+					desc_list.erase(desc.first);
+					state = LOOP;
+					break;
+				}
+				else if (cpy_fw_desc)
+				{
+					Create(cpy_fw_desc->first, &cpy_fw_desc->second);
+					cpy_fw_desc = nullptr;
+					state = LOOP;
+					break;
+				}
+			}
+		}
+
+		// 選択中のDescが更新されたのでDemoを作成する
+		if (create_select_demo)
+		{
+			CreateSelectDemo(device, p_parent);
+		}
+
+		ImGui::TreePop();
+	}
+}
+
+// Demoパラメーター調整
 void FCManager::UpdateDemoGui()
 {
 	{
@@ -985,7 +1151,10 @@ void FCManager::UpdateDemoGui()
 		else
 			gui_use_inum = SCAST<int>(demo_frame_number);
 		gui_use_inum = std::min(gui_use_inum, SCAST<int>(max_frame_count));
-		if (ImGui::SliderInt(u8"デモサンプル番号", &gui_use_inum, 0, SCAST<int>(max_frame_count)))
+		
+		ImGui::Text(u8"デモサンプル番号");
+		ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
+		if (ImGui::SliderInt(u8"", &gui_use_inum, 0, SCAST<int>(max_frame_count)))
 		{
 			demo_frame_number = SCAST<UINT>(gui_use_inum);
 			if (demo_play)
@@ -1009,7 +1178,7 @@ void FCManager::UpdateDemoGui()
 				}
 			}
 		}
-		ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
+		//ImGui::SameLine(); HelpMarker(u8"保存したデモデータを確認できます。");
 	}
 
 	if (demo_select_itr != demo_select_data.end())
@@ -1075,4 +1244,14 @@ void FCManager::UpdateDemoGui()
 		it++;
 		idx++;
 	}
+}
+
+std::string FCManager::GetName(std::shared_ptr<FireworksDesc> desc) const
+{
+	for (const auto &it : desc_list)
+	{
+		if (it.second == desc)
+			return it.first;
+	}
+	return {};
 }
