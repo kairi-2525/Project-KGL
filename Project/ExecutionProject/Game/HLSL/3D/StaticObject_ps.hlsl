@@ -52,6 +52,13 @@ uint querySpecularTextureLevels()
 	return levels;
 }
 
+
+
+float3 fresnel_schlick(float NoL, float3 F0)
+{
+	return F0 + (1.0 - F0) * pow(1.0 - NoL, 5.8);
+}
+
 float4 PSMain(PSInput input) : SV_TARGET
 {
 	//// 入力テクスチャをサンプリングして、シェーディングモデルのパラメータを取得します。
@@ -152,5 +159,37 @@ float4 PSMain(PSInput input) : SV_TARGET
 	//return float4(1.0f, 1.0f, 1.0f, 1.0f);
 
 
-	return float4(albedo_texture.Sample(default_sampler, input.texcoord).rgb, 1.0);
+	float3 diffuse_color = albedo_texture.Sample(default_sampler, input.texcoord).rgb;
+	// 真っ暗になるのを防ぐ目的で入れる間接照明
+	float3 ambient_light = { 0.2, 0.2, 0.2 };
+
+	float3 L = -lights[0].direction;
+	float3 N = input.normal;
+
+	float3 irraduabce = lights[0].radiance * max(0, dot(N, L)) + ambient_light;
+	// 反射率
+	float reflectance = fresnel_schlick(max(0, dot(N, L)), specular_texture.Sample(default_sampler, input.texcoord).r);
+
+	//return float4(reflectance, reflectance, reflectance, 1.f);
+
+	float3 diffuse_exitance = diffuse_color * irraduabce * (1.f - reflectance);
+	float3 diffuse_radiance = diffuse_exitance / PI;
+	
+	// トーン
+	// float tones = 4;
+	// diffuse_radiance = ceil(diffuse_radiance * tones) / tones;
+
+
+	float3 R = normalize(reflect(-L, N));
+	float3 V = normalize(eyePosition - input.position);
+
+	float3 specular_exitance = irraduabce * reflectance;
+	float3 specular_radiance = specular_exitance * pow(max(0, dot(V, R)), 36);
+
+
+	float3 radiance = diffuse_radiance + specular_radiance;
+
+	// float rim = smoothstep(0.6, 1.0, 1.0 - max(dot(V, N), 0.0));
+
+	return float4(pow(radiance, 1.0 / 2.2), 1.0);
 }

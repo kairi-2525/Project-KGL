@@ -12,5 +12,6 @@ GSInput VSMain(VSInput input)
 	//output.tangent_basis = transpose(TBN);
 
 	output.pixel_position = mul(float4(input.position, 1.f), viewProjectionMatrix);
+	output.normal = input.normal;
 	return output;
 }

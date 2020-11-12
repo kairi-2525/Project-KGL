@@ -172,7 +172,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	ptc_tex_mgr = std::make_shared<ParticleTextureManager>(device, "./Assets/Textures/Particles");
 	ptc_tex_mgr->CreateSRV(device, &ptc_tex_srv_gui_handles, desc.imgui_heap_mgr);
 	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
-	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 100000u);
+	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
 
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
@@ -772,6 +772,19 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 {
 	gui_mgr->tm_update.Restart();
+
+
+	{
+		auto resolution = desc.app->GetResolution();
+		if (use_gui)
+			resolution = gui_mgr->GetNoWindowSpace(resolution);
+		const DirectX::XMMATRIX proj_mat = DirectX::XMMatrixPerspectiveFovLH(
+			DirectX::XMConvertToRadians(70.f),	// FOV
+			static_cast<float>(resolution.x) / static_cast<float>(resolution.y),	// アスペクト比
+			0.1f, 1000.0f // near, far
+		);
+		XMStoreFloat4x4(&proj, proj_mat);
+	}
 
 	msaa_depth_draw = false;
 

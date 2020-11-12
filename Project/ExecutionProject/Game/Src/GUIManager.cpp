@@ -110,7 +110,7 @@ void GUIManager::Update(
 		if (time_stop && imgui_srv_handles.count(NAME_PAUSE_BUTTON) == 1u)
 		{
 			auto tex_id = (ImTextureID)imgui_srv_handles.at(NAME_PAUSE_BUTTON)->Gpu().ptr;
-			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, pause_b_tint_col))
+			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, play_b_tint_col))
 			{
 				time_stop = false;
 			}
@@ -119,7 +119,7 @@ void GUIManager::Update(
 		else if (imgui_srv_handles.count(NAME_PLAY_BUTTON) == 1u)
 		{
 			auto tex_id = (ImTextureID)imgui_srv_handles.at(NAME_PLAY_BUTTON)->Gpu().ptr;
-			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, play_b_tint_col))
+			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, pause_b_tint_col))
 			{
 				time_stop = true;
 			}
@@ -149,6 +149,7 @@ void GUIManager::Update(
 		const ImVec2 info_window_size = { window_size.x / 4, -1.f };
 		if (ImGui::BeginChild("Info Window", info_window_size, true, ImGuiWindowFlags_NoTitleBar))
 		{
+			ImGui::Text("FPS : %d", SCAST<int>(ImGui::GetIO().Framerate));
 			HelperTimer("Update Count Total ", tm_update);
 			HelperTimer("Render Count Total ", tm_render);
 			HelperTimer("Particle Update Gpu", tm_ptc_update_gpu);
@@ -255,6 +256,8 @@ void GUIManager::Update(
 				use_flg &= (~ImGuiWindowFlags_::ImGuiWindowFlags_NoTitleBar);
 				// 横スクロールバーを追加
 				use_flg |= ImGuiWindowFlags_::ImGuiWindowFlags_HorizontalScrollbar;
+				// スクロールバー非表示を戻す
+				use_flg &= (~ImGuiWindowFlags_::ImGuiWindowFlags_NoScrollbar);
 				auto fc_select = desc.fc_mgr->GetSelectDesc();
 				if (fc_select)
 				{
@@ -284,12 +287,14 @@ bool GUIManager::BeginSubWindow(
 {
 	static bool open_flg = true;
 	const ImVec2 base_size = { SCAST<float>(rt_resolution.x) / 5, SCAST<float>(rt_resolution.y) / 5.f };
-	
+	const ImVec2 window_size = ImVec2(base_size.x * 1, base_size.y * 4);
 	UINT offset = 4 - num;
+
+	ImGui::SetNextWindowContentSize(ImVec2(window_size.x * 2, 0.f));
 	if (ImGui::Begin((title + "##" + std::to_string(num)).c_str(), &open_flg, flags))
 	{
 		ImGui::SetWindowPos(ImVec2(base_size.x * offset, 0.f), ImGuiCond_::ImGuiCond_Once);
-		ImGui::SetWindowSize(ImVec2(base_size.x * 1, base_size.y * 4), ImGuiCond_::ImGuiCond_Once);
+		ImGui::SetWindowSize(window_size, ImGuiCond_::ImGuiCond_Once);
 		return true;
 	}
 	return false;

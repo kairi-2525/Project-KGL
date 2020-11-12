@@ -10,14 +10,17 @@ void GSMain(
 	element[0].pixel_position = input[0].pixel_position;
 	element[0].position = input[0].position;
 	element[0].texcoord = input[0].texcoord;
+	element[0].normal = input[0].normal;
 
 	element[1].pixel_position = input[1].pixel_position;
 	element[1].position = input[1].position;
 	element[1].texcoord = input[1].texcoord;
+	element[1].normal = input[1].normal;
 
 	element[2].pixel_position = input[2].pixel_position;
 	element[2].position = input[2].position;
 	element[2].texcoord = input[2].texcoord;
+	element[2].normal = input[2].normal;
 
 	// Edges of the triangle : postion delta
 	float3 delta_pos0 = element[1].position - element[0].position;

@@ -43,4 +43,5 @@ struct PSInput
 	float3 position : POSITION;
 	float2 texcoord : TEXCOORD;
 	float3x3 tangent_basis : TBASIS;
+	float3 normal    : NORMAL;
 };
