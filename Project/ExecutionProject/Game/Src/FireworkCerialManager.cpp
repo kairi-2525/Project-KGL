@@ -740,6 +740,7 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 					if (ImGui::Button(u8"削除"))
 					{
 						itr = desc->effects.erase(itr);
+						ImGui::TreePop();
 						continue;
 					}
 					if (ImGui::TreeNode(u8"パラメーター"))

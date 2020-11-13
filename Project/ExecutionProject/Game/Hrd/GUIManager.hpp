@@ -15,6 +15,8 @@ class SkyManager;
 class MSAASelector;
 class FXAAManager;
 struct ParticleParent;
+class Fireworks;
+class DebugManager;
 
 class GUIManager
 {
@@ -28,13 +30,21 @@ public:
 		std::shared_ptr<SkyManager>			sky_mgr;
 		std::shared_ptr<MSAASelector>		msaa_selector;
 		std::shared_ptr<FXAAManager>		fxaa_mgr;
+		std::shared_ptr<DebugManager>		debug_mgr;
+
+		std::shared_ptr<std::vector<Fireworks>> fireworks;
+		std::shared_ptr<std::vector<Fireworks>> player_fireworks;
+
+		std::shared_ptr<std::vector<RenderTargetResource>>	rt_resources;
 	};
 	enum class SUB_WINDOW_TYPE : UINT
 	{
 		NONE,
 		SKY,
 		FW_EDITOR,
-		FW_PARAM
+		FW_PARAM,
+		FW_SPAWNER,
+		OPTION
 	};
 private:
 	static inline const std::string										NAME_PLAY_BUTTON = "T_6_continue_";
@@ -53,9 +63,14 @@ private:
 	std::array<SUB_WINDOW_TYPE, 2u>	sub_windows;
 
 	float	time_scale;	// 時間倍速
-	bool	time_stop;
 public:
 	bool	spawn_fireworks;
+	bool	ptc_wire;
+	bool	ptc_dof;
+	bool	dof_flg;
+	bool	use_gpu;
+	bool	time_stop;
+	bool	sky_draw;
 
 	// タイムカウンター
 	KGL::Timer											tm_update;
@@ -77,6 +92,9 @@ private:
 	void PackSubWindow();	// 前に詰める
 	void SkyRender();
 	bool BeginSubWindow(const DirectX::XMUINT2& rt_resolution, UINT num, ImGuiWindowFlags flags, std::string title = "");
+	
+	// ウィンドウ更新
+	void UpdatePtcOption();
 public:
 	static void HelperTimer(const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO);
 	static void HelperCounter(const std::string& title, UINT64 count, UINT64* max_count);

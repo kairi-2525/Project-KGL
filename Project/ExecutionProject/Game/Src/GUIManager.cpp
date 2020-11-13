@@ -6,6 +6,8 @@
 #include "../Hrd/SkyMap.hpp"
 #include "../Hrd/MSAA.hpp"
 #include "../Hrd/FXAA.hpp"
+#include "../Hrd/Debug.hpp"
+#include "../Hrd/RenderTarget.hpp"
 
 #include <Helper/Cast.hpp>
 #include <Base/Directory.hpp>
@@ -50,6 +52,10 @@ void GUIManager::Init()
 	time_scale = 1.f;
 	time_stop = false;
 	spawn_fireworks = false;
+	use_gpu = true;
+	ptc_dof = false;
+	dof_flg = true;
+	ptc_wire = false;
 
 	main_window_flag = ImGuiWindowFlags_::ImGuiWindowFlags_None;
 
@@ -143,8 +149,20 @@ void GUIManager::Update(
 		ImGui::SameLine();
 
 		// Spawn Fireworks
-		ImGui::Text("Spawn Fireworks"); ImGui::SameLine();
+		ImGui::Text("Spawn"); ImGui::SameLine();
 		ImGui::Checkbox(("##" + std::to_string(idx++)).c_str(), &spawn_fireworks);
+		ImGui::SameLine();
+
+		ImGui::Dummy(ImVec2(play_b_size.x / 2, play_b_size.y));
+		ImGui::SameLine();
+
+		if (ImGui::Button("Clear"))
+		{
+			desc.main_ptc_mgr->Clear();
+			desc.player_ptc_mgr->Clear();
+			desc.fireworks->clear();
+			desc.player_fireworks->clear();
+		}
 		
 		const ImVec2 info_window_size = { window_size.x / 4, -1.f };
 		if (ImGui::BeginChild("Info Window", info_window_size, true, ImGuiWindowFlags_NoTitleBar))
@@ -190,6 +208,30 @@ void GUIManager::Update(
 				else
 				{
 					SetSubWindow(SUB_WINDOW_TYPE::FW_EDITOR, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
+			if (ImGui::Button("Spawner"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::FW_SPAWNER))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::FW_SPAWNER);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::FW_SPAWNER, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
+			if (ImGui::Button("Options"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::OPTION))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::OPTION);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::OPTION, 0u);
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
@@ -273,9 +315,52 @@ void GUIManager::Update(
 				}
 				break;
 			}
+			case SUB_WINDOW_TYPE::FW_SPAWNER:
+			{
+				auto use_flg = main_window_flag;
+				// メニューバーを表示
+				use_flg |= ImGuiWindowFlags_::ImGuiWindowFlags_MenuBar;
+				if (BeginSubWindow(rt_resolution, sub_window_idx, use_flg))
+				{
+					desc.fs_mgr->UpdateGui(desc.fc_mgr->GetDescList());
+				}
+				ImGui::End(); break;
+			}
+			case SUB_WINDOW_TYPE::OPTION:
+			{
+				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
+				{
+					UpdatePtcOption();
+				}
+				ImGui::End(); break;
+			}
 		}
 		sub_window_idx++;
 	}
+}
+
+void GUIManager::UpdatePtcOption()
+{
+	ImGui::Text(u8"パーティクル");
+	ImGui::Indent(16.0f);
+	ImGui::Checkbox(u8"GPU更新", &use_gpu);
+	ImGui::Checkbox(u8"ワイヤフレーム", &ptc_wire);
+	ImGui::Checkbox(u8"深度値書き込み", &ptc_dof);
+	ImGui::Unindent(16.0f);
+
+	ImGui::Spacing();
+
+	ImGui::Text(u8"花火");
+	ImGui::Indent(16.0f);
+	ImGui::Checkbox(u8"生成", &spawn_fireworks);
+	ImGui::Unindent(16.0f);
+
+	ImGui::Spacing();
+
+	ImGui::Text(u8"空");
+	ImGui::Indent(16.0f);
+	ImGui::Checkbox(u8"描画", &sky_draw);
+	ImGui::Unindent(16.0f);
 }
 
 // サブウィンドウを座標などをセットした状態でBeginする

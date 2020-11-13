@@ -72,6 +72,7 @@ public:
 	FSManager(const std::filesystem::path& path, const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list) noexcept;
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
 	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
+	void UpdateGui(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 };
 
 #define EV_0_FSODC_ARCHIVE \

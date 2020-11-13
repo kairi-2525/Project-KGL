@@ -422,74 +422,79 @@ void FSManager::GUIUpdate(const std::map<const std::string, std::shared_ptr<Fire
 {
 	if (ImGui::Begin("Fireworks Spawner", nullptr, ImGuiWindowFlags_MenuBar))
 	{
-		if (ImGui::BeginMenuBar())
+		UpdateGui(desc_list);
+	}
+	ImGui::End();
+}
+
+void FSManager::UpdateGui(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
+{
+	if (ImGui::BeginMenuBar())
+	{
+		if (ImGui::BeginMenu(u8"ファイル"))
 		{
-			if (ImGui::BeginMenu(u8"ファイル"))
+			if (ImGui::BeginMenu(u8"新規作成"))
 			{
-				if (ImGui::BeginMenu(u8"新規作成"))
+				if (set_name.size() < 64u)
+					set_name.resize(64u);
+				ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(this))).c_str(), set_name.data(), set_name.size());
+				ImGui::SameLine();
+				// 新規FSを追加
+				if (ImGui::Button(u8"作成") && !set_name.empty())
 				{
-					if (set_name.size() < 64u)
-						set_name.resize(64u);
-					ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(this))).c_str(), set_name.data(), set_name.size());
-					ImGui::SameLine();
-					// 新規FSを追加
-					if (ImGui::Button(u8"作成") && !set_name.empty())
-					{
-						Create(set_name);
-						set_name.clear();
-					}
-					ImGui::EndMenu();
-				}
-				if (select_fs)
-				{
-					if (ImGui::BeginMenu(u8"書き出し"))
-					{
-						if (ImGui::Button(("Export " + select_fs->name).c_str()))
-						{
-							Export();
-						}
-						ImGui::EndMenu();
-					}
+					Create(set_name);
+					set_name.clear();
 				}
 				ImGui::EndMenu();
 			}
-			ImGui::EndMenuBar();
-		}
-		if (!fs_list.empty())
-		{
-			if (ImGui::TreeNode(u8"一覧"))
+			if (select_fs)
 			{
-				UINT i = 0u;
-				for (auto itr = fs_list.begin(); itr != fs_list.end();)
+				if (ImGui::BeginMenu(u8"書き出し"))
 				{
-					if ((*itr) == select_fs)
+					if (ImGui::Button(("Export " + select_fs->name).c_str()))
 					{
-						if (ImGui::Button((u8"解除##" + std::to_string(i)).c_str()))
-						{
-							select_fs = nullptr;
-						}
+						Export();
 					}
-					else
-					{
-						if (ImGui::Button((u8"選択##" + std::to_string(i)).c_str()))
-						{
-							select_fs = (*itr);
-						}
-					}
-					ImGui::SameLine();
-					if ((*itr)->GUIUpdate(desc_list))
-					{
-						itr++;
-					}
-					else
-					{
-						itr = fs_list.erase(itr);
-					}
-					i++;
+					ImGui::EndMenu();
 				}
-				ImGui::TreePop();
 			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+	if (!fs_list.empty())
+	{
+		if (ImGui::TreeNode(u8"一覧"))
+		{
+			UINT i = 0u;
+			for (auto itr = fs_list.begin(); itr != fs_list.end();)
+			{
+				if ((*itr) == select_fs)
+				{
+					if (ImGui::Button((u8"解除##" + std::to_string(i)).c_str()))
+					{
+						select_fs = nullptr;
+					}
+				}
+				else
+				{
+					if (ImGui::Button((u8"選択##" + std::to_string(i)).c_str()))
+					{
+						select_fs = (*itr);
+					}
+				}
+				ImGui::SameLine();
+				if ((*itr)->GUIUpdate(desc_list))
+				{
+					itr++;
+				}
+				else
+				{
+					itr = fs_list.erase(itr);
+				}
+				i++;
+			}
+			ImGui::TreePop();
 		}
 	}
-	ImGui::End();
 }

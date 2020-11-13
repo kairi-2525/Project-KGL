@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Dx12/Texture.hpp>
 #include <Loader/PMDLoader.hpp>
 #include <Loader/VMDLoader.hpp>
 #include <Dx12/3D/PMDModel.hpp>
@@ -11,11 +10,11 @@
 #include <Dx12/PipelineState.hpp>
 #include <Dx12/Shader.hpp>
 #include <Base/Camera.hpp>
-#include <Dx12/RenderTargetView.hpp>
 #include <Dx12/DescriptorHeap.hpp>
 #include <Dx12/ConstantBuffer.hpp>
 #include <Dx12/Compute.hpp>
 #include <Dx12/3D/Board.hpp>
+#include "../RenderTarget.hpp"
 #include "../Particle.hpp"
 #include "../Fireworks.hpp"
 #include "../SkyMap.hpp"
@@ -54,29 +53,6 @@ class TestScene04 : public SceneBase
 		DirectX::XMFLOAT4X4 mat;
 		DirectX::XMFLOAT4 color;
 	};
-	struct RenderTargetResource
-	{
-		struct Texture
-		{
-			std::shared_ptr<KGL::Texture>		tex;
-			KGL::DescriptorHandle				gui_srv_handle;
-		};
-		std::vector<Texture>						render_targets;
-		std::shared_ptr<KGL::RenderTargetView>		rtvs;
-		KGL::DescriptorHandle						dsv_handle;
-		std::shared_ptr<KGL::Texture>				depth_stencil;
-		KGL::DescriptorHandle						depth_srv_handle;
-		KGL::DescriptorHandle						depth_gui_srv_handle;
-	};
-	struct BoardRenderers
-	{
-		std::shared_ptr<KGL::BaseRenderer>			simple;
-		std::shared_ptr<KGL::BaseRenderer>			add_pos;
-		std::shared_ptr<KGL::BaseRenderer>			simple_wire;
-		std::shared_ptr<KGL::BaseRenderer>			add_pos_wire;
-		std::shared_ptr<KGL::BaseRenderer>			dsv;
-		std::shared_ptr<KGL::BaseRenderer>			dsv_add_pos;
-	};
 	struct SceneBuffers : public SceneBase::SceneBuffers
 	{
 		DirectX::XMMATRIX inv_view;
@@ -92,7 +68,6 @@ private:
 private:
 
 	float												time_scale;
-	bool												use_gpu;
 	bool												rt_gui_windowed;
 	bool												sky_gui_windowed;
 
@@ -102,8 +77,6 @@ private:
 	std::shared_ptr<DemoCamera>							camera;
 	DirectX::XMFLOAT2									camera_angle;
 	bool												use_gui;
-	bool												stop_time;
-	bool												particle_wire;
 
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>		sprite_renderers;
 	std::vector<std::shared_ptr<KGL::BaseRenderer>>		add_sprite_renderers;
@@ -131,7 +104,6 @@ private:
 	std::shared_ptr<KGL::CommandQueue>					cpt_cmd_queue;
 
 	PTC_VT												ptc_vt_type;
-	bool												ptc_dof_flg;
 	std::vector<KGL::DescriptorHandle>					ptc_tex_srv_gui_handles;
 	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;
@@ -139,8 +111,8 @@ private:
 	std::shared_ptr<KGL::ComputePipline>				particle_pipeline;
 	float												spawn_counter;
 
-	std::vector<Fireworks>								fireworks;
-	std::vector<Fireworks>								player_fireworks;
+	std::shared_ptr<std::vector<Fireworks>>				fireworks;
+	std::shared_ptr<std::vector<Fireworks>>				player_fireworks;
 
 	struct AlphaBuffer
 	{
@@ -158,7 +130,6 @@ private:
 	std::shared_ptr<KGL::BaseRenderer>					grid_renderer;
 	SceneBufferDx12<AlphaBuffer>						grid_buffer;
 
-	bool												sky_draw;
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
 	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_c_imgui_handles;
@@ -166,14 +137,13 @@ private:
 	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_h_imgui_handles;
 	KGL::DescriptorHandle								bl_bloom_imgui_handle;
 
-	bool												dof_flg;
 	std::shared_ptr<DOFGenerator>						dof_generator;
 	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
 
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
 
-	std::vector<RenderTargetResource>					rt_resources;
+	std::shared_ptr<std::vector<RenderTargetResource>>	rt_resources;
 	std::shared_ptr<KGL::DescriptorManager>				depth_dsv_descriptor;
 	std::shared_ptr<KGL::DescriptorManager>				depth_srv_descriptor;
 	std::shared_ptr<MSAASelector>						msaa_selector;

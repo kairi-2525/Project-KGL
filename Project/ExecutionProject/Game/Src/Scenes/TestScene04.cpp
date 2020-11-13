@@ -18,7 +18,7 @@ HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC samp
 {
 	HRESULT hr = S_OK;
 	auto device = desc.app->GetDevice();
-	auto& rtrc = rt_resources.emplace_back();
+	auto& rtrc = rt_resources->emplace_back();
 
 	// レンダーターゲット
 	constexpr auto clear_value = DirectX::XMFLOAT4(0.f, 0.f, 0.f, 1.f);
@@ -463,8 +463,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		b_pl_shot_ptc_vbv.StrideInBytes = sizeof(Particle);
 	}
 
-	fireworks.reserve(10000u);
-	player_fireworks.reserve(10000u);
+	fireworks = std::make_shared<std::vector<Fireworks>>();
+	player_fireworks = std::make_shared<std::vector<Fireworks>>();
+	fireworks->reserve(10000u);
+	player_fireworks->reserve(10000u);
 
 	
 	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
@@ -547,6 +549,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	DXGI_SAMPLE_DESC sample_desc = {};
 	sample_desc.Count = 1u;
 	//sample_desc.Quality = desc.app->GetMaxQualityLevel();
+	rt_resources = std::make_shared<std::vector<RenderTargetResource>>();
 	while (sample_desc.Count <= desc.app->GetMaxSampleCount())
 	{
 		PrepareRTAndDS(desc, sample_desc);
@@ -565,6 +568,13 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		gui_mgr_desc.sky_mgr = sky_mgr;
 		gui_mgr_desc.msaa_selector = msaa_selector;
 		gui_mgr_desc.fxaa_mgr = fxaa_mgr;
+		gui_mgr_desc.debug_mgr = debug_mgr;
+
+		gui_mgr_desc.fireworks = fireworks;
+		gui_mgr_desc.player_fireworks = player_fireworks;
+
+		gui_mgr_desc.rt_resources = rt_resources;
+
 		gui_mgr->SetDesc(gui_mgr_desc);
 	}
 
@@ -631,7 +641,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	//ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
-	ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, player_fireworks);
+	ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
 	pl_shot_ptc_mgr->SetParent(ptc_parent);
 	pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
 	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent);
@@ -643,21 +653,13 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	sky_mgr->Init(view * proj_mat);
 
 	use_gui = true;
-	stop_time = false;
 
 	time_scale = 1.f;
-	use_gpu = true;
-
-	dof_flg = true;
-	ptc_dof_flg = false;
 
 	bloom_generator->SetKernel(8u);
 
 	rt_gui_windowed = false;
 	sky_gui_windowed = false;
-
-	sky_draw = true;
-	particle_wire = false;
 
 	gui_mgr->Init();
 
@@ -713,14 +715,14 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 		
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)rt_resources->at(MSAASelector::TYPE::MSAA_OFF).depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
 		msaa_depth_draw = true;
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
 	{
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
-		ImGui::Image((ImTextureID)rt_resources[MSAASelector::TYPE::MSAA_OFF].render_targets[PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Bloom"))
@@ -853,7 +855,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			pparent = *p_pp;
 			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
+		//fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
 		gui_mgr->Update(resolution, &pparent, ptc_tex_srv_gui_handles);
 
 		if (ImGui::Begin("Info"))
@@ -864,11 +866,11 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ImGui::Text("xyz[ %.2f, %.2f, %.2f ]", camera_pos.x, camera_pos.y, camera_pos.z);
 			ImGui::Spacing();
 
-			ImGui::Checkbox("Draw Sky", &sky_draw);
+			ImGui::Checkbox("Draw Sky", &gui_mgr->sky_draw);
 			ImGui::Spacing();
 
-			ImGui::Checkbox("Use DOF", &dof_flg);
-			ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
+			ImGui::Checkbox("Use DOF", &gui_mgr->dof_flg);
+			ImGui::Checkbox("Particle Dof", &gui_mgr->ptc_dof);
 			auto dof_rtv_num = SCAST<int>(dof_generator->GetRtvNum());
 			if (ImGui::SliderInt("Scale", &dof_rtv_num, 1, 8))
 			{
@@ -986,8 +988,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		ptc_mgr->Clear();
 		pl_shot_ptc_mgr->Clear();
-		fireworks.clear();
-		player_fireworks.clear();
+		fireworks->clear();
+		player_fireworks->clear();
 	}
 	if (use_gui)
 	{
@@ -997,13 +999,13 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			{
 				ptc_mgr->Clear();
 				pl_shot_ptc_mgr->Clear();
-				fireworks.clear();
-				player_fireworks.clear();
+				fireworks->clear();
+				player_fireworks->clear();
 			}
 		}
 		ImGui::End();
 
-		fs_mgr->GUIUpdate(fc_mgr->GetDescList());
+		// fs_mgr->GUIUpdate(fc_mgr->GetDescList());
 	}
 
 	using namespace DirectX;
@@ -1023,9 +1025,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			ptc_parent->elapsed_time = ptc_update_time;
 			pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 		}
-		ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, player_fireworks);
+		ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
 		pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
-		if (use_gpu)
+		if (gui_mgr->use_gpu)
 		{
 			particle_pipeline->SetState(cpt_cmd_list);
 
@@ -1047,7 +1049,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		{
 			gui_mgr->tm_ptc_update_cpu.Restart();
 			if (particle_total_num > 0)
-				ptc_mgr->Update(fc_mgr->affect_objects, player_fireworks);
+				ptc_mgr->Update(fc_mgr->affect_objects, *player_fireworks);
 			if (pl_shot_particle_total_num > 0)
 				pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
 			gui_mgr->tm_ptc_update_cpu.Count();
@@ -1058,10 +1060,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
 			gui_mgr->spawn_fireworks = !gui_mgr->spawn_fireworks;
 		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
-			stop_time = !stop_time;
+			gui_mgr->time_stop = !gui_mgr->time_stop;
 
 		// スポナーからFireworksを生成
-		if (gui_mgr->spawn_fireworks) fs_mgr->Update(ptc_update_time, &fireworks);
+		if (gui_mgr->spawn_fireworks) fs_mgr->Update(ptc_update_time, fireworks.get());
 
 		// プレイヤーショット
 		if (input->IsMousePressed(KGL::MOUSE_BUTTONS::left))
@@ -1075,8 +1077,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				auto set_desc = *desc;
 				// ランダムカラーをセット
 				FS_Obj::SetRandomColor(&set_desc);
-				set_desc.mass = -5.9724e24f / 100000000;
-				player_fireworks.emplace_back(set_desc);
+				set_desc.mass = 5.9724e24f / 100000000;
+				player_fireworks->emplace_back(set_desc);
 			}
 		}
 
@@ -1099,26 +1101,26 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
 	}
 
-	for (auto i = 0; i < fireworks.size(); i++)
+	for (auto i = 0; i < fireworks->size(); i++)
 	{
-		if (!fireworks[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, &fireworks, fc_mgr->affect_objects, player_fireworks))
+		if (!(*fireworks)[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, fireworks.get(), fc_mgr->affect_objects, *player_fireworks))
 		{
-			fireworks[i] = fireworks.back();
-			fireworks.pop_back();
+			(*fireworks)[i] = fireworks->back();
+			fireworks->pop_back();
 			i--;
 		}
 	}
-	for (auto i = 0; i < player_fireworks.size(); i++)
+	for (auto i = 0; i < player_fireworks->size(); i++)
 	{
-		if (!player_fireworks[i].Update(ptc_update_time, &pl_shot_ptc_mgr->frame_particles, &ptc_cb, &player_fireworks, fc_mgr->affect_objects, {}))
+		if (!(*player_fireworks)[i].Update(ptc_update_time, &pl_shot_ptc_mgr->frame_particles, &ptc_cb, player_fireworks.get(), fc_mgr->affect_objects, {}))
 		{
-			player_fireworks[i] = player_fireworks.back();
-			player_fireworks.pop_back();
+			(*player_fireworks)[i] = player_fireworks->back();
+			player_fireworks->pop_back();
 			i--;
 		}
 	}
 
-	if (use_gpu)
+	if (gui_mgr->use_gpu)
 	{
 		gui_mgr->tm_ptc_update_gpu.Restart();
 		cpt_cmd_queue->Wait();
@@ -1144,7 +1146,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		if (use_gui)
 		{
 			gui_mgr->ct_ptc_total = counter;
-			gui_mgr->ct_fw = fireworks.size() + player_fireworks.size();
+			gui_mgr->ct_fw = fireworks->size() + player_fireworks->size();
 			gui_mgr->ct_ptc_frame = frame_ptc_size;
 
 			if (ImGui::Begin("Particle"))
@@ -1168,16 +1170,16 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 						ImGui::EndCombo();
 					}
 				}
-				ImGui::Checkbox("Wire Frame", &particle_wire);
-				ImGui::Checkbox("Particle Dof", &ptc_dof_flg);
+				ImGui::Checkbox("Wire Frame", &gui_mgr->ptc_wire);
+				ImGui::Checkbox("Particle Dof", &gui_mgr->ptc_dof);
 				ImGui::Checkbox("SpawnFireworks", &gui_mgr->spawn_fireworks);
-				bool use_gpu_log = use_gpu;
-				if (ImGui::RadioButton("GPU", use_gpu)) use_gpu = true;
+				bool use_gpu_log = gui_mgr->use_gpu;
+				if (ImGui::RadioButton("GPU", gui_mgr->use_gpu)) gui_mgr->use_gpu = true;
 				ImGui::SameLine();
-				if (ImGui::RadioButton("CPU", !use_gpu)) use_gpu = false;
-				const bool reset_max_counter0 = use_gpu_log != use_gpu;
+				if (ImGui::RadioButton("CPU", !gui_mgr->use_gpu)) gui_mgr->use_gpu = false;
+				const bool reset_max_counter0 = use_gpu_log != gui_mgr->use_gpu;
 				const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
-				ImGui::Checkbox("Time Stop", &stop_time);
+				ImGui::Checkbox("Time Stop", &gui_mgr->time_stop);
 				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
 				ImGui::InputFloat("", &time_scale);
 				GUIManager::HelperTimer("Update Count Total ", gui_mgr->tm_update);
@@ -1252,7 +1254,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		debug_mgr->Update(tc, sc, use_gui);
 	}
 
-	scene_buffer.mapped_data->zero_texture = particle_wire;
+	scene_buffer.mapped_data->zero_texture = gui_mgr->ptc_wire;
 
 	gui_mgr->tm_update.Count();
 
@@ -1283,8 +1285,8 @@ HRESULT TestScene04::FastRender(const SceneDesc& desc)
 	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : SCAST<UINT>(msaa_selector->GetScale());
 	const bool msaa = msaa_scale != SCAST<UINT>(MSAASelector::MSAA_OFF);
 
-	const auto& rtrc = rt_resources[msaa_scale];
-	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
+	const auto& rtrc = rt_resources->at(msaa_scale);
+	const auto& rtrc_off = rt_resources->at(MSAASelector::MSAA_OFF);
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 
 	// Sky と Debug を RT::NON_BLOOM に描画
@@ -1292,7 +1294,7 @@ HRESULT TestScene04::FastRender(const SceneDesc& desc)
 	rtrc.rtvs->Set(fast_cmd_list, dsv_handle, RT::MAIN);
 	rtrc.rtvs->Clear(fast_cmd_list, rtrc.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
 	fast_cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-	if (sky_draw) sky_mgr->Render(fast_cmd_list, msaa_scale);
+	if (gui_mgr->sky_draw) sky_mgr->Render(fast_cmd_list, msaa_scale);
 	debug_mgr->Render(fast_cmd_list, msaa_scale);
 	fast_cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
 
@@ -1335,8 +1337,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	const UINT msaa_scale = fxaa ? SCAST<UINT>(MSAASelector::MSAA_OFF) : SCAST<UINT>(msaa_selector->GetScale());
 	const bool msaa = msaa_scale != SCAST<UINT>(MSAASelector::MSAA_OFF);
 
-	const auto& rtrc = rt_resources[msaa_scale];
-	const auto& rtrc_off = rt_resources[MSAASelector::MSAA_OFF];
+	const auto& rtrc = rt_resources->at(msaa_scale);
+	const auto& rtrc_off = rt_resources->at(MSAASelector::MSAA_OFF);
 	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 
 	const auto ptc_size = ptc_mgr->Size();
@@ -1354,7 +1356,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-		particle_wire ? 
+		gui_mgr->ptc_wire ?
 			ptc_renderer.simple_wire->SetState(cmd_list) :
 			ptc_renderer.simple->SetState(cmd_list);
 
@@ -1375,14 +1377,14 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			cmd_list->DrawInstanced(SCAST<UINT>(pl_shot_ptc_size), 1, 0, 0);
 		}
 
-		particle_wire ? 
+		gui_mgr->ptc_wire ?
 			ptc_renderer.add_pos_wire->SetState(cmd_list) : 
 			ptc_renderer.add_pos->SetState(cmd_list);
 
 		if (fc_mgr_size > 0) fc_mgr->Render(cmd_list);
 
 		// 被写界深度用にパーティクルの深度値を書き込む
-		if (dof_flg && ptc_dof_flg)
+		if (gui_mgr->dof_flg && gui_mgr->ptc_dof)
 		{
 			ptc_renderer.dsv->SetState(cmd_list);
 			cmd_list->SetDescriptorHeaps(1, scene_buffer.handle.Heap().GetAddressOf());
@@ -1459,7 +1461,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			};
 			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 		}
-		if (dof_flg || msaa_depth_draw)
+		if (gui_mgr->dof_flg || msaa_depth_draw)
 		{	// 深度値をコピーする
 			desc.app->SetDsv(cmd_list);
 			desc.app->ClearDsv(cmd_list);
@@ -1482,7 +1484,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	}
 
 	// DOFの場合はGeneratorから描画させ、そうでない場合はSpriteで描画する
-	if (dof_flg)
+	if (gui_mgr->dof_flg)
 	{
 		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), full_viewport);
 		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
@@ -1528,8 +1530,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	}
 
 	// IMGUI用ビューとシザーをセット
-	fast_cmd_list->RSSetViewports(1, &full_viewport);
-	fast_cmd_list->RSSetScissorRects(1, &full_scissorrect);
+	cmd_list->RSSetViewports(1, &full_viewport);
+	cmd_list->RSSetScissorRects(1, &full_scissorrect);
 
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
@@ -1570,7 +1572,7 @@ HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> ne
 			desc.imgui_heap_mgr->Free(handle);
 	}
 
-	for (const auto& rtrs : rt_resources)
+	for (const auto& rtrs : *rt_resources)
 	{
 		for (const auto& rt : rtrs.render_targets)
 		{
