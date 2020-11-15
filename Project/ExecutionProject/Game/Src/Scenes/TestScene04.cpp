@@ -73,12 +73,12 @@ HRESULT TestScene04::PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC samp
 		device->CreateDepthStencilView(rtrc.depth_stencil->Data().Get(), &dsv_desc, rtrc.dsv_handle.Cpu());
 
 		// Combo用text
-		msaa_combo_texts.push_back("x" + std::to_string(sample_desc.Count));
+		msaa_combo_texts->push_back("x" + std::to_string(sample_desc.Count));
 	}
 	else
 	{
 		// Combo用text
-		msaa_combo_texts.push_back("OFF");
+		msaa_combo_texts->push_back("OFF");
 	}
 
 	// 深度用のSRV作成 (+ IMGUI用SRV)
@@ -147,6 +147,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 	DXGI_SAMPLE_DESC max_sample_desc = { desc.app->GetMaxSampleCount(), desc.app->GetMaxQualityLevel() };
+
+	gui_mgr = std::make_shared<GUIManager>(device, desc.imgui_heap_mgr);
 
 	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
 	const UINT msaa_type_count = SCAST<UINT>(msaa_selector->GetMaxScale()) + 1u;
@@ -484,7 +486,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		for (auto& imgui_handle : bl_c_imgui_handles)
+		for (auto& imgui_handle : gui_mgr->bl_c_imgui_handles)
 		{
 			imgui_handle = desc.imgui_heap_mgr->Alloc();
 			srv_desc.Format = tex_c[idx]->Data()->GetDesc().Format;
@@ -492,7 +494,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			idx++;
 		}
 		idx = 0u;
-		for (auto& imgui_handle : bl_w_imgui_handles)
+		for (auto& imgui_handle : gui_mgr->bl_w_imgui_handles)
 		{
 			imgui_handle = desc.imgui_heap_mgr->Alloc();
 			srv_desc.Format = tex_w[idx]->Data()->GetDesc().Format;
@@ -500,7 +502,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			idx++;
 		}
 		idx = 0u;
-		for (auto& imgui_handle : bl_h_imgui_handles)
+		for (auto& imgui_handle : gui_mgr->bl_h_imgui_handles)
 		{
 			imgui_handle = desc.imgui_heap_mgr->Alloc();
 			srv_desc.Format = tex_h[idx]->Data()->GetDesc().Format;
@@ -508,9 +510,9 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 			idx++;
 		}
 
-		bl_bloom_imgui_handle = desc.imgui_heap_mgr->Alloc();
+		gui_mgr->bl_bloom_imgui_handle = desc.imgui_heap_mgr->Alloc();
 		srv_desc.Format = tex->Data()->GetDesc().Format;
-		device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, bl_bloom_imgui_handle.Cpu());
+		device->CreateShaderResourceView(tex->Data().Get(), &srv_desc, gui_mgr->bl_bloom_imgui_handle.Cpu());
 	}
 
 	{	// 被写界深度
@@ -522,7 +524,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		srv_desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 		srv_desc.Texture2D.MipLevels = 1;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		for (auto& imgui_handle : dof_imgui_handles)
+		for (auto& imgui_handle : gui_mgr->dof_imgui_handles)
 		{
 			imgui_handle = desc.imgui_heap_mgr->Alloc();
 			srv_desc.Format = tex[idx]->Data()->GetDesc().Format;
@@ -550,6 +552,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	sample_desc.Count = 1u;
 	//sample_desc.Quality = desc.app->GetMaxQualityLevel();
 	rt_resources = std::make_shared<std::vector<RenderTargetResource>>();
+	msaa_combo_texts = std::make_shared<std::vector<std::string>>();
 	while (sample_desc.Count <= desc.app->GetMaxSampleCount())
 	{
 		PrepareRTAndDS(desc, sample_desc);
@@ -558,7 +561,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
-	gui_mgr = std::make_shared<GUIManager>(device, desc.imgui_heap_mgr);
 	{	// GUI managerが参照するクラスをセット
 		GUIManager::Desc gui_mgr_desc{};
 		gui_mgr_desc.fc_mgr = fc_mgr;
@@ -567,8 +569,11 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		gui_mgr_desc.player_ptc_mgr = pl_shot_ptc_mgr;
 		gui_mgr_desc.sky_mgr = sky_mgr;
 		gui_mgr_desc.msaa_selector = msaa_selector;
+		gui_mgr_desc.msaa_combo_texts = msaa_combo_texts;
 		gui_mgr_desc.fxaa_mgr = fxaa_mgr;
 		gui_mgr_desc.debug_mgr = debug_mgr;
+		gui_mgr_desc.bloom_generator = bloom_generator;
+		gui_mgr_desc.dof_generator = dof_generator;
 
 		gui_mgr_desc.fireworks = fireworks;
 		gui_mgr_desc.player_fireworks = player_fireworks;
@@ -716,7 +721,6 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 		
 		ImGui::Image((ImTextureID)rt_resources->at(MSAASelector::TYPE::MSAA_OFF).depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
-		msaa_depth_draw = true;
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
@@ -730,7 +734,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
 		UINT idx = 0u;
 		ImGui::Text("Compression");
-		for (const auto& handle : bl_c_imgui_handles)
+		for (const auto& handle : gui_mgr->bl_c_imgui_handles)
 		{
 			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
@@ -738,7 +742,7 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		}
 		idx = 0u;
 		ImGui::Text("Width Blur");
-		for (const auto& handle : bl_h_imgui_handles)
+		for (const auto& handle : gui_mgr->bl_h_imgui_handles)
 		{
 			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
@@ -746,21 +750,21 @@ void TestScene04::UpdateRenderTargetGui(const SceneDesc& desc)
 		}
 		idx = 0u;
 		ImGui::Text("Height Blur");
-		for (const auto& handle : bl_w_imgui_handles)
+		for (const auto& handle : gui_mgr->bl_w_imgui_handles)
 		{
 			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
 		ImGui::Text("Result");
-		ImGui::Image((ImTextureID)bl_bloom_imgui_handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)gui_mgr->bl_bloom_imgui_handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("DOF"))
 	{
 		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
 		UINT idx = 0u;
-		for (const auto& handle : dof_imgui_handles)
+		for (const auto& handle : gui_mgr->dof_imgui_handles)
 		{
 			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
 			if (idx % 2 == 0) ImGui::SameLine();
@@ -788,8 +792,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMStoreFloat4x4(&proj, proj_mat);
 	}
 
-	msaa_depth_draw = false;
-
 	const float ptc_update_time = elapsed_time * gui_mgr->GetTimeScale();
 
 	auto input = desc.input;
@@ -798,6 +800,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	if (input->IsKeyPressed(KGL::KEYS::ENTER) && input->IsKeyHold(KGL::KEYS::LCONTROL))
 	{
 		return Init(desc);
+	}
+	if (input->IsKeyPressed(KGL::KEYS::ESCAPE))
+	{
+		return E_FAIL;
 	}
 
 	ImGui_ImplDX12_NewFrame();
@@ -858,7 +864,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		//fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
 		gui_mgr->Update(resolution, &pparent, ptc_tex_srv_gui_handles);
 
-		if (ImGui::Begin("Info"))
+		/*if (ImGui::Begin("Info"))
 		{
 			ImGui::Text("FPS");
 			ImGui::Text("%.2f", ImGui::GetIO().Framerate);
@@ -881,19 +887,19 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			fxaa_mgr->ImGuiTreeUpdate(desc.app->GetResolution());
 			ImGui::Spacing();
 			{
-				std::string select_msaa = msaa_combo_texts[SCAST<UINT>(msaa_selector->GetScale())];
+				std::string select_msaa = msaa_combo_texts->at(SCAST<UINT>(msaa_selector->GetScale()));
 
-				// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
+				 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
 				if (ImGui::BeginCombo("MSAA", select_msaa.c_str()))
 				{
-					for (int n = 0; n < msaa_combo_texts.size(); n++)
+					for (int n = 0; n < msaa_combo_texts->size(); n++)
 					{
-						// オブジェクトの外側または内側に、選択内容を好きなように保存できます
-						bool is_selected = (select_msaa == msaa_combo_texts[n]);
-						if (ImGui::Selectable(msaa_combo_texts[n].c_str(), is_selected))
+						 オブジェクトの外側または内側に、選択内容を好きなように保存できます
+						bool is_selected = (select_msaa == msaa_combo_texts->at(n));
+						if (ImGui::Selectable(msaa_combo_texts->at(n).c_str(), is_selected))
 							msaa_selector->SetScale(SCAST<MSAASelector::TYPE>(n));
 						if (is_selected)
-							// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
+							 コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
 							ImGui::SetItemDefaultFocus();
 					}
 					ImGui::EndCombo();
@@ -958,7 +964,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				sky_mgr->UpdateGui();
 			}
 			ImGui::End();
-		}
+		}*/
 	}
 
 	fxaa_mgr->UpdateBuffer();
@@ -979,10 +985,10 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMStoreFloat4x4(&grid_buffer.mapped_data->wvp, WVP);
 	}
 
-	if (input->IsKeyPressed(KGL::KEYS::LEFT))
+	/*if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<LoadScene00<TestScene03>>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
-		SetNextScene<LoadScene00<TestScene00>>(desc);
+		SetNextScene<LoadScene00<TestScene00>>(desc);*/
 
 	if (input->IsKeyPressed(KGL::KEYS::BACKSPACE))
 	{
@@ -993,7 +999,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	if (use_gui)
 	{
-		if (ImGui::Begin("Particle"))
+		/*if (ImGui::Begin("Particle"))
 		{
 			if (ImGui::Button("Clear"))
 			{
@@ -1003,7 +1009,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				player_fireworks->clear();
 			}
 		}
-		ImGui::End();
+		ImGui::End();*/
 
 		// fs_mgr->GUIUpdate(fc_mgr->GetDescList());
 	}
@@ -1149,72 +1155,72 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			gui_mgr->ct_fw = fireworks->size() + player_fireworks->size();
 			gui_mgr->ct_ptc_frame = frame_ptc_size;
 
-			if (ImGui::Begin("Particle"))
-			{
-				{
-					std::string select_vt = PTC_VT_TABLE[ptc_vt_type];
+			//if (ImGui::Begin("Particle"))
+			//{
+			//	{
+			//		std::string select_vt = PTC_VT_TABLE[ptc_vt_type];
 
-					// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
-					if (ImGui::BeginCombo("Vertex Type", select_vt.c_str()))
-					{
-						for (int n = 0; n < PTC_VT_TABLE.size(); n++)
-						{
-							// オブジェクトの外側または内側に、選択内容を好きなように保存できます
-							bool is_selected = (select_vt == PTC_VT_TABLE[n]);
-							if (ImGui::Selectable(PTC_VT_TABLE[n].c_str(), is_selected))
-								ptc_vt_type = SCAST<PTC_VT>(n);
-							if (is_selected)
-								// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
-								ImGui::SetItemDefaultFocus();
-						}
-						ImGui::EndCombo();
-					}
-				}
-				ImGui::Checkbox("Wire Frame", &gui_mgr->ptc_wire);
-				ImGui::Checkbox("Particle Dof", &gui_mgr->ptc_dof);
-				ImGui::Checkbox("SpawnFireworks", &gui_mgr->spawn_fireworks);
-				bool use_gpu_log = gui_mgr->use_gpu;
-				if (ImGui::RadioButton("GPU", gui_mgr->use_gpu)) gui_mgr->use_gpu = true;
-				ImGui::SameLine();
-				if (ImGui::RadioButton("CPU", !gui_mgr->use_gpu)) gui_mgr->use_gpu = false;
-				const bool reset_max_counter0 = use_gpu_log != gui_mgr->use_gpu;
-				const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
-				ImGui::Checkbox("Time Stop", &gui_mgr->time_stop);
-				ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
-				ImGui::InputFloat("", &time_scale);
-				GUIManager::HelperTimer("Update Count Total ", gui_mgr->tm_update);
-				GUIManager::HelperTimer("Render Count Total ", gui_mgr->tm_render);
-				GUIManager::HelperTimer("Particle Update Gpu", gui_mgr->tm_ptc_update_gpu);
-				GUIManager::HelperTimer("Particle Update Cpu", gui_mgr->tm_ptc_update_cpu);
-				GUIManager::HelperTimer("Particle Update Sort", gui_mgr->tm_ptc_sort);
+			//		// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
+			//		if (ImGui::BeginCombo("Vertex Type", select_vt.c_str()))
+			//		{
+			//			for (int n = 0; n < PTC_VT_TABLE.size(); n++)
+			//			{
+			//				// オブジェクトの外側または内側に、選択内容を好きなように保存できます
+			//				bool is_selected = (select_vt == PTC_VT_TABLE[n]);
+			//				if (ImGui::Selectable(PTC_VT_TABLE[n].c_str(), is_selected))
+			//					ptc_vt_type = SCAST<PTC_VT>(n);
+			//				if (is_selected)
+			//					// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
+			//					ImGui::SetItemDefaultFocus();
+			//			}
+			//			ImGui::EndCombo();
+			//		}
+			//	}
+			//	ImGui::Checkbox("Wire Frame", &gui_mgr->ptc_wire);
+			//	ImGui::Checkbox("Particle Dof", &gui_mgr->ptc_dof);
+			//	ImGui::Checkbox("SpawnFireworks", &gui_mgr->spawn_fireworks);
+			//	bool use_gpu_log = gui_mgr->use_gpu;
+			//	if (ImGui::RadioButton("GPU", gui_mgr->use_gpu)) gui_mgr->use_gpu = true;
+			//	ImGui::SameLine();
+			//	if (ImGui::RadioButton("CPU", !gui_mgr->use_gpu)) gui_mgr->use_gpu = false;
+			//	const bool reset_max_counter0 = use_gpu_log != gui_mgr->use_gpu;
+			//	const bool reset_max_counter1 = ImGui::Button("Reset Max Counter");
+			//	ImGui::Checkbox("Time Stop", &gui_mgr->time_stop);
+			//	ImGui::SliderFloat("Time Scale", &time_scale, 0.f, 2.f); ImGui::SameLine();
+			//	ImGui::InputFloat("", &time_scale);
+			//	GUIManager::HelperTimer("Update Count Total ", gui_mgr->tm_update);
+			//	GUIManager::HelperTimer("Render Count Total ", gui_mgr->tm_render);
+			//	GUIManager::HelperTimer("Particle Update Gpu", gui_mgr->tm_ptc_update_gpu);
+			//	GUIManager::HelperTimer("Particle Update Cpu", gui_mgr->tm_ptc_update_cpu);
+			//	GUIManager::HelperTimer("Particle Update Sort", gui_mgr->tm_ptc_sort);
 
-				GUIManager::HelperCounter("Particle Count Total", gui_mgr->ct_ptc_total, &gui_mgr->ct_ptc_total_max);
-				GUIManager::HelperCounter("Firework Count Total", gui_mgr->ct_fw, &gui_mgr->ct_fw_max);
-				GUIManager::HelperCounter("Particle Count Frame", gui_mgr->ct_ptc_frame, &gui_mgr->ct_ptc_frame_max);
+			//	GUIManager::HelperCounter("Particle Count Total", gui_mgr->ct_ptc_total, &gui_mgr->ct_ptc_total_max);
+			//	GUIManager::HelperCounter("Firework Count Total", gui_mgr->ct_fw, &gui_mgr->ct_fw_max);
+			//	GUIManager::HelperCounter("Particle Count Frame", gui_mgr->ct_ptc_frame, &gui_mgr->ct_ptc_frame_max);
 
-				ImGui::NextColumn();
-				int bloom_scale = KGL::SCAST<int>(bloom_generator->GetKernel());
-				if (ImGui::SliderInt("Bloom Scale", &bloom_scale, 0, KGL::SCAST<int>(BloomGenerator::RTV_MAX)))
-				{
-					bloom_generator->SetKernel(KGL::SCAST<UINT8>(bloom_scale));
-				}
-				if (ImGui::TreeNode("Weights"))
-				{
-					auto weights = bloom_generator->GetWeights();
-					bool weights_changed = false;
-					for (UINT i = 0u; i < BloomGenerator::RTV_MAX; i++)
-					{
-						bool changed = ImGui::SliderFloat(std::to_string(i).c_str(), &weights[i], 0.f, 1.f);
-						weights_changed = weights_changed || changed;
-					}
-					if (weights_changed) bloom_generator->SetWeights(weights);
-					ImGui::TreePop();
-				}
+			//	ImGui::NextColumn();
+			//	int bloom_scale = KGL::SCAST<int>(bloom_generator->GetKernel());
+			//	if (ImGui::SliderInt("Bloom Scale", &bloom_scale, 0, KGL::SCAST<int>(BloomGenerator::RTV_MAX)))
+			//	{
+			//		bloom_generator->SetKernel(KGL::SCAST<UINT8>(bloom_scale));
+			//	}
+			//	if (ImGui::TreeNode("Weights"))
+			//	{
+			//		auto weights = bloom_generator->GetWeights();
+			//		bool weights_changed = false;
+			//		for (UINT i = 0u; i < BloomGenerator::RTV_MAX; i++)
+			//		{
+			//			bool changed = ImGui::SliderFloat(std::to_string(i).c_str(), &weights[i], 0.f, 1.f);
+			//			weights_changed = weights_changed || changed;
+			//		}
+			//		if (weights_changed) bloom_generator->SetWeights(weights);
+			//		ImGui::TreePop();
+			//	}
 
-				if (reset_max_counter0 || reset_max_counter1) 
-					gui_mgr->CounterReset();
-			}
-			ImGui::End();
+			//	if (reset_max_counter0 || reset_max_counter1) 
+			//		gui_mgr->CounterReset();
+			//}
+			//ImGui::End();
 		}
 	}
 
@@ -1251,7 +1257,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 		sc.lights[0].radiance = { 1.f, 1.f, 1.f };
 
-		debug_mgr->Update(tc, sc, use_gui);
+		debug_mgr->Update(tc, sc);
 	}
 
 	scene_buffer.mapped_data->zero_texture = gui_mgr->ptc_wire;
@@ -1461,7 +1467,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 			};
 			cmd_list->ResourceBarrier(SCAST<UINT>(std::size(barriers)), barriers);
 		}
-		if (gui_mgr->dof_flg || msaa_depth_draw)
+		if (gui_mgr->dof_flg)
 		{	// 深度値をコピーする
 			desc.app->SetDsv(cmd_list);
 			desc.app->ClearDsv(cmd_list);

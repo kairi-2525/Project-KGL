@@ -34,6 +34,7 @@
 
 class TestScene04 : public SceneBase
 {
+public:
 	enum RT : UINT
 	{
 		MAIN,
@@ -42,6 +43,7 @@ class TestScene04 : public SceneBase
 		PTC_BLOOM,
 		FXAA_GRAY
 	};
+private:
 	enum PTC_VT : UINT
 	{
 		NONE,
@@ -132,13 +134,8 @@ private:
 
 	std::shared_ptr<SkyManager>							sky_mgr;
 	std::shared_ptr<BloomGenerator>						bloom_generator;
-	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_c_imgui_handles;
-	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_w_imgui_handles;
-	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX> bl_h_imgui_handles;
-	KGL::DescriptorHandle								bl_bloom_imgui_handle;
 
 	std::shared_ptr<DOFGenerator>						dof_generator;
-	std::array<KGL::DescriptorHandle, 8u>				dof_imgui_handles;
 
 	std::shared_ptr<FCManager>							fc_mgr;
 	std::shared_ptr<DebugManager>						debug_mgr;
@@ -147,8 +144,7 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>				depth_dsv_descriptor;
 	std::shared_ptr<KGL::DescriptorManager>				depth_srv_descriptor;
 	std::shared_ptr<MSAASelector>						msaa_selector;
-	std::vector<std::string>							msaa_combo_texts;
-	bool												msaa_depth_draw;	// MSAA描画時に深度テクスチャをチェックしている際に使用されます。
+	std::shared_ptr<std::vector<std::string>>			msaa_combo_texts;
 
 	std::shared_ptr<FXAAManager>						fxaa_mgr;
 	std::shared_ptr<FSManager>							fs_mgr;

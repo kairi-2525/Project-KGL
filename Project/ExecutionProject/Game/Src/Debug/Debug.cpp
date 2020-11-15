@@ -255,7 +255,7 @@ void DebugManager::ChangeTexture(Texture* texture, int flg)
 	}
 }
 
-HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstants& sc, bool use_gui)
+HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstants& sc)
 {
 	HRESULT hr = S_OK;
 	if (s_obj_changed)
@@ -274,39 +274,35 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 		*mapped_buffer = sc;
 		s_obj_sc_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
 	}
-
-	if (use_gui)
-	{
-		if (ImGui::Begin("Debug"))
-		{
-			ImGui::Checkbox("Render", &render_flg);
-			ImGui::Spacing();
-
-			static int albedo = 0;
-			if (RadioButtonHelper("albedo", &albedo))
-				ChangeTexture(&s_obj_albedo, albedo);
-			static int normal = 0;
-			if (RadioButtonHelper("normal", &normal))
-				ChangeTexture(&s_obj_normal, normal);
-			static int metalness = 0;
-			if (RadioButtonHelper("metalness", &metalness))
-				ChangeTexture(&s_obj_metalness, metalness);
-			static int roughness = 0;
-			if (RadioButtonHelper("roughness", &roughness))
-				ChangeTexture(&s_obj_roughness, roughness);
-			static int specular = 0;
-			if (RadioButtonHelper("specular", &specular))
-				ChangeTexture(&s_obj_albedo, specular);
-			static int irradiance = 0;
-			if (RadioButtonHelper("irradiance", &irradiance))
-				ChangeTexture(&s_obj_irradiance, irradiance);
-			static int specular_brdf = 0;
-			if (RadioButtonHelper("specular_brdf", &specular_brdf))
-				ChangeTexture(&s_obj_specular_brdf, specular_brdf);
-		}
-		ImGui::End();
-	}
 	return hr;
+}
+
+void DebugManager::UpdateGui()
+{
+	ImGui::Checkbox("Render", &render_flg);
+	ImGui::Spacing();
+
+	static int albedo = 0;
+	if (RadioButtonHelper("albedo", &albedo))
+		ChangeTexture(&s_obj_albedo, albedo);
+	static int normal = 0;
+	if (RadioButtonHelper("normal", &normal))
+		ChangeTexture(&s_obj_normal, normal);
+	static int metalness = 0;
+	if (RadioButtonHelper("metalness", &metalness))
+		ChangeTexture(&s_obj_metalness, metalness);
+	static int roughness = 0;
+	if (RadioButtonHelper("roughness", &roughness))
+		ChangeTexture(&s_obj_roughness, roughness);
+	static int specular = 0;
+	if (RadioButtonHelper("specular", &specular))
+		ChangeTexture(&s_obj_albedo, specular);
+	static int irradiance = 0;
+	if (RadioButtonHelper("irradiance", &irradiance))
+		ChangeTexture(&s_obj_irradiance, irradiance);
+	static int specular_brdf = 0;
+	if (RadioButtonHelper("specular_brdf", &specular_brdf))
+		ChangeTexture(&s_obj_specular_brdf, specular_brdf);
 }
 
 void DebugManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_count)

@@ -160,17 +160,19 @@ void FS_Obj::Update(float update_time, std::vector<Fireworks>* pout_fireworks)
 bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
 {
 	bool result = true;
+
+	UINT idx = 0u;
 	if (ImGui::TreeNode((obj_desc.name + "##" + std::to_string(RCAST<intptr_t>(this))).c_str()))
 	{
 		// 名前変更
 		if (obj_desc.set_name.size() < 64u)
 			obj_desc.set_name.resize(64u);
-		ImGui::InputText(("##" + std::to_string(RCAST<intptr_t>(this))).c_str(), obj_desc.set_name.data(), obj_desc.set_name.size());
-		ImGui::SameLine();
+		ImGui::InputText(("##" + std::to_string(idx++)).c_str(), obj_desc.set_name.data(), obj_desc.set_name.size());
 		if (ImGui::Button(u8"名前変更") && !obj_desc.set_name.empty())
 		{
 			obj_desc.name = obj_desc.set_name;
 		}
+		ImGui::SameLine();
 		if (ImGui::Button(u8"削除"))
 		{
 			result = false;
@@ -179,7 +181,9 @@ bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		// エフェクト変更
 		{
 			// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
-			if (ImGui::BeginCombo((u8"エフェクト変更##" + std::to_string(RCAST<intptr_t>(this))).c_str(), obj_desc.fw_name.c_str()))
+			ImGui::Text(u8"使用エフェクト"); ImGui::SameLine(); 
+			HelpMarker(u8"使用するエフェクトを変更します。");
+			if (ImGui::BeginCombo(("##" + std::to_string(idx++)).c_str(), obj_desc.fw_name.c_str()))
 			{
 				for (const auto& desc : desc_list)
 				{
@@ -199,9 +203,10 @@ bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		}
 
 		// 各種パラメーター変更
-		ImGui::InputFloat2(u8"生成開始時間", (float*)&obj_desc.start_time);
+		ImGui::Text(u8"生成開始時間"); ImGui::SameLine();
+		HelpMarker(u8"この時間が経過後パーティクルの生成を開始します。\n" MINMAX_TEXT);
+		ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.start_time);
 		obj_desc.start_time.y = (std::max)(obj_desc.start_time.x, obj_desc.start_time.y);
-		ImGui::SameLine(); HelpMarker(u8"この時間が経過後パーティクルの生成を開始します。\n" MINMAX_TEXT);
 
 		if (obj_desc.infinity)
 		{
@@ -210,37 +215,44 @@ bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 		}
 		else
 		{
-			ImGui::InputFloat2(u8"生成時間", (float*)&obj_desc.time);
+			ImGui::Text(u8"生成時間"); ImGui::SameLine();
+			HelpMarker(u8"この時間だけパーティクルを生成します。\n" MINMAX_TEXT);
+			ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.time);
 			obj_desc.time.y = (std::max)(obj_desc.time.x, obj_desc.time.y);
 			if (obj_desc.time.y < 1.f / obj_desc.spawn_late.y)
 			{
 				obj_desc.spawn_late.y = 1.f / obj_desc.time.y;
 			}
-			ImGui::SameLine(); ImGui::Checkbox(u8"無限", &obj_desc.infinity);
-			ImGui::SameLine(); HelpMarker(u8"この時間だけパーティクルを生成します。\n" MINMAX_TEXT);
+			ImGui::Checkbox(u8"無限", &obj_desc.infinity);
+			ImGui::SameLine(); HelpMarker(u8"永遠にパーティクルを生成し続けます。");
 		}
 
-		ImGui::InputFloat2(u8"待機時間", (float*)&obj_desc.wait_time);
+		ImGui::Text(u8"待機時間"); ImGui::SameLine();
+		HelpMarker(u8"パーティクルの生成を再開するまでの時間。\n" MINMAX_TEXT);
+		ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.wait_time);
 		obj_desc.wait_time.y = (std::max)(obj_desc.wait_time.x, obj_desc.wait_time.y);
-		ImGui::SameLine(); HelpMarker(u8"パーティクルの生成を再開するまでの時間。\n" MINMAX_TEXT);
 
-		ImGui::InputFloat(u8"生成範囲", (float*)&obj_desc.spawn_radius);
+		ImGui::Text(u8"生成範囲"); ImGui::SameLine();
+		HelpMarker(u8"パーティクルを生成する半径");
+		ImGui::InputFloat(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.spawn_radius);
 		obj_desc.spawn_radius = (std::max)(0.f, obj_desc.spawn_radius);
-		ImGui::SameLine(); HelpMarker(u8"パーティクルを生成する半径");
 
-		ImGui::InputFloat2(u8"射出角度", (float*)&obj_desc.spawn_angle);
+		ImGui::Text(u8"射出角度"); ImGui::SameLine();
+		HelpMarker(u8"真上からずらす角度(deg)\n" MINMAX_TEXT);
+		ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.spawn_angle);
 		obj_desc.spawn_angle.y = (std::max)(obj_desc.spawn_angle.x, obj_desc.spawn_angle.y);
-		ImGui::SameLine(); HelpMarker(u8"真上からずらす角度(deg)\n" MINMAX_TEXT);
 
-		ImGui::InputFloat2(u8"生成レート", (float*)&obj_desc.spawn_late);
+		ImGui::Text(u8"生成レート"); ImGui::SameLine();
+		HelpMarker(u8"1秒間に何個生成するか。\n(待機時間を挟んで更新)\n" MINMAX_TEXT);
+		ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.spawn_late);
 		obj_desc.spawn_late.y = (std::max)(obj_desc.spawn_late.x, obj_desc.spawn_late.y);
 		obj_desc.time.y = (std::max)(obj_desc.time.y, 1.f / obj_desc.spawn_late.y);
 		obj_desc.time.x = (std::min)(obj_desc.time.x, obj_desc.time.y);
-		ImGui::SameLine(); HelpMarker(u8"1秒間に何個生成するか。\n(待機時間を挟んで更新)\n" MINMAX_TEXT);
 
-		ImGui::InputFloat2(u8"射出速度スケール", (float*)&obj_desc.spawn_power);
+		ImGui::Text(u8"射出速度スケール"); ImGui::SameLine();
+		HelpMarker(u8"元の射出速度をスケール倍します\n(元の速度はFireworksが持っている)\n" MINMAX_TEXT);
+		ImGui::InputFloat2(("##" + std::to_string(idx++)).c_str(), (float*)&obj_desc.spawn_power);
 		obj_desc.spawn_power.y = (std::max)(obj_desc.spawn_power.x, obj_desc.spawn_power.y);
-		ImGui::SameLine(); HelpMarker(u8"元の射出速度をスケール倍します\n(元の速度はFireworksが持っている)\n" MINMAX_TEXT);
 
 		ImGui::TreePop();
 	}

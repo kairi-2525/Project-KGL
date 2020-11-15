@@ -62,6 +62,7 @@ public:
 	const Desc& GetDesc() const { return desc; }
 	void SetRCPFrameDesc(const DirectX::XMUINT2& rt_size, float N = 0.50f);
 	void ImGuiTreeUpdate(const DirectX::XMUINT2& rt_size);
+	UINT UpdateGui(const DirectX::XMUINT2& rt_size, UINT idx = 0u);
 	float GetN() const { return n; }
 	void SetState(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);
 	void SetGrayState(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list);

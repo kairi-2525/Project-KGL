@@ -92,7 +92,8 @@ public:
 	DebugManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::BASE::DXC> dxc, DXGI_SAMPLE_DESC max_sample_desc);
 	void AddStaticObjects(const std::vector<std::shared_ptr<Object>>& objects);
 	void ClearStaticObjects();
-	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc, bool use_gui);
+	HRESULT Update(const TransformConstants& tc, const ShadingConstants& sc);
+	void UpdateGui();
 	void Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_count);
 	void SetWireMode(bool wire) { s_obj_wire = wire; }
 	bool GetWireMode() { return s_obj_wire; }

@@ -114,6 +114,35 @@ void FXAAManager::ImGuiTreeUpdate(const DirectX::XMUINT2& rt_size)
 	}
 }
 
+UINT FXAAManager::UpdateGui(const DirectX::XMUINT2& rt_size, UINT idx)
+{
+	ImGui::Text(u8"Option");
+	ImGui::Indent(16.0f);
+	{
+		ImGui::Text(u8"quality_edge_threshold");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.quality_edge_threshold, 0.063f, 0.333f)) changed = true;
+		ImGui::Text(u8"quality_edge_threshold_min");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.quality_edge_threshold_min, 0.0312f, 0.0833f)) changed = true;
+		ImGui::Text(u8"console_edge_threshold");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.console_edge_threshold, 0.125f, 0.25f)) changed = true;
+		ImGui::Text(u8"console_edge_threshold_min");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.console_edge_threshold_min, 0.04f, 0.06f)) changed = true;
+		ImGui::Text(u8"edge_sharpness");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.edge_sharpness, 2.0f, 8.0f)) changed = true;
+		ImGui::Text(u8"subpix");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &desc.buffer.subpix, 0.00f, 1.00f)) changed = true;
+		ImGui::Text(u8"n");
+		if (ImGui::SliderFloat(("##" + std::to_string(idx++)).c_str(), &n, 0.33f, 0.50f))
+		{
+			desc.buffer.rcp_frame_opt = GetRCPFrameOpt(rt_size, n);
+			changed = true;
+		}
+	}
+	ImGui::Unindent(16.0f);
+
+	return idx;
+}
+
 void FXAAManager::SetState(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 {
 	renderer->SetState(cmd_list);

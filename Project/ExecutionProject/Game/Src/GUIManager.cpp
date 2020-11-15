@@ -12,6 +12,8 @@
 #include <Helper/Cast.hpp>
 #include <Base/Directory.hpp>
 
+#include "../Hrd/Scenes/TestScene04.hpp"
+
 GUIManager::GUIManager(ComPtrC<ID3D12Device> device, std::shared_ptr<KGL::DescriptorManager> imgui_descriptor)
 {
 	imgui_srv_desc = imgui_descriptor;
@@ -56,6 +58,7 @@ void GUIManager::Init()
 	ptc_dof = false;
 	dof_flg = true;
 	ptc_wire = false;
+	sky_draw = true;
 
 	main_window_flag = ImGuiWindowFlags_::ImGuiWindowFlags_None;
 
@@ -223,6 +226,18 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
+			if (ImGui::Button("Render Targets"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::RT))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::RT);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::RT, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
 			if (ImGui::Button("Options"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::OPTION))
@@ -232,6 +247,18 @@ void GUIManager::Update(
 				else
 				{
 					SetSubWindow(SUB_WINDOW_TYPE::OPTION, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
+			if (ImGui::Button("Debug"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::DEBUG))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::DEBUG);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::DEBUG, 0u);
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
@@ -326,11 +353,27 @@ void GUIManager::Update(
 				}
 				ImGui::End(); break;
 			}
+			case SUB_WINDOW_TYPE::RT:
+			{
+				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
+				{
+					UpdateRtOption();
+				}
+				ImGui::End(); break;
+			}
 			case SUB_WINDOW_TYPE::OPTION:
 			{
 				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
 				{
-					UpdatePtcOption();
+					UpdatePtcOption(rt_resolution);
+				}
+				ImGui::End(); break;
+			}
+			case SUB_WINDOW_TYPE::DEBUG:
+			{
+				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
+				{
+					desc.debug_mgr->UpdateGui();
 				}
 				ImGui::End(); break;
 			}
@@ -339,28 +382,198 @@ void GUIManager::Update(
 	}
 }
 
-void GUIManager::UpdatePtcOption()
+void GUIManager::UpdatePtcOption(const DirectX::XMUINT2& rt_resolution)
 {
-	ImGui::Text(u8"パーティクル");
+	UINT idx = 0u;
+
+	ImGui::Text(u8"[パーティクル]");
 	ImGui::Indent(16.0f);
 	ImGui::Checkbox(u8"GPU更新", &use_gpu);
 	ImGui::Checkbox(u8"ワイヤフレーム", &ptc_wire);
 	ImGui::Checkbox(u8"深度値書き込み", &ptc_dof);
+	{
+		ImGui::Text(u8"[ブルーム]");
+		ImGui::Indent(16.0f);
+		ImGui::Text(u8"スケール");
+		int bloom_scale = KGL::SCAST<int>(desc.bloom_generator->GetKernel());
+		if (ImGui::SliderInt(("##" + std::to_string(idx++)).c_str(), &bloom_scale, 0, KGL::SCAST<int>(BloomGenerator::RTV_MAX)))
+		{
+			desc.bloom_generator->SetKernel(KGL::SCAST<UINT8>(bloom_scale));
+		}
+		if (ImGui::TreeNode(u8"各スケールの影響度"))
+		{
+			auto weights = desc.bloom_generator->GetWeights();
+			bool weights_changed = false;
+			for (UINT i = 0u; i < BloomGenerator::RTV_MAX; i++)
+			{
+				bool changed = ImGui::SliderFloat(std::to_string(i).c_str(), &weights[i], 0.f, 1.f);
+				weights_changed = weights_changed || changed;
+			}
+			if (weights_changed) desc.bloom_generator->SetWeights(weights);
+			ImGui::TreePop();
+		}
+		ImGui::Unindent(16.0f);
+	}
 	ImGui::Unindent(16.0f);
 
 	ImGui::Spacing();
 
-	ImGui::Text(u8"花火");
+	ImGui::Text(u8"[花火]");
 	ImGui::Indent(16.0f);
 	ImGui::Checkbox(u8"生成", &spawn_fireworks);
 	ImGui::Unindent(16.0f);
 
 	ImGui::Spacing();
 
-	ImGui::Text(u8"空");
+	ImGui::Text(u8"[被写界深度]");
+	ImGui::Indent(16.0f);
+	{
+		ImGui::Checkbox(u8"使用する", &dof_flg);
+		ImGui::Text(u8"スケール");
+		int dof_scale = KGL::SCAST<int>(desc.dof_generator->GetRtvNum());
+		if (ImGui::SliderInt(("##" + std::to_string(idx++)).c_str(), &dof_scale, 0, KGL::SCAST<int>(DOFGenerator::RTV_MAX)))
+		{
+			desc.dof_generator->SetRtvNum(KGL::SCAST<UINT8>(dof_scale));
+		}
+	}
+	ImGui::Unindent(16.0f);
+
+	ImGui::Spacing();
+
+	ImGui::Text(u8"[空]");
 	ImGui::Indent(16.0f);
 	ImGui::Checkbox(u8"描画", &sky_draw);
 	ImGui::Unindent(16.0f);
+
+	ImGui::Spacing();
+
+	ImGui::Text(u8"[アンチエイリアス]");
+	ImGui::Indent(16.0f);
+	{
+		bool use_fxaa = desc.fxaa_mgr->IsActive();
+		bool msaa_off = MSAASelector::MSAA_OFF == desc.msaa_selector->GetScale();
+
+		if (ImGui::RadioButton("OFF", !use_fxaa && msaa_off))
+		{
+			use_fxaa = false;
+			desc.msaa_selector->SetScale(MSAASelector::MSAA_OFF);
+		}
+		ImGui::SameLine();
+		if (ImGui::RadioButton("MSAA", !use_fxaa && !msaa_off))
+		{
+			use_fxaa = false;
+			if (msaa_off)
+			{
+				desc.msaa_selector->SetScale(MSAASelector::MSAAx2);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::RadioButton("FXAA", use_fxaa))
+		{
+			use_fxaa = true;
+		}
+		desc.fxaa_mgr->SetActiveFlg(use_fxaa);
+
+		if (use_fxaa)
+		{
+			ImGui::Text(u8"[FXAA]");
+			ImGui::Indent(16.0f);
+			{
+				idx = desc.fxaa_mgr->UpdateGui(rt_resolution, idx);
+			}
+			ImGui::Unindent(16.0f);
+		}
+		else
+		{
+			ImGui::Text(u8"[MSAA]");
+			ImGui::Indent(16.0f);
+			std::string select_msaa = desc.msaa_combo_texts->at(SCAST<UINT>(desc.msaa_selector->GetScale()));
+
+			// 2番目のパラメーターは、コンボを開く前にプレビューされるラベルです。
+			if (ImGui::BeginCombo(u8"", select_msaa.c_str()))
+			{
+				for (int n = 0; n < desc.msaa_combo_texts->size(); n++)
+				{
+					// オブジェクトの外側または内側に、選択内容を好きなように保存できます
+					bool is_selected = (select_msaa == desc.msaa_combo_texts->at(n));
+					if (ImGui::Selectable(desc.msaa_combo_texts->at(n).c_str(), is_selected))
+						desc.msaa_selector->SetScale(SCAST<MSAASelector::TYPE>(n));
+					if (is_selected)
+						// コンボを開くときに初期フォーカスを設定できます（キーボードナビゲーションサポートの場合は+をスクロールします）
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+			ImGui::Unindent(16.0f);
+		}
+	}
+	ImGui::Unindent(16.0f);
+}
+
+#define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
+void GUIManager::UpdateRtOption()
+{
+	const auto bd_color = ImGui::GetStyle().Colors[ImGuiCol_Border];
+	auto gui_size = ImGui::GetWindowSize();
+	const float x_size = gui_size.x * 0.8f;
+	ImVec2 image_size = { x_size, (x_size / 16) * 9.f };
+	if (ImGui::TreeNode("DSV"))
+	{
+		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
+		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
+
+		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Particles"))
+	{
+		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Bloom"))
+	{
+		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+		UINT idx = 0u;
+		ImGui::Text("Compression");
+		for (const auto& handle : bl_c_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		idx = 0u;
+		ImGui::Text("Width Blur");
+		for (const auto& handle : bl_h_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		idx = 0u;
+		ImGui::Text("Height Blur");
+		for (const auto& handle : bl_w_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		ImGui::Text("Result");
+		ImGui::Image((ImTextureID)bl_bloom_imgui_handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("DOF"))
+	{
+		ImVec2 halh_image_size = { image_size.x * 0.5f, image_size.y * 0.5f };
+		UINT idx = 0u;
+		for (const auto& handle : dof_imgui_handles)
+		{
+			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			if (idx % 2 == 0) ImGui::SameLine();
+			idx++;
+		}
+		ImGui::TreePop();
+	}
 }
 
 // サブウィンドウを座標などをセットした状態でBeginする

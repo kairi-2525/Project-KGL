@@ -7,6 +7,8 @@
 #include <map>
 #include <array>
 #include <Helper/Timer.hpp>
+#include "Bloom.hpp"
+#include "DepthOfField.hpp"
 
 class FCManager;
 class ParticleManager;
@@ -17,20 +19,25 @@ class FXAAManager;
 struct ParticleParent;
 class Fireworks;
 class DebugManager;
+struct RenderTargetResource;
 
 class GUIManager
 {
 public:
 	struct Desc
 	{
-		std::shared_ptr<FCManager>			fc_mgr;
-		std::shared_ptr<FSManager>			fs_mgr;
-		std::shared_ptr<ParticleManager>	main_ptc_mgr;
-		std::shared_ptr<ParticleManager>	player_ptc_mgr;
-		std::shared_ptr<SkyManager>			sky_mgr;
-		std::shared_ptr<MSAASelector>		msaa_selector;
-		std::shared_ptr<FXAAManager>		fxaa_mgr;
-		std::shared_ptr<DebugManager>		debug_mgr;
+		std::shared_ptr<FCManager>					fc_mgr;
+		std::shared_ptr<FSManager>					fs_mgr;
+		std::shared_ptr<ParticleManager>			main_ptc_mgr;
+		std::shared_ptr<ParticleManager>			player_ptc_mgr;
+		std::shared_ptr<SkyManager>					sky_mgr;
+
+		std::shared_ptr<MSAASelector>				msaa_selector;
+		std::shared_ptr<std::vector<std::string>>	msaa_combo_texts;
+		std::shared_ptr<FXAAManager>				fxaa_mgr;
+		std::shared_ptr<DebugManager>				debug_mgr;
+		std::shared_ptr<BloomGenerator>				bloom_generator;
+		std::shared_ptr<DOFGenerator>				dof_generator;
 
 		std::shared_ptr<std::vector<Fireworks>> fireworks;
 		std::shared_ptr<std::vector<Fireworks>> player_fireworks;
@@ -44,7 +51,9 @@ public:
 		FW_EDITOR,
 		FW_PARAM,
 		FW_SPAWNER,
-		OPTION
+		RT,
+		OPTION,
+		DEBUG
 	};
 private:
 	static inline const std::string										NAME_PLAY_BUTTON = "T_6_continue_";
@@ -62,15 +71,21 @@ private:
 	std::vector<std::shared_ptr<KGL::Texture>> textures;
 	std::array<SUB_WINDOW_TYPE, 2u>	sub_windows;
 
-	float	time_scale;	// 時間倍速
+	float				time_scale;	// 時間倍速
 public:
-	bool	spawn_fireworks;
-	bool	ptc_wire;
-	bool	ptc_dof;
-	bool	dof_flg;
-	bool	use_gpu;
-	bool	time_stop;
-	bool	sky_draw;
+	bool				spawn_fireworks;
+	bool				ptc_wire;
+	bool				ptc_dof;
+	bool				dof_flg;
+	bool				use_gpu;
+	bool				time_stop;
+	bool				sky_draw;
+
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_c_imgui_handles;
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_h_imgui_handles;
+	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_w_imgui_handles;
+	KGL::DescriptorHandle										bl_bloom_imgui_handle;
+	std::array<KGL::DescriptorHandle, DOFGenerator::RTV_MAX>	dof_imgui_handles;
 
 	// タイムカウンター
 	KGL::Timer											tm_update;
@@ -94,7 +109,8 @@ private:
 	bool BeginSubWindow(const DirectX::XMUINT2& rt_resolution, UINT num, ImGuiWindowFlags flags, std::string title = "");
 	
 	// ウィンドウ更新
-	void UpdatePtcOption();
+	void UpdatePtcOption(const DirectX::XMUINT2& rt_resolution);
+	void UpdateRtOption();
 public:
 	static void HelperTimer(const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO);
 	static void HelperCounter(const std::string& title, UINT64 count, UINT64* max_count);
