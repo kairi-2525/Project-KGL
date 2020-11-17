@@ -1099,50 +1099,45 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 		ImGui::EndMenuBar();
 	}
 
-	if (ImGui::TreeNode(u8"一覧"))
+	FWDESC_STATE state = LOOP;
+	bool create_select_demo = false;
+	while (state == LOOP)
 	{
-		FWDESC_STATE state = LOOP;
-		bool create_select_demo = false;
-		while (state == LOOP)
+		if (desc_list.empty())
 		{
-			if (desc_list.empty())
+			ImGui::Text(u8"存在しません。");
+			break;
+		}
+		for (auto& desc : desc_list)
+		{
+			bool edited = false;
+			// DescのGuiを更新
+			state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles);
+			if (edited && desc.second == select_desc)
 			{
-				ImGui::Text(u8"存在しません。");
+				create_select_demo = true;
+			}
+			if (state == LOOP) break;
+			else if (state == ERASE)
+			{
+				desc_list.erase(desc.first);
+				state = LOOP;
 				break;
 			}
-			for (auto& desc : desc_list)
+			else if (cpy_fw_desc)
 			{
-				bool edited = false;
-				// DescのGuiを更新
-				state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles);
-				if (edited && desc.second == select_desc)
-				{
-					create_select_demo = true;
-				}
-				if (state == LOOP) break;
-				else if (state == ERASE)
-				{
-					desc_list.erase(desc.first);
-					state = LOOP;
-					break;
-				}
-				else if (cpy_fw_desc)
-				{
-					Create(cpy_fw_desc->first, &cpy_fw_desc->second);
-					cpy_fw_desc = nullptr;
-					state = LOOP;
-					break;
-				}
+				Create(cpy_fw_desc->first, &cpy_fw_desc->second);
+				cpy_fw_desc = nullptr;
+				state = LOOP;
+				break;
 			}
 		}
+	}
 
-		// 選択中のDescが更新されたのでDemoを作成する
-		if (create_select_demo)
-		{
-			CreateSelectDemo(device, p_parent);
-		}
-
-		ImGui::TreePop();
+	// 選択中のDescが更新されたのでDemoを作成する
+	if (create_select_demo)
+	{
+		CreateSelectDemo(device, p_parent);
 	}
 }
 

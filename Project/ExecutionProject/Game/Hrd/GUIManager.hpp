@@ -9,6 +9,7 @@
 #include <Helper/Timer.hpp>
 #include "Bloom.hpp"
 #include "DepthOfField.hpp"
+#include "DebugMsg.hpp"
 
 class FCManager;
 class ParticleManager;
@@ -68,10 +69,11 @@ private:
 	std::shared_ptr<KGL::DescriptorManager>								imgui_srv_desc;
 	std::map<std::string, std::shared_ptr<KGL::DescriptorHandle>>		imgui_srv_handles;
 
-	std::vector<std::shared_ptr<KGL::Texture>> textures;
-	std::array<SUB_WINDOW_TYPE, 2u>	sub_windows;
+	std::vector<std::shared_ptr<KGL::Texture>>	textures;
+	std::array<SUB_WINDOW_TYPE, 2u>				sub_windows;
 
-	float				time_scale;	// ŽžŠÔ”{‘¬
+	float										time_scale;	// ŽžŠÔ”{‘¬
+	std::shared_ptr<DebugMsgMgr>				debug_msg_mgr;
 public:
 	bool				spawn_fireworks;
 	bool				ptc_wire;

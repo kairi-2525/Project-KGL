@@ -171,14 +171,16 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		RCHECK(FAILED(hr), "コマンドキューの生成に失敗！", hr);
 	}
 
+	// パーティクル用テクスチャを管理
 	ptc_tex_mgr = std::make_shared<ParticleTextureManager>(device, "./Assets/Textures/Particles");
 	ptc_tex_mgr->CreateSRV(device, &ptc_tex_srv_gui_handles, desc.imgui_heap_mgr);
+	// パーティクルを管理、更新
 	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
 	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
-
+	// パーティクル更新用パイプライン
 	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
+	// パーティクルビルボード用CSV　Descriptor
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
-	matrix_resource = std::make_shared<KGL::Resource<CbvParam>>(device, 1u);
 
 
 	{	// スプライト用PSOの作成(半透明、加算、高輝度抽出)
@@ -535,6 +537,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fc_mgr = std::make_shared<FCManager>("./Assets/Effects/Fireworks/", ptc_tex_mgr->GetTextures());
 	fs_mgr = std::make_shared<FSManager>("./Assets/Effects/Spawners/", fc_mgr->GetDescList());
+	fs_mgr->SetSpawner(FSManager::DEFALT_SPANER_NAME);
 
 	debug_mgr = std::make_shared<DebugManager>(device, desc.dxc, max_sample_desc);
 
@@ -632,12 +635,6 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		R = XMMatrixRotationRollPitchYaw(0.f, 0.f, 0.f);
 		T = XMMatrixTranslation(0.f, 0.f, -1.f);
 		W = S * R * T;
-
-		XMMATRIX WVP = W * view * proj_mat;
-		CbvParam* param = matrix_resource->Map();
-		XMStoreFloat4x4(&param->mat, WVP);
-		param->color = { 1.f, 1.f, 1.f, 1.f };
-		matrix_resource->Unmap();
 	}
 
 	ParticleParent ptc_parent{};
@@ -667,6 +664,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	sky_gui_windowed = false;
 
 	gui_mgr->Init();
+	fireworks->clear();
+	player_fireworks->clear();
 
 	ptc_vt_type = PTC_VT::COUNT4;
 
@@ -678,7 +677,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
 		target_cube->scale = { 1.f, 1.f, 1.f };
 		target_cube->rotate = {};
-#if 1
+#if 0
 		objects.push_back(std::dynamic_pointer_cast<DebugManager::Object>(target_cube));
 #else
 		objects.reserve(1000u + 1u);
@@ -802,7 +801,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		return Init(desc);
 	}
 	if (input->IsKeyPressed(KGL::KEYS::ESCAPE))
-	{
+	{						
 		return E_FAIL;
 	}
 
@@ -1232,12 +1231,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		R = XMMatrixRotationRollPitchYaw(0.f, angle, 0.f);
 		T = XMMatrixTranslation(0.f, 0.f, -1.f);
 		W = S * R * T;
-
-		XMMATRIX WVP = W * view * XMLoadFloat4x4(&proj);
-		CbvParam* param = matrix_resource->Map();
-		XMStoreFloat4x4(&param->mat, WVP);
-		param->color = { 1.f, 1.f, 1.f, 1.f };
-		matrix_resource->Unmap();
 	}
 
 	{

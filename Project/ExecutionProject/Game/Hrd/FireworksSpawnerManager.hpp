@@ -61,6 +61,8 @@ public:
 
 class FSManager : private KGL::Directory
 {
+public:
+	static inline const std::string	DEFALT_SPANER_NAME = "Default Spawner";
 private:
 	std::string						set_name;
 	std::list<std::shared_ptr<FS>>	fs_list;
@@ -73,6 +75,7 @@ public:
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
 	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
 	void UpdateGui(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
+	void SetSpawner(const std::string& name);
 };
 
 #define EV_0_FSODC_ARCHIVE \

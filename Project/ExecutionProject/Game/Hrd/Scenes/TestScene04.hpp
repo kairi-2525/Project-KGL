@@ -50,11 +50,6 @@ private:
 		COUNT4,
 		COUNT8
 	};
-	struct CbvParam
-	{
-		DirectX::XMFLOAT4X4 mat;
-		DirectX::XMFLOAT4 color;
-	};
 	struct SceneBuffers : public SceneBase::SceneBuffers
 	{
 		DirectX::XMMATRIX inv_view;
@@ -91,8 +86,6 @@ private:
 
 	D3D12_VERTEX_BUFFER_VIEW							b_ptc_vbv;
 	D3D12_VERTEX_BUFFER_VIEW							b_pl_shot_ptc_vbv;
-
-	std::shared_ptr<KGL::Resource<CbvParam>>			matrix_resource;
 
 	KGL::TextureManager									tex_mgr;
 

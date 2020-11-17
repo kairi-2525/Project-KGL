@@ -262,6 +262,9 @@ bool FS_Obj::GUIUpdate(const std::map<const std::string, std::shared_ptr<Firewor
 
 void FS::Init(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
 {
+	name.erase(std::remove(name.begin(), name.end(), '\0'), name.end());
+	//name.push_back('\0');
+
 	for (auto& obj : objects)
 	{
 		obj.Init(desc_list);
@@ -476,37 +479,48 @@ void FSManager::UpdateGui(const std::map<const std::string, std::shared_ptr<Fire
 	}
 	if (!fs_list.empty())
 	{
-		if (ImGui::TreeNode(u8"ˆê——"))
+		UINT i = 0u;
+		for (auto itr = fs_list.begin(); itr != fs_list.end();)
 		{
-			UINT i = 0u;
-			for (auto itr = fs_list.begin(); itr != fs_list.end();)
+			if ((*itr) == select_fs)
 			{
-				if ((*itr) == select_fs)
+				if (ImGui::Button((u8"‰ðœ##" + std::to_string(i)).c_str()))
 				{
-					if (ImGui::Button((u8"‰ðœ##" + std::to_string(i)).c_str()))
-					{
-						select_fs = nullptr;
-					}
+					select_fs = nullptr;
 				}
-				else
-				{
-					if (ImGui::Button((u8"‘I‘ð##" + std::to_string(i)).c_str()))
-					{
-						select_fs = (*itr);
-					}
-				}
-				ImGui::SameLine();
-				if ((*itr)->GUIUpdate(desc_list))
-				{
-					itr++;
-				}
-				else
-				{
-					itr = fs_list.erase(itr);
-				}
-				i++;
 			}
-			ImGui::TreePop();
+			else
+			{
+				if (ImGui::Button((u8"‘I‘ð##" + std::to_string(i)).c_str()))
+				{
+					select_fs = (*itr);
+				}
+			}
+			ImGui::SameLine();
+			if ((*itr)->GUIUpdate(desc_list))
+			{
+				itr++;
+			}
+			else
+			{
+				itr = fs_list.erase(itr);
+			}
+			i++;
+		}
+	}
+}
+
+void FSManager::SetSpawner(const std::string& name)
+{
+	for (const auto& fs : fs_list)
+	{
+		if (fs)
+		{
+			if (fs->name == name)
+			{
+				select_fs = fs;
+				break;
+			}
 		}
 	}
 }

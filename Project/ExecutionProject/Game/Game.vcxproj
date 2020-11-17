@@ -187,6 +187,7 @@
     <ClCompile Include="Src\Bloom.cpp" />
     <ClCompile Include="Src\Camera.cpp" />
     <ClCompile Include="Src\Debug\Debug.cpp" />
+    <ClCompile Include="Src\Debug\DebugMsg.cpp" />
     <ClCompile Include="Src\Debug\DebugObjects.cpp" />
     <ClCompile Include="Src\DepthOfField.cpp" />
     <ClCompile Include="Src\Effect.cpp" />
@@ -218,6 +219,7 @@
     <ClInclude Include="Hrd\Camera.hpp" />
     <ClInclude Include="Hrd\CelealHelper.hpp" />
     <ClInclude Include="Hrd\Debug.hpp" />
+    <ClInclude Include="Hrd\DebugMsg.hpp" />
     <ClInclude Include="Hrd\DepthOfField.hpp" />
     <ClInclude Include="Hrd\Effects.hpp" />
     <ClInclude Include="Hrd\FireworkCerialManager.hpp" />
