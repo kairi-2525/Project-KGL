@@ -4,6 +4,7 @@
 #include <Helper/Cast.hpp>
 #include <Base/Directory.hpp>
 #include "CelealHelper.hpp"
+#include "DebugMsg.hpp"
 #include <map>
 
 // Cerealì¸èoóÕópç\ë¢ëÃ
@@ -62,6 +63,7 @@ public:
 class FSManager : private KGL::Directory
 {
 public:
+	static inline const std::string	TAG = "[Spawner]";
 	static inline const std::string	DEFALT_SPANER_NAME = "Default Spawner";
 private:
 	std::string						set_name;
@@ -73,8 +75,10 @@ private:
 public:
 	FSManager(const std::filesystem::path& path, const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list) noexcept;
 	void Update(float update_time, std::vector<Fireworks>* pout_fireworks);
-	void GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
-	void UpdateGui(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list);
+	void UpdateGui(
+		const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list,
+		std::shared_ptr<DebugMsgMgr> debug_msg_mgr
+	);
 	void SetSpawner(const std::string& name);
 };
 

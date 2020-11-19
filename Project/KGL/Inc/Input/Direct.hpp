@@ -215,7 +215,7 @@ namespace KGL
 				Device& operator=(const Device&) = delete;
 			protected:
 				LPDIRECTINPUTDEVICE8 m_lp_device;
-				DIDEVICEINSTANCEA m_desc;
+				DIDEVICEINSTANCE m_desc;
 			protected:
 				Device(LPDIRECTINPUTDEVICE8 lp_device, const std::string& device_name = "不明のデバイス");
 				virtual ~Device();
@@ -378,7 +378,7 @@ namespace KGL
 		//------------------------------
 		//     デバイス：インライン実装
 		//------------------------------
-		inline const DIDEVICEINSTANCEA& Direct::Device::GetInstanceDesc() const
+		inline const DIDEVICEINSTANCE& Direct::Device::GetInstanceDesc() const
 		{
 			return m_desc;
 		}

@@ -153,7 +153,7 @@ bool FCManager::ChangeName(std::string before, std::string after) noexcept
 	return true;
 }
 
-void FCManager::Create(const std::string& name, const FireworksDesc* desc) noexcept
+bool FCManager::Create(const std::string& name, const FireworksDesc* desc) noexcept
 {
 	if (desc)
 	{
@@ -162,7 +162,7 @@ void FCManager::Create(const std::string& name, const FireworksDesc* desc) noexc
 			select_desc = desc_list[name] = std::make_shared<FireworksDesc>(*desc);
 			select_name = name;
 			select_desc->original_name = name;
-			return;
+			return true;
 		}
 		std::string set_name;
 		UINT num = 0u;
@@ -175,7 +175,9 @@ void FCManager::Create(const std::string& name, const FireworksDesc* desc) noexc
 		}
 		select_desc = desc_list[set_name] = std::make_shared<FireworksDesc>(*desc);
 		select_name = set_name;
+		return true;
 	}
+	return false;
 }
 
 void FCManager::PlayDemo(UINT frame_num) noexcept
@@ -393,7 +395,8 @@ void FCManager::CreateDemo(
 	const UINT* frame_number,
 	const bool* stop_flg,
 	std::mutex* mt_clear,
-	std::vector<AffectObjects> affect_objects
+	std::vector<AffectObjects> affect_objects,
+	std::shared_ptr<DebugMsgMgr> debug_msg_mgr
 ) noexcept
 {
 	std::lock_guard<std::mutex> lock(*mt_lock);
@@ -402,6 +405,15 @@ void FCManager::CreateDemo(
 		auto& data = p_demo_data->emplace_back(device, *it, 100000u);
 		data.Build(&p_parent, *frame_number, affect_objects);
 		it = p_add_demo_data->erase(it);
+		if (debug_msg_mgr)
+		{
+			if (mt_clear || p_add_demo_data->empty())
+				debug_msg_mgr->AddMessage(TAG + " デモデータを作成しました。", DebugMsgMgr::CL_SUCCESS, TAG);
+			else
+				debug_msg_mgr->AddMessage(
+					TAG + " デモデータを作成しました。( のこり "
+					+ std::to_string(p_add_demo_data->size()) + " )", DebugMsgMgr::CL_SUCCESS, TAG);
+		}
 
 		if (mt_clear)
 		{
@@ -473,7 +485,10 @@ HRESULT FCManager::Update(float update_time) noexcept
 	return S_OK;
 }
 
-void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent)
+void FCManager::CreateSelectDemo(
+	KGL::ComPtrC<ID3D12Device> device,
+	const ParticleParent* p_parent,
+	std::shared_ptr<DebugMsgMgr> debug_msg_mgr)
 {
 	demo_select_clear_mutex.lock();
 	add_demo_select_data.push_back(select_desc);
@@ -491,8 +506,8 @@ void FCManager::CreateSelectDemo(KGL::ComPtrC<ID3D12Device> device, const Partic
 			&add_demo_select_data, &demo_select_data,
 			&demo_frame_number, &demo_select_stop,
 			&demo_select_clear_mutex,
-			affect_objects
-			);
+			affect_objects,
+			debug_msg_mgr);
 	}
 };
 
@@ -663,8 +678,8 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
 						&add_demo_data, &demo_data,
 						&demo_frame_number, &demo_mg_stop,
 						nullptr,
-						affect_objects
-						);
+						affect_objects,
+						nullptr);
 				}
 			}
 			if (build_count > 0u)
@@ -984,7 +999,8 @@ size_t FCManager::Size() const
 FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 	KGL::ComPtrC<ID3D12Device> device, Desc* desc,
 	const ParticleParent* p_parent, bool* edited,
-	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
+	std::shared_ptr<DebugMsgMgr> debug_msg_mgr)
 {
 	FWDESC_STATE result = FWDESC_STATE::NONE;
 	if (desc && desc->second)
@@ -1036,6 +1052,8 @@ FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 			}
 			if (ImGui::Button(u8"デモ作成"))
 			{
+				debug_msg_mgr->AddMessage(TAG + " " + desc->first + " のデモを作成します。", DebugMsgMgr::CL_MSG, TAG);
+
 				add_demo_data.push_back(desc->second);
 				const bool try_lock = demo_mg_mutex.try_lock();
 				if (try_lock) demo_mg_mutex.unlock();
@@ -1050,7 +1068,8 @@ FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 						&add_demo_data, &demo_data,
 						&demo_frame_number, &demo_mg_stop,
 						nullptr,
-						affect_objects
+						affect_objects,
+						nullptr
 						);
 				}
 			}
@@ -1067,7 +1086,9 @@ FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 }
 // パーティクルセレクト
 void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
-	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
+	const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
+	std::shared_ptr<DebugMsgMgr> debug_msg_mgr
+)
 {
 	if (ImGui::BeginMenuBar())
 	{
@@ -1075,7 +1096,14 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 		{
 			if (ImGui::Button(u8"作成"))
 			{
-				Create();
+				if (Create())
+				{
+					debug_msg_mgr->AddMessage(TAG + " " + select_name + " を作成しました。", DebugMsgMgr::CL_SUCCESS, TAG);
+				}
+				else
+				{
+					debug_msg_mgr->AddMessage(TAG + " " + "作成に失敗しました。", DebugMsgMgr::CL_ERROR, TAG);
+				}
 			}
 			if (ImGui::Button(u8"読み込み"))
 			{
@@ -1088,6 +1116,7 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 					if (select_desc)
 					{
 						Export(directory->GetPath(), select_name, select_desc);
+						debug_msg_mgr->AddMessage(TAG + " " + select_name + " を書き出しました。", DebugMsgMgr::CL_SUCCESS, TAG);
 					}
 				}
 				ImGui::SameLine();
@@ -1112,7 +1141,7 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 		{
 			bool edited = false;
 			// DescのGuiを更新
-			state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles);
+			state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles, debug_msg_mgr);
 			if (edited && desc.second == select_desc)
 			{
 				create_select_demo = true;
@@ -1137,7 +1166,8 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 	// 選択中のDescが更新されたのでDemoを作成する
 	if (create_select_demo)
 	{
-		CreateSelectDemo(device, p_parent);
+		debug_msg_mgr->AddMessage(TAG + " " + select_name + " のデモを作成します。", DebugMsgMgr::CL_MSG,TAG);
+		CreateSelectDemo(device, p_parent, debug_msg_mgr);
 	}
 }
 

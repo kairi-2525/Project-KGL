@@ -433,16 +433,9 @@ void FSManager::Update(float update_time, std::vector<Fireworks>* pout_fireworks
 	}
 }
 
-void FSManager::GUIUpdate(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
-{
-	if (ImGui::Begin("Fireworks Spawner", nullptr, ImGuiWindowFlags_MenuBar))
-	{
-		UpdateGui(desc_list);
-	}
-	ImGui::End();
-}
-
-void FSManager::UpdateGui(const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list)
+void FSManager::UpdateGui(
+	const std::map<const std::string, std::shared_ptr<FireworksDesc>>& desc_list,
+	std::shared_ptr<DebugMsgMgr> debug_msg_mgr)
 {
 	if (ImGui::BeginMenuBar())
 	{
@@ -458,6 +451,7 @@ void FSManager::UpdateGui(const std::map<const std::string, std::shared_ptr<Fire
 				if (ImGui::Button(u8"ì¬") && !set_name.empty())
 				{
 					Create(set_name);
+					debug_msg_mgr->AddMessage(TAG + " " + set_name + " ‚ğì¬‚µ‚Ü‚µ‚½B", DebugMsgMgr::CL_SUCCESS, TAG);
 					set_name.clear();
 				}
 				ImGui::EndMenu();
@@ -469,6 +463,7 @@ void FSManager::UpdateGui(const std::map<const std::string, std::shared_ptr<Fire
 					if (ImGui::Button(("Export " + select_fs->name).c_str()))
 					{
 						Export();
+						debug_msg_mgr->AddMessage(TAG + " " + select_fs->name + " ‚ğ‘‚«‚µ‚Ü‚µ‚½B", DebugMsgMgr::CL_SUCCESS, TAG);
 					}
 					ImGui::EndMenu();
 				}

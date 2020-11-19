@@ -74,6 +74,9 @@ private:
 
 	float										time_scale;	// ŽžŠÔ”{‘¬
 	std::shared_ptr<DebugMsgMgr>				debug_msg_mgr;
+
+	std::string									search_text;
+	std::list<std::string>						search_tags;
 public:
 	bool				spawn_fireworks;
 	bool				ptc_wire;
@@ -82,6 +85,8 @@ public:
 	bool				use_gpu;
 	bool				time_stop;
 	bool				sky_draw;
+	UINT				ptc_vt_type;
+
 
 	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_c_imgui_handles;
 	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_h_imgui_handles;

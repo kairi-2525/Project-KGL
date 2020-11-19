@@ -44,18 +44,18 @@ public:
 		FXAA_GRAY
 	};
 private:
+	struct SceneBuffers : public SceneBase::SceneBuffers
+	{
+		DirectX::XMMATRIX inv_view;
+		bool zero_texture;
+	};
+public:
 	enum PTC_VT : UINT
 	{
 		NONE,
 		COUNT4,
 		COUNT8
 	};
-	struct SceneBuffers : public SceneBase::SceneBuffers
-	{
-		DirectX::XMMATRIX inv_view;
-		bool zero_texture;
-	};
-private:
 	static inline const std::vector<std::string> PTC_VT_TABLE =
 	{
 		"Particle_gs.hlsl",
@@ -98,7 +98,6 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>				cpt_cmd_list;
 	std::shared_ptr<KGL::CommandQueue>					cpt_cmd_queue;
 
-	PTC_VT												ptc_vt_type;
 	std::vector<KGL::DescriptorHandle>					ptc_tex_srv_gui_handles;
 	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;

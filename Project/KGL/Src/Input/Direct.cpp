@@ -1,6 +1,7 @@
 #include <Input/Direct.hpp>
 #include <Helper/ThrowAssert.hpp>
 #include <Helper/Other.hpp>
+#include <Helper/Convert.hpp>
 
 #include <string>
 
@@ -265,7 +266,7 @@ Direct::Device::Device(LPDIRECTINPUTDEVICE8 lp_device, const std::string& device
 	
 	KGLDebugOutPutString(
 		"DirectInput[" + device_name + "]" +
-		"\n    Instance / Product           : " + m_desc.tszInstanceName + " / " + m_desc.tszProductName +
+		"\n    Instance / Product           : " + KGL::WideToMulti(m_desc.tszInstanceName) + " / " + KGL::WideToMulti(m_desc.tszProductName) +
 		"\n    Driver UUID                  : " + HELPER::CreateGUIDToStr(m_desc.guidFFDriver) +
 		"\n    Instance UUID / Product UUID : " + HELPER::CreateGUIDToStr(m_desc.guidInstance) + " / " + HELPER::CreateGUIDToStr(m_desc.guidProduct) +
 		"\n\n"

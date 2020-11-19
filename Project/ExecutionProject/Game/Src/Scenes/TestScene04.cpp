@@ -667,7 +667,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	fireworks->clear();
 	player_fireworks->clear();
 
-	ptc_vt_type = PTC_VT::COUNT4;
+	gui_mgr->ptc_vt_type = SCAST<UINT>(PTC_VT::COUNT4);
 
 	{	// キューブを簡易描画するマネージャー(キューブ以外のものも対応予定)
 		debug_mgr->ClearStaticObjects();
@@ -1348,7 +1348,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	{	// パーティクルを描画
 		const UINT rt_num = 2u;
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
-		auto& ptc_renderer = board_renderers[ptc_vt_type][msaa_scale];
+		auto& ptc_renderer = board_renderers[gui_mgr->ptc_vt_type][msaa_scale];
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrbs.size()), rtrbs.data());
 		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
 		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);

@@ -44,10 +44,10 @@ namespace KGL
 				0,
 				NULL
 			);
-			OutputDebugString((LPCSTR)string);
+			OutputDebugStringA((LPCSTR)string);
 			if (string != NULL)
 			{
-				OutputDebugString((LPCSTR)string);
+				OutputDebugStringA((LPCSTR)string);
 				OutputDebugStringA("\n");
 				err_msg = (LPCSTR)string;
 			}

@@ -1,7 +1,10 @@
 #include <Base/Window.hpp>
 #include <Helper/Cast.hpp>
 #include <Helper/ThrowAssert.hpp>
+#include <Helper/Convert.hpp>
 #include <atlcomcli.h>
+
+
 #ifdef DEBUG
 #undef DEBUG
 #endif
@@ -85,7 +88,8 @@ HRESULT Window::Create() noexcept
 	wcex.cbWndExtra = 0;    //拡張用？とりあえず使わないので0
 	wcex.lpfnWndProc = BaseWndProc;//プロシージャを指定。
 	wcex.hInstance = h_instance;
-	wcex.lpszClassName = m_desc.title.c_str();
+	auto w_title = KGL::MultiToWide(m_desc.title);
+	wcex.lpszClassName = w_title.c_str();
 	wcex.lpszMenuName = nullptr;    //メニューの名前。使わないならとりあえずNULLでOK
 	wcex.style = CS_VREDRAW | CS_HREDRAW;
 	wcex.hCursor = ::LoadCursor(h_instance, IDC_ARROW);      //カーソルアイコン
@@ -134,8 +138,8 @@ HRESULT Window::Create() noexcept
 	}
 
 	m_hwnd = CreateWindow(
-		m_desc.title.c_str(),
-		m_desc.title.c_str(),
+		w_title.c_str(),
+		w_title.c_str(),
 		m_desc.style | WS_MINIMIZE,    //ウィンドウスタイル。とりあえずデフォルトな感じで
 		start_x, start_y,   //初期位置。適当にやってくれる。
 		rc.right - rc.left, rc.bottom - rc.top,      //ウィンドウサイズ
