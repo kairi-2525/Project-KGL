@@ -316,10 +316,10 @@ void FCManager::DemoData::SetResource(UINT num)
 {
 	if (ptcs.size() > num)
 	{
-		auto* particles = resource->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* particles = resource->Map();
 		ZeroMemory(particles, resource->SizeInBytes());
 		std::copy(ptcs[num].begin(), ptcs[num].end(), particles);
-		resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		resource->Unmap();
 	}
 }
 
@@ -1291,9 +1291,9 @@ void FCManager::UpdateDemoGui()
 
 		if (select_demo_number == idx)
 		{
-			auto* world = it->world_resource->Map(0, &CD3DX12_RANGE(0, 0));
+			auto* world = it->world_resource->Map();
 			ImGui::InputFloat3((u8"À•W##" + std::to_string(idx)).c_str(), (float*)&world->position);
-			it->world_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+			it->world_resource->Unmap();
 		}
 		it++;
 		idx++;

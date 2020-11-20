@@ -49,9 +49,9 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capac
 
 void ParticleManager::SetParent(const ParticleParent& particle_parent)
 {
-	auto* parent_data = parent_res->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* parent_data = parent_res->Map();
 	*parent_data = particle_parent;
-	parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	parent_res->Unmap();
 }
 
 void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks)
@@ -60,12 +60,12 @@ void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_
 	const UINT32 fw_size = affect_fireworks.size();
 	const UINT32 size = oj_size + fw_size;
 	{
-		auto* parent_data = parent_res->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* parent_data = parent_res->Map();
 		parent_data->affect_obj_count = size;
-		parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		parent_res->Unmap();
 	}
 	{
-		auto* mp_affect_objects = affect_obj_resource->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* mp_affect_objects = affect_obj_resource->Map();
 
 		UINT32 i = 0u;
 		for (; i < oj_size; i++)
@@ -77,7 +77,7 @@ void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_
 			mp_affect_objects[i].pos = affect_fireworks[i - oj_size].pos;
 			mp_affect_objects[i].mass = affect_fireworks[i - oj_size].mass;
 		}
-		affect_obj_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		affect_obj_resource->Unmap();
 	}
 }
 
@@ -112,19 +112,19 @@ void ParticleManager::Update(
 {
 	using namespace DirectX;
 
-	auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
-	auto particles = resource->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* p_counter = counter_res->Map();
+	auto particles = resource->Map();
 	const size_t i_max = std::min<size_t>(particle_total_num, resource->Size());
-	const auto* cb = parent_res->Map(0, &CD3DX12_RANGE(0, 0));
+	const auto* cb = parent_res->Map();
 	for (int i = 0; i < i_max; i++)
 	{
 		if (!particles[i].Alive()) continue;
 		particles[i].Update(cb->elapsed_time, cb, affect_objects, affect_fireworks);
 		(*p_counter)++;
 	}
-	parent_res->Unmap(0, &CD3DX12_RANGE(0, 0));
-	resource->Unmap(0, &CD3DX12_RANGE(0, 0));
-	counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	parent_res->Unmap();
+	resource->Unmap();
+	counter_res->Unmap();
 }
 
 void ParticleManager::Sort()
@@ -132,7 +132,7 @@ void ParticleManager::Sort()
 	if (particle_total_num > 0)
 	{
 		next_particle_offset = std::min<size_t>(particle_total_num, resource->Size()) * sizeof(Particle);
-		auto particles = resource->Map(0u, &CD3DX12_RANGE(0, next_particle_offset));
+		auto particles = resource->Map(0u, CD3DX12_RANGE(0, next_particle_offset));
 		const auto size = next_particle_offset / sizeof(Particle);
 		UINT64 alive_count = 0;
 		constexpr Particle clear_ptc_value = {};
@@ -148,7 +148,7 @@ void ParticleManager::Sort()
 				alive_count++;
 			}
 		}
-		resource->Unmap(0u, &CD3DX12_RANGE(0, next_particle_offset));
+		resource->Unmap(0u, CD3DX12_RANGE(0, next_particle_offset));
 		next_particle_offset = sizeof(Particle) * alive_count;
 	}
 }
@@ -167,7 +167,7 @@ void ParticleManager::AddToFrameParticle()
 		if (range.End > offset_max)
 			range.End = offset_max;
 		const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
-		auto particles = resource->Map(0u, &range);
+		auto particles = resource->Map(0u, range);
 		UINT check_count = 0u;
 		for (; check_count < check_count_max;)
 		{
@@ -179,22 +179,22 @@ void ParticleManager::AddToFrameParticle()
 			frame_add_ptc_num++;
 			if (frame_particles.empty()) break;
 		}
-		resource->Unmap(0u, &range);
+		resource->Unmap(0u, range);
 		next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
 
-		auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* p_counter = counter_res->Map();
 		*p_counter += SCAST<UINT32>(frame_add_ptc_num);
 		particle_total_num = *p_counter;
-		counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		counter_res->Unmap();
 	}
 }
 
 void ParticleManager::Clear()
 {
-	auto* p_particles = resource->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* p_particles = resource->Map();
 	Particle particle_base = {};
 	std::fill(&p_particles[0], &p_particles[resource->Size()], particle_base);
-	resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+	resource->Unmap();
 
 	ResetCounter();
 
@@ -206,19 +206,19 @@ void ParticleManager::Clear()
 UINT32 ParticleManager::ResetCounter()
 {
 	UINT32 result;
-	auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* p_counter = counter_res->Map();
 	result = *p_counter;
 	*p_counter = 0u;
-	counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	counter_res->Unmap();
 	return result;
 }
 
 UINT32 ParticleManager::Size()
 {
 	UINT32 result;
-	auto* p_counter = counter_res->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* p_counter = counter_res->Map();
 	result = *p_counter;
-	counter_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	counter_res->Unmap();
 	return result;
 }
 

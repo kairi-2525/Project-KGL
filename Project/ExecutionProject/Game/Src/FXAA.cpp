@@ -59,9 +59,9 @@ void FXAAManager::UpdateBuffer()
 	{
 		changed = false;
 
-		auto* mapped_buffer = gpu_resource->Map(0u, &CD3DX12_RANGE(0u, 0u));
+		auto* mapped_buffer = gpu_resource->Map();
 		*mapped_buffer = desc.buffer;
-		gpu_resource->Unmap(0u, &CD3DX12_RANGE(0u, 0u));
+		gpu_resource->Unmap();
 	}
 }
 

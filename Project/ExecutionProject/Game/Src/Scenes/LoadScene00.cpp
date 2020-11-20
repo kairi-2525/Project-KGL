@@ -74,7 +74,7 @@ HRESULT LoadScene00Base::Init(const SceneDesc& desc)
 	SetLoadScene(desc);
 
 	{	// フレームバッファを初期化
-		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+		auto* mapped_fresource = frame_buffer_resource->Map();
 		mapped_fresource->time = 0.f;
 		auto resolution = desc.app->GetResolution();
 
@@ -96,7 +96,7 @@ HRESULT LoadScene00Base::Init(const SceneDesc& desc)
 		mapped_fresource->resolution.x = SCAST<float>(resolution.x);
 		mapped_fresource->resolution.y = SCAST<float>(resolution.y);
 		mapped_fresource->rotate_scale = 1.f;
-		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+		frame_buffer_resource->Unmap();
 	}
 
 	return S_OK;
@@ -107,7 +107,7 @@ HRESULT LoadScene00Base::Update(const SceneDesc& desc, float elapsed_time)
 	using namespace DirectX;
 	// フレームバッファを更新
 	{
-		auto* mapped_fresource = frame_buffer_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+		auto* mapped_fresource = frame_buffer_resource->Map();
 		if (GetNextScene()->IsLoaded())
 		{
 			counter = (std::min(counter + elapsed_time, counter_max));
@@ -121,7 +121,7 @@ HRESULT LoadScene00Base::Update(const SceneDesc& desc, float elapsed_time)
 			mapped_fresource->rotate_scale = 1.f + 2.f * dist;
 		}
 		mapped_fresource->time += elapsed_time / 10;
-		frame_buffer_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+		frame_buffer_resource->Unmap();
 	}
 
 	/*if (desc.input->IsMouseAnyPressed() || desc.input->IsKeyAnyPressed())

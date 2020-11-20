@@ -90,16 +90,16 @@ HRESULT TestScene07::Init(const SceneDesc& desc)
 		value_rs[rs_idx]->Unmap();
 	}
 	{
-		auto p = frame_buff_rs->Map(0, &CD3DX12_RANGE(0, 0));
+		auto p = frame_buff_rs->Map();
 		*p = value_size;
-		frame_buff_rs->Unmap(0, &CD3DX12_RANGE(0, 0));
+		frame_buff_rs->Unmap();
 	}
 
 	{
-		auto p = step_buff_rs->Map(0, &CD3DX12_RANGE(0, 0));
+		auto p = step_buff_rs->Map();
 		p->block_step = 1;
 		p->sub_block_step = 1;
-		step_buff_rs->Unmap(0, &CD3DX12_RANGE(0, 0));
+		step_buff_rs->Unmap();
 	}
 
 	OutputValue();
@@ -156,19 +156,19 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 void TestScene07::OutputValue()
 {
 	auto value_size = SCAST<UINT32>(value_rs[rs_idx]->Size());
-	auto p = value_rs[rs_idx]->Map(0, &CD3DX12_RANGE(0, 0));
+	auto p = value_rs[rs_idx]->Map();
 	for (UINT32 i = 0u; i < value_size; i++)
 	{
 		KGLDebugOutPutStringNL(std::to_string(p[i]) + ", ");
 	}
-	value_rs[rs_idx]->Unmap(0, &CD3DX12_RANGE(0, 0));
+	value_rs[rs_idx]->Unmap();
 
 	KGLDebugOutPutStringNL("\n *\n *\n *\n *\n");
 }
 
 void TestScene07::CountPlus()
 {
-	auto p = step_buff_rs->Map(0, &CD3DX12_RANGE(0, 0));
+	auto p = step_buff_rs->Map();
 	p->sub_block_step++;
 	if (p->sub_block_step > p->block_step)
 	{
@@ -178,7 +178,7 @@ void TestScene07::CountPlus()
 		if (p->block_step == 5)
 			p->block_step = 1;
 	}
-	step_buff_rs->Unmap(0, &CD3DX12_RANGE(0, 0));
+	step_buff_rs->Unmap();
 }
 
 HRESULT TestScene07::Render(const SceneDesc& desc)

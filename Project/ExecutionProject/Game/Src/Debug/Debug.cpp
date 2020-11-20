@@ -171,9 +171,9 @@ void DebugManager::AddStaticObjects(const std::vector<std::shared_ptr<Object>>& 
 
 void DebugManager::ClearStaticObjects()
 {
-	auto* mapped_vertices = s_obj_vertex_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+	auto* mapped_vertices = s_obj_vertex_resource->Map();
 	ZeroMemory(mapped_vertices, s_obj_vertex_resource->SizeInBytes());
-	s_obj_vertex_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+	s_obj_vertex_resource->Unmap();
 }
 
 HRESULT DebugManager::UpdateStaticObjects()
@@ -199,7 +199,7 @@ HRESULT DebugManager::UpdateStaticObjects()
 	}
 
 	// Vertex‚ðƒZƒbƒg‚·‚é
-	auto* mapped_vertices = s_obj_vertex_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+	auto* mapped_vertices = s_obj_vertex_resource->Map();
 
 	s_obj_vertices_offset = 0u;
 	for (const auto& obj : s_objects)
@@ -207,7 +207,7 @@ HRESULT DebugManager::UpdateStaticObjects()
 		s_obj_vertices_offset += SCAST<UINT>(obj->GetVertex(&mapped_vertices[s_obj_vertices_offset]));
 	}
 
-	s_obj_vertex_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+	s_obj_vertex_resource->Unmap();
 
 	return hr;
 }
@@ -265,14 +265,14 @@ HRESULT DebugManager::Update(const TransformConstants& tc, const ShadingConstant
 	}
 
 	{
-		auto* mapped_buffer = s_obj_tc_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+		auto* mapped_buffer = s_obj_tc_resource->Map();
 		*mapped_buffer = tc;
-		s_obj_tc_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+		s_obj_tc_resource->Unmap();
 	}
 	{
-		auto* mapped_buffer = s_obj_sc_resource->Map(0, &CD3DX12_RANGE(0u, 0u));
+		auto* mapped_buffer = s_obj_sc_resource->Map();
 		*mapped_buffer = sc;
-		s_obj_sc_resource->Unmap(0, &CD3DX12_RANGE(0u, 0u));
+		s_obj_sc_resource->Unmap();
 	}
 	return hr;
 }

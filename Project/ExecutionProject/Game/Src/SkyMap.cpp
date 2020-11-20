@@ -70,9 +70,9 @@ SkyManager::SkyManager(KGL::ComPtrC<ID3D12Device> device,
 
 	vbr = std::make_shared<KGL::Resource<Vertex>>(device, sky_vertices.size());
 
-	auto* mapped_vertices = vbr->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* mapped_vertices = vbr->Map();
 	std::copy(sky_vertices.cbegin(), sky_vertices.cend(), mapped_vertices);
-	vbr->Unmap(0, &CD3DX12_RANGE(0, 0));
+	vbr->Unmap();
 
 	auto buffer_location = vbr->Data()->GetGPUVirtualAddress();
 	for (auto& vbv : vbv)
@@ -240,9 +240,9 @@ void SkyManager::Change(bool next)
 
 void SkyManager::SetWVP(DirectX::CXMMATRIX wvp)
 {
-	auto* p_mapped_wvp = buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	auto* p_mapped_wvp = buffer->Map();
 	DirectX::XMStoreFloat4x4(p_mapped_wvp, wvp);
-	buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	buffer->Unmap();
 }
 
 void SkyManager::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list, UINT msaa_scale)

@@ -85,9 +85,9 @@ void DOFGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 	UINT32 rtv_num = 0u;
 	{
-		UINT32* mapped_rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+		UINT32* mapped_rtv_num = rtv_num_res->Map();
 		rtv_num = *mapped_rtv_num;
-		rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		rtv_num_res->Unmap();
 	}
 	for (UINT32 idx = 0u; idx < rtv_num; idx++)
 	{
@@ -133,16 +133,16 @@ void DOFGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 void DOFGenerator::SetRtvNum(UINT8 num)
 {
-	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+	UINT32* rtv_num = rtv_num_res->Map();
 	*rtv_num = (std::min)(KGL::SCAST<UINT32>(rtv_textures.size()), KGL::SCAST<UINT32>(num));
-	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	rtv_num_res->Unmap();
 }
 
 UINT8 DOFGenerator::GetRtvNum()
 {
 	UINT8 result;
-	UINT32* rtv_num = rtv_num_res->Map(0, &CD3DX12_RANGE(0, 0));
+	UINT32* rtv_num = rtv_num_res->Map();
 	result = KGL::SCAST<UINT8>(*rtv_num);
-	rtv_num_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+	rtv_num_res->Unmap();
 	return result;
 }

@@ -111,9 +111,9 @@ HRESULT TestScene05::Update(const SceneDesc& desc, float elapsed_time)
 		D3D12_RANGE range;
 		range.Begin = 0;
 		range.End = cpt_resource->SizeInBytes();
-		auto p = cpt_resource->Map(0, &range);
+		auto p = cpt_resource->Map(0, range);
 		KGLDebugOutPutStringNL("\r a : " + std::to_string(p[0].a.x) + " / b : " + std::to_string(p[0].b.x) + std::string(5, ' '));
-		cpt_resource->Unmap(0, &range);
+		cpt_resource->Unmap(0, range);
 	}
 
 	return Render(desc);

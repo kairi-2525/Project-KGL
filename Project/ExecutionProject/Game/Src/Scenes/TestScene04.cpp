@@ -425,13 +425,13 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		grid_vertex_resource = std::make_shared<KGL::Resource<DirectX::XMFLOAT4>>(device, grid_vertices.size());
 		grid_idx_resource = std::make_shared<KGL::Resource<UINT16>>(device, grid_indices.size());
 
-		auto* mapped_vertices = grid_vertex_resource->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* mapped_vertices = grid_vertex_resource->Map();
 		std::copy(grid_vertices.cbegin(), grid_vertices.cend(), mapped_vertices);
-		grid_vertex_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		grid_vertex_resource->Unmap();
 
-		auto* mapped_indices = grid_idx_resource->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* mapped_indices = grid_idx_resource->Map();
 		std::copy(grid_indices.cbegin(), grid_indices.cend(), mapped_indices);
-		grid_idx_resource->Unmap(0, &CD3DX12_RANGE(0, 0));
+		grid_idx_resource->Unmap();
 
 		grid_vbv.BufferLocation = grid_vertex_resource->Data()->GetGPUVirtualAddress();
 		grid_vbv.SizeInBytes = SCAST<UINT>(sizeof(grid_vertices[0]) * grid_vertices.size());
@@ -856,9 +856,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		ParticleParent pparent{};
 		{
-			auto* p_pp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			auto* p_pp = ptc_mgr->ParentResource()->Map();
 			pparent = *p_pp;
-			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+			ptc_mgr->ParentResource()->Unmap();
 		}
 		//fc_mgr->ImGuiUpdate(desc.app->GetDevice(), &pparent, ptc_tex_srv_gui_handles);
 		gui_mgr->Update(resolution, &pparent, ptc_tex_srv_gui_handles);
@@ -1021,14 +1021,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		XMStoreFloat4x4(&viewf, view);
 
 		{
-			auto* ptc_parent = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			auto* ptc_parent = ptc_mgr->ParentResource()->Map();
 			ptc_parent->elapsed_time = ptc_update_time;
-			ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+			ptc_mgr->ParentResource()->Unmap();
 		}
 		{
-			auto* ptc_parent = pl_shot_ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+			auto* ptc_parent = pl_shot_ptc_mgr->ParentResource()->Map();
 			ptc_parent->elapsed_time = ptc_update_time;
-			pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+			pl_shot_ptc_mgr->ParentResource()->Unmap();
 		}
 		ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
 		pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
@@ -1096,14 +1096,14 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	ParticleParent ptc_cb, pl_shot_ptc_cb;
 	{
-		const auto* cbp = ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+		const auto* cbp = ptc_mgr->ParentResource()->Map();
 		ptc_cb = *cbp;
-		ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+		ptc_mgr->ParentResource()->Unmap();
 	}
 	{
-		const auto* cbp = pl_shot_ptc_mgr->ParentResource()->Map(0, &CD3DX12_RANGE(0, 0));
+		const auto* cbp = pl_shot_ptc_mgr->ParentResource()->Map();
 		pl_shot_ptc_cb = *cbp;
-		pl_shot_ptc_mgr->ParentResource()->Unmap(0, &CD3DX12_RANGE(0, 0));
+		pl_shot_ptc_mgr->ParentResource()->Unmap();
 	}
 
 	for (auto i = 0; i < fireworks->size(); i++)

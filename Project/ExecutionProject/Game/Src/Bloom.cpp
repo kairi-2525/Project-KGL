@@ -117,9 +117,9 @@ BloomGenerator::BloomGenerator(KGL::ComPtrC<ID3D12Device> device,
 	const auto& weights = KGL::MATH::GetGaussianWeights(8u, 5.f);
 	gaussian_buffer = std::make_shared<KGL::Resource<float>>(device, weights.size());
 	{
-		auto* mapped_weight = gaussian_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* mapped_weight = gaussian_buffer->Map();
 		std::copy(weights.cbegin(), weights.cend(), mapped_weight);
-		gaussian_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+		gaussian_buffer->Unmap();
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 		cbv_desc.BufferLocation = gaussian_buffer->Data()->GetGPUVirtualAddress();
@@ -158,9 +158,9 @@ void BloomGenerator::Generate(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list,
 
 	UINT32 rtv_num = 0u;
 	{
-		Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+		Buffer* mapped_buffer = frame_buffer->Map();
 		rtv_num = mapped_buffer->kernel;
-		frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+		frame_buffer->Unmap();
 	}
 
 	// 圧縮テクスチャを作成
@@ -286,48 +286,48 @@ void BloomGenerator::Render(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 
 void BloomGenerator::SetKernel(UINT8 num) noexcept
 {
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	mapped_buffer->kernel = (std::min)(KGL::SCAST<UINT32>(RTV_MAX), KGL::SCAST<UINT32>(num));
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 }
 
 UINT8 BloomGenerator::GetKernel() const noexcept
 {
 	UINT8 result;
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	result = KGL::SCAST<UINT8>(mapped_buffer->kernel);
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 	return result;
 }
 
 void BloomGenerator::SetGaussianKernel(UINT8 num) noexcept
 {
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	mapped_buffer->gaussian_kernel = (std::min)(KGL::SCAST<UINT32>(RTV_MAX), KGL::SCAST<UINT32>(num));
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 }
 
 UINT8 BloomGenerator::GetGaussianKernel() const noexcept
 {
 	UINT8 result;
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	result = KGL::SCAST<UINT8>(mapped_buffer->gaussian_kernel);
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 	return result;
 }
 
 void BloomGenerator::SetWeights(Weights weights) noexcept
 {
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	mapped_buffer->weight = weights;
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 }
 
 BloomGenerator::Weights BloomGenerator::GetWeights() const noexcept
 {
 	Weights result;
-	Buffer* mapped_buffer = frame_buffer->Map(0, &CD3DX12_RANGE(0, 0));
+	Buffer* mapped_buffer = frame_buffer->Map();
 	result = mapped_buffer->weight;
-	frame_buffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+	frame_buffer->Unmap();
 	return result;
 }
