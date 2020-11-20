@@ -5,7 +5,7 @@ SamplerState smp : register(s0);
 
 void PSMain(PSInput input)
 {
-	if (tex.Sample(smp, input.uv).a <= 0.f)
+	if (tex.Sample(smp, input.uv).a <= 0.0f)
 	{
 		discard;
 	}

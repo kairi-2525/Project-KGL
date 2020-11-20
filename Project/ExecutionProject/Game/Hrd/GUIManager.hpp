@@ -119,6 +119,7 @@ private:
 	void UpdatePtcOption(const DirectX::XMUINT2& rt_resolution);
 	void UpdateRtOption();
 public:
+	static void HelperZoomImage(ImTextureID image, ImVec2 tex_size);
 	static void HelperTimer(const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO);
 	static void HelperCounter(const std::string& title, UINT64 count, UINT64* max_count);
 public:

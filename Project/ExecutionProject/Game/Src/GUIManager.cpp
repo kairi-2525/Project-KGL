@@ -53,7 +53,7 @@ void GUIManager::Init()
 {
 	time_scale = 1.f;
 	time_stop = false;
-	spawn_fireworks = false;
+	spawn_fireworks = true;
 	use_gpu = true;
 	ptc_dof = false;
 	dof_flg = true;
@@ -543,7 +543,7 @@ void GUIManager::UpdatePtcOption(const DirectX::XMUINT2& rt_resolution)
 	ImGui::Unindent(16.0f);
 }
 
-#define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
+//#define BORDER_COLOR(color) ImVec2(0.f, 0.f), ImVec2(1.f, 1.f), ImVec4(1.f, 1.f, 1.f, 1.f), color
 void GUIManager::UpdateRtOption()
 {
 	const auto bd_color = ImGui::GetStyle().Colors[ImGuiCol_Border];
@@ -555,13 +555,13 @@ void GUIManager::UpdateRtOption()
 		//ImGui::GetWindowDrawList()->AddImage((ImTextureID)it.imgui_handle.Gpu().ptr,
 		// ImVec2(0, 0), image_size, ImVec2(0, 0), ImVec2(1, 1), IM_COL32(255, 0, 0, 255));
 
-		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).depth_gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		HelperZoomImage((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).depth_gui_srv_handle.Gpu().ptr, image_size);
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Particles"))
 	{
-		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
-		ImGui::Image((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size, BORDER_COLOR(bd_color));
+		HelperZoomImage((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_NON_BLOOM].gui_srv_handle.Gpu().ptr, image_size);
+		HelperZoomImage((ImTextureID)desc.rt_resources->at(MSAASelector::TYPE::MSAA_OFF).render_targets[TestScene04::PTC_BLOOM].gui_srv_handle.Gpu().ptr, image_size);
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("Bloom"))
@@ -571,28 +571,28 @@ void GUIManager::UpdateRtOption()
 		ImGui::Text("Compression");
 		for (const auto& handle : bl_c_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			HelperZoomImage((ImTextureID)handle.Gpu().ptr, halh_image_size);
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
 		idx = 0u;
 		ImGui::Text("Width Blur");
-		for (const auto& handle : bl_h_imgui_handles)
+		for (const auto& handle : bl_w_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			HelperZoomImage((ImTextureID)handle.Gpu().ptr, halh_image_size);
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
 		idx = 0u;
 		ImGui::Text("Height Blur");
-		for (const auto& handle : bl_w_imgui_handles)
+		for (const auto& handle : bl_h_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			HelperZoomImage((ImTextureID)handle.Gpu().ptr, halh_image_size);
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
 		ImGui::Text("Result");
-		ImGui::Image((ImTextureID)bl_bloom_imgui_handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+		HelperZoomImage((ImTextureID)bl_bloom_imgui_handle.Gpu().ptr, halh_image_size);
 		ImGui::TreePop();
 	}
 	if (ImGui::TreeNode("DOF"))
@@ -601,7 +601,7 @@ void GUIManager::UpdateRtOption()
 		UINT idx = 0u;
 		for (const auto& handle : dof_imgui_handles)
 		{
-			ImGui::Image((ImTextureID)handle.Gpu().ptr, halh_image_size, BORDER_COLOR(bd_color));
+			HelperZoomImage((ImTextureID)handle.Gpu().ptr, halh_image_size);
 			if (idx % 2 == 0) ImGui::SameLine();
 			idx++;
 		}
@@ -768,4 +768,34 @@ DirectX::XMUINT2 GUIManager::GetNoWindowSpace(const DirectX::XMUINT2& rt_resolut
 	result.y -= (base_size.y);
 
 	return result;
+}
+
+void GUIManager::HelperZoomImage(ImTextureID image, ImVec2 tex_size)
+{
+	auto& io = ImGui::GetIO();
+	
+	ImVec2 pos = ImGui::GetCursorScreenPos();
+	ImVec2 uv_min = ImVec2(0.0f, 0.0f);                 // Top-left
+	ImVec2 uv_max = ImVec2(1.0f, 1.0f);                 // Lower-right
+	ImVec4 tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);   // No tint
+	ImVec4 border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
+	ImGui::Image(image, tex_size, uv_min, uv_max, tint_col, border_col);
+	if (ImGui::IsItemHovered())
+	{
+		ImGui::BeginTooltip();
+		float region_sz = 32.0f;
+		float region_x = io.MousePos.x - pos.x - region_sz * 0.5f;
+		float region_y = io.MousePos.y - pos.y - region_sz * 0.5f;
+		float zoom = 4.0f;
+		if (region_x < 0.0f) { region_x = 0.0f; }
+		else if (region_x > tex_size.x - region_sz) { region_x = tex_size.x - region_sz; }
+		if (region_y < 0.0f) { region_y = 0.0f; }
+		else if (region_y > tex_size.y - region_sz) { region_y = tex_size.y - region_sz; }
+		ImGui::Text("Min: (%.2f, %.2f)", region_x, region_y);
+		ImGui::Text("Max: (%.2f, %.2f)", region_x + region_sz, region_y + region_sz);
+		ImVec2 uv0 = ImVec2((region_x) / tex_size.x, (region_y) / tex_size.y);
+		ImVec2 uv1 = ImVec2((region_x + region_sz) / tex_size.x, (region_y + region_sz) / tex_size.y);
+		ImGui::Image(image, ImVec2(region_sz * zoom, region_sz * zoom), uv0, uv1, tint_col, border_col);
+		ImGui::EndTooltip();
+	}
 }
