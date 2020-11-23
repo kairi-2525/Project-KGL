@@ -31,7 +31,7 @@ private:
 	UINT										rs_idx;
 	std::shared_ptr<KGL::Resource<UINT32>>		value_rs[2];
 	std::shared_ptr<KGL::Resource<UINT32>>		frame_buff_rs;
-	std::shared_ptr<KGL::Resource<StepBuffer>>	step_buff_rs;
+	std::shared_ptr<KGL::MultiResource<StepBuffer>>	step_buff_rs;
 
 	KGL::ComPtr<ID3D12CommandAllocator>			cpt_cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;

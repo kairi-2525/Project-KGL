@@ -38,6 +38,7 @@ namespace KGL
 			) noexcept;
 			virtual ~ResourcesBase() = default;
 
+			ComPtrC<ID3D12Resource> Data() const noexcept { return m_buffer; }
 			size_t Size() const noexcept { return m_size; }
 			UINT64 SizeInBytes() const noexcept { return m_size_in_bytes; }
 			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
@@ -47,17 +48,21 @@ namespace KGL
 		};
 
 		template <class _Ty>
-		class Resource : public ResourcesBase
+		class ResourceTyBase : public ResourcesBase
 		{
+		private:
 			_Ty* m_mapped_ptr;
-		public:
-			Resource(ComPtrC<ID3D12Device> device, size_t size,
-				const D3D12_HEAP_PROPERTIES* prop = nullptr,
-				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
+		protected:
+			ResourceTyBase(
+				ComPtrC<ID3D12Device> device,
+				size_t size, size_t struct_size,
+				const D3D12_HEAP_PROPERTIES* prop,
+				D3D12_RESOURCE_FLAGS flag
 			) noexcept :
-				ResourcesBase(device, size, sizeof(_Ty), prop, flag), m_mapped_ptr(nullptr)
+				ResourcesBase(device, size, struct_size, prop, flag), m_mapped_ptr(nullptr)
 			{
 			}
+		public:
 			_Ty* Map(UINT subresource = 0u, const D3D12_RANGE& read_range = { 0, 0 })
 			{
 				_Ty* mapped_ptr = nullptr;
@@ -69,8 +74,38 @@ namespace KGL
 			{
 				m_buffer->Unmap(subresource, &wwriten_range);
 			}
-			ComPtrC<ID3D12Resource> Data() const noexcept { return m_buffer; }
 			UINT64 AlignmentStructSize(size_t size) const noexcept { return AlignmentStructSize<_Ty>(size); }
+		};
+
+		template <class _Ty>
+		class Resource : public ResourceTyBase<_Ty>
+		{
+		public:
+			Resource(ComPtrC<ID3D12Device> device, size_t size,
+				const D3D12_HEAP_PROPERTIES* prop = nullptr,
+				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
+			) noexcept :
+				ResourceTyBase<_Ty>(device, size, sizeof(_Ty), prop, flag)
+			{
+			}
+
+			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
+			{
+				return ResourcesBase::CreateCBV(ResourcesBase::m_buffer->GetGPUVirtualAddress(), SCAST<UINT>(ResourcesBase::m_size_in_bytes), p_handle);
+			}
+		};
+
+		template <class _Ty>
+		class MultiResource : public ResourceTyBase<_Ty>
+		{
+		public:
+			MultiResource(ComPtrC<ID3D12Device> device, size_t size,
+				const D3D12_HEAP_PROPERTIES* prop = nullptr,
+				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
+			) noexcept :
+				ResourceTyBase<_Ty>(device, size, ResourcesBase::AlignmentStructSize<_Ty>(1u), prop, flag)
+			{
+			}
 
 			// CBV ÇçÏê¨
 			// @param begin êÊì™
@@ -78,14 +113,14 @@ namespace KGL
 			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle, UINT begin, UINT count = 1u) const noexcept
 			{
 				RCHECK(count <= 0, "count Ç™è¨Ç≥Ç∑Ç¨Ç‹Ç∑", E_FAIL);
-				RCHECK(begin + count > m_size, "begin + count Ç™ëΩÇ´Ç∑Ç¨Ç‹Ç∑", E_FAIL);
-				auto begin_address = m_buffer->GetGPUVirtualAddress();
-				begin_address += begin * sizeof(_Ty);
+				RCHECK(begin + count > ResourcesBase::m_size, "begin + count Ç™ëΩÇ´Ç∑Ç¨Ç‹Ç∑", E_FAIL);
+				auto begin_address = ResourcesBase::m_buffer->GetGPUVirtualAddress();
+				begin_address += begin * ResourcesBase::AlignmentStructSize<_Ty>(1u);
 				return ResourcesBase::CreateCBV(begin_address, (sizeof(_Ty) * count), p_handle);
 			}
 			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
 			{
-				return ResourcesBase::CreateCBV(m_buffer->GetGPUVirtualAddress(), SCAST<UINT>(m_size_in_bytes), p_handle);
+				return ResourcesBase::CreateCBV(ResourcesBase::m_buffer->GetGPUVirtualAddress(), SCAST<UINT>(ResourcesBase::m_size_in_bytes), p_handle);
 			}
 		};
 	}

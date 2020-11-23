@@ -15,7 +15,7 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	lgn = 20u;
+	lgn = 5u;
 	step_max = lgn;
 	for (UINT32 i = 1u; i <= lgn; i++)
 	{
@@ -76,7 +76,7 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	frame_buff_rs->CreateCBV(frame_cbv_handle);
 
 	step_cbv_handles.resize(step_max);
-	step_buff_rs = std::make_shared<KGL::Resource<StepBuffer>>(device, step_max);
+	step_buff_rs = std::make_shared<KGL::MultiResource<StepBuffer>>(device, step_max);
 	for (UINT32 i = 0u; i < step_max; i++)
 	{
 		step_cbv_handles[i] = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
