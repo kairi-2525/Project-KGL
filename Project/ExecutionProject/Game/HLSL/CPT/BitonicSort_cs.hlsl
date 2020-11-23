@@ -20,7 +20,7 @@ void CSMain( uint3 idx_tid : SV_DispatchThreadID )
     uint idx = idx_tid.x;
 
 	// idx がオーバーしている
-	if (idx >= value_size) return;
+	if (idx >= (1 << value_size)) return;
 
 	uint d = 1u << (block_step - sub_block_step);
 

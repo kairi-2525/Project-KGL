@@ -15,6 +15,13 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
+	lgn = 20u;
+	step_max = lgn;
+	for (UINT32 i = 1u; i <= lgn; i++)
+	{
+		step_max += i;
+	}
+
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cpt_cmd_allocator, &cpt_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	{
@@ -35,8 +42,8 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
 	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
 	prop.VisibleNodeMask = 1;
-	value_rs[0] = std::make_shared<KGL::Resource<UINT32>>(device, 64u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	value_rs[1] = std::make_shared<KGL::Resource<UINT32>>(device, 64u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	value_rs[0] = std::make_shared<KGL::Resource<UINT32>>(device, 1u << lgn, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	value_rs[1] = std::make_shared<KGL::Resource<UINT32>>(device, 1u << lgn, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
 	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -44,7 +51,7 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(value_rs[0]->Size());
 	uav_desc.Buffer.StructureByteStride = sizeof(UINT32);
 
-	cpt_descmgr = std::make_shared<KGL::DescriptorManager>(device, 4u);
+	cpt_descmgr = std::make_shared<KGL::DescriptorManager>(device, 3u + step_max);
 	value_uav_handle[0] = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
 	value_uav_handle[1] = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
 	device->CreateUnorderedAccessView(value_rs[0]->Data().Get(), nullptr, &uav_desc, value_uav_handle[0]->Cpu());
@@ -68,9 +75,13 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	frame_cbv_handle = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
 	frame_buff_rs->CreateCBV(frame_cbv_handle);
 
-	step_buff_rs = std::make_shared<KGL::Resource<StepBuffer>>(device, 1u);
-	step_cbv_handle = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
-	step_buff_rs->CreateCBV(step_cbv_handle);
+	step_cbv_handles.resize(step_max);
+	step_buff_rs = std::make_shared<KGL::Resource<StepBuffer>>(device, step_max);
+	for (UINT32 i = 0u; i < step_max; i++)
+	{
+		step_cbv_handles[i] = std::make_shared<KGL::DescriptorHandle>(cpt_descmgr->Alloc());
+		step_buff_rs->CreateCBV(step_cbv_handles[i], i);
+	}
 
 	return hr;
 }
@@ -91,7 +102,7 @@ HRESULT TestScene07::Init(const SceneDesc& desc)
 	}
 	{
 		auto p = frame_buff_rs->Map();
-		*p = value_size;
+		*p = 20;
 		frame_buff_rs->Unmap();
 	}
 
@@ -120,14 +131,18 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 	auto rb = CD3DX12_RESOURCE_BARRIER::UAV(value_rs[rs_idx]->Data().Get());
 	cpt_cmd_list->ResourceBarrier(1, &rb);
 	cpt_pipeline->SetState(cpt_cmd_list);
-	cpt_cmd_list->SetDescriptorHeaps(1, frame_cbv_handle->Heap().GetAddressOf());
 
-	cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
-	cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handle->Gpu());
-	cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
-	cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+	for (UINT32 i = 0u; i < step_max; i++)
+	{
+		cpt_cmd_list->SetDescriptorHeaps(1, frame_cbv_handle->Heap().GetAddressOf());
 
-	cpt_cmd_list->Dispatch((value_rs[rs_idx]->Size() / 64) + 1, 1, 1);
+		cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
+		cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[i]->Gpu());
+		cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
+		cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+
+		cpt_cmd_list->Dispatch((value_rs[rs_idx]->Size() / 64) + 1, 1, 1);
+	}
 
 	cpt_cmd_list->ResourceBarrier(1, &rb);
 	cpt_cmd_list->Close();

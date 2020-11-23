@@ -24,7 +24,10 @@ private:
 		UINT32	block_step;
 		UINT32	sub_block_step;
 	};
+	using SpDpHandle = std::shared_ptr<KGL::DescriptorHandle>;
 private:
+	UINT32										lgn;
+	UINT32										step_max;
 	UINT										rs_idx;
 	std::shared_ptr<KGL::Resource<UINT32>>		value_rs[2];
 	std::shared_ptr<KGL::Resource<UINT32>>		frame_buff_rs;
@@ -34,9 +37,9 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
 	std::shared_ptr<KGL::CommandQueue>			cpt_cmd_queue;
 	std::shared_ptr<KGL::DescriptorManager>		cpt_descmgr;
-	std::shared_ptr<KGL::DescriptorHandle>		value_uav_handle[2];
-	std::shared_ptr<KGL::DescriptorHandle>		frame_cbv_handle;
-	std::shared_ptr<KGL::DescriptorHandle>		step_cbv_handle;
+	SpDpHandle									value_uav_handle[2];
+	SpDpHandle									frame_cbv_handle;
+	std::vector<SpDpHandle>						step_cbv_handles;
 	std::shared_ptr<KGL::ComputePipline>		cpt_pipeline;
 
 public:
