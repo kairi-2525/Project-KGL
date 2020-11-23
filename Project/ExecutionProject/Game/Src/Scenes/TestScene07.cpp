@@ -132,15 +132,18 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 	cpt_cmd_list->ResourceBarrier(1, &rb);
 	cpt_pipeline->SetState(cpt_cmd_list);
 
-	for (UINT32 i = 0u; i < step_max; i++)
+	UINT32 count = 0u;
+	for (UINT32 i = 1u; i <= lgn; i++)
 	{
-		cpt_cmd_list->SetDescriptorHeaps(1, frame_cbv_handle->Heap().GetAddressOf());
+		for (UINT j = 0; j < i; j++)
+		{
+			cpt_cmd_list->SetDescriptorHeaps(1, frame_cbv_handle->Heap().GetAddressOf());
 
-		cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
-		cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[i]->Gpu());
-		cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
-		cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
-
+			cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
+			cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[count++]->Gpu());
+			cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
+			cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+		}
 		cpt_cmd_list->Dispatch((value_rs[rs_idx]->Size() / 64) + 1, 1, 1);
 	}
 
