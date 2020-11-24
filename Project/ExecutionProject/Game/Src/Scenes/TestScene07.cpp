@@ -15,8 +15,8 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	lgn = 5u;
-	step_max = lgn;
+	lgn = 6u;
+	step_max = 0u;
 	for (UINT32 i = 1u; i <= lgn; i++)
 	{
 		step_max += i;
@@ -94,22 +94,93 @@ HRESULT TestScene07::Init(const SceneDesc& desc)
 	rs_idx = 0u;
 	{
 		auto p = value_rs[rs_idx]->Map();
+		//std::vector<UINT> u(value_size);
 		for (UINT32 i = 0u; i < value_size; i++)
 		{
 			p[i] = SCAST<UINT32>(rand());
+			//u[i] = p[i];
 		}
+
+		//for (UINT32 i = 0u; i < lgn; i++)
+		//{
+		//	for (UINT j = 0u; j <= i; j++)
+		//	{
+		//		for (UINT32 idx = 0u; idx < value_size; idx++)
+		//		{
+		//			UINT d = 1u << (i - j);
+		//			bool up = ((idx >> i) & 2u) == 0u;
+
+		//			UINT target_index;
+		//			if ((idx & d) == 0u) {
+		//				target_index = idx | d;
+		//			}
+		//			else {
+		//				target_index = idx & ~d;
+		//				up = !up;
+		//			}
+
+		//			float a = u[idx];
+		//			float b = u[target_index];
+		//			if ((a > b) == up) {
+		//				u[idx] = b; // swap
+		//			}
+		//			else {
+		//				u[idx] = a; // no_swap
+		//			}
+		//		}
+		//	}
+
+		//}
+
+		//for (int block = 2; block <= value_size; block *= 2) {
+		//	for (int step = block / 2; step >= 1; step /= 2) {
+		//		for (int idx = 0; idx < value_size; idx++) {
+		//			int e = idx ^ step; // (1)
+		//			if (e > idx) { // (2)
+		//				int v1 = u[idx];
+		//				int v2 = u[e];
+		//				if ((idx & block) != 0) { // (3)
+		//					if (v1 < v2) { // (4)
+		//						u[e] = v1;
+		//						u[idx] = v2;
+		//					}
+		//				}
+		//				else {
+		//					if (v1 > v2) {
+		//						u[e] = v1;
+		//						u[idx] = v2;
+		//					}
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
+
 		value_rs[rs_idx]->Unmap();
 	}
 	{
 		auto p = frame_buff_rs->Map();
-		*p = 20;
+		*p = lgn;
 		frame_buff_rs->Unmap();
 	}
 
 	{
-		auto p = step_buff_rs->Map();
-		p->block_step = 1;
-		p->sub_block_step = 1;
+		auto offset = step_buff_rs->AlignmentStructSize(1u);
+		StepBuffer* p = step_buff_rs->Map();
+		std::vector<StepBuffer> sb;
+		for (int block = 2; block <= value_size; block *= 2)
+		{
+			for (int step = block / 2; step >= 1; step /= 2)
+			{
+				//StepBuffer s;
+				//s.block_step = block;
+				//s.sub_block_step = step;
+				//sb.push_back(s);/*
+				p->block_step = block;
+				p->sub_block_step = step;
+				p = step_buff_rs->IncrementPtr(p);
+			}
+		}
 		step_buff_rs->Unmap();
 	}
 
@@ -127,46 +198,50 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))
 		SetNextScene<LoadScene00<TestScene00>>(desc);
 
-	using namespace DirectX;
-	auto rb = CD3DX12_RESOURCE_BARRIER::UAV(value_rs[rs_idx]->Data().Get());
-	cpt_cmd_list->ResourceBarrier(1, &rb);
-	cpt_pipeline->SetState(cpt_cmd_list);
-
-	UINT32 count = 0u;
-	for (UINT32 i = 1u; i <= lgn; i++)
 	{
-		for (UINT j = 0; j < i; j++)
-		{
-			cpt_cmd_list->SetDescriptorHeaps(1, frame_cbv_handle->Heap().GetAddressOf());
+		using namespace DirectX;
+		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(value_rs[rs_idx]->Data().Get());
+		cpt_cmd_list->ResourceBarrier(1, &rb);
 
-			cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
-			cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[count++]->Gpu());
-			cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
-			cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+		UINT32 count = 0u;
+		const auto value_size = SCAST<UINT32>(value_rs[rs_idx]->Size());
+		for (int block = 2; block <= value_size; block *= 2)
+		{
+
+			for (int step = block / 2; step >= 1; step /= 2)
+			{
+				cpt_pipeline->SetState(cpt_cmd_list);
+
+				cpt_cmd_list->SetDescriptorHeaps(1, cpt_descmgr->Heap().GetAddressOf());
+				cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
+				cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
+				cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+
+				cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[count++]->Gpu());
+				cpt_cmd_list->Dispatch((SCAST<UINT>(value_rs[rs_idx]->Size()) / 64u) + 1u, 1u, 1u);
+			
+				cpt_cmd_list->Close();
+
+				//コマンドの実行
+				ID3D12CommandList* cmd_lists[] = {
+				   cpt_cmd_list.Get(),
+				};
+
+				cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
+				cpt_cmd_queue->Signal();
+				cpt_cmd_queue->Wait();
+
+				cpt_cmd_allocator->Reset();
+				cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+			}
+
+			//rs_idx++;
+			if (rs_idx >= 2) rs_idx = 0;
 		}
-		cpt_cmd_list->Dispatch((value_rs[rs_idx]->Size() / 64) + 1, 1, 1);
+		OutputValue();
 	}
 
-	cpt_cmd_list->ResourceBarrier(1, &rb);
-	cpt_cmd_list->Close();
-
-	//コマンドの実行
-	ID3D12CommandList* cmd_lists[] = {
-	   cpt_cmd_list.Get(),
-	};
-	cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-	cpt_cmd_queue->Signal();
-	cpt_cmd_queue->Wait();
-
-	cpt_cmd_allocator->Reset();
-	cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
-
-	rs_idx++;
-	if (rs_idx >= 2) rs_idx = 0;
-	OutputValue();
-	CountPlus();
-
-	Sleep(200);
+	Sleep(20000000);
 
 	return Render(desc);
 }
@@ -186,17 +261,6 @@ void TestScene07::OutputValue()
 
 void TestScene07::CountPlus()
 {
-	auto p = step_buff_rs->Map();
-	p->sub_block_step++;
-	if (p->sub_block_step > p->block_step)
-	{
-		p->block_step++;
-		p->sub_block_step = 1u;
-
-		if (p->block_step == 5)
-			p->block_step = 1;
-	}
-	step_buff_rs->Unmap();
 }
 
 HRESULT TestScene07::Render(const SceneDesc& desc)
@@ -207,8 +271,6 @@ HRESULT TestScene07::Render(const SceneDesc& desc)
 		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);
 	else
 		desc.app->GetSwapchain()->Present(1, 1);
-
-
 	return S_OK;
 }
 

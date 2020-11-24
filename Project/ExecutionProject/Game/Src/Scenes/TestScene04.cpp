@@ -639,7 +639,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	ParticleParent ptc_parent{};
 	//ptc_parent.center_pos = { 0.f, -6378.1f * 1000.f, 0.f };
-	ptc_parent.affect_obj_count = 0.f;
+	ptc_parent.affect_obj_count = 0u;
 	//ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);

@@ -5,8 +5,8 @@ cbuffer FrameBuffer : register(b0)
 
 cbuffer StepBuffer : register(b1)
 {
-	uint block_step;
-	uint sub_block_step;
+	uint block;
+	uint step;
 }
 
 
@@ -19,33 +19,31 @@ void CSMain( uint3 idx_tid : SV_DispatchThreadID )
 {
     uint idx = idx_tid.x;
 
-	// idx がオーバーしている
-	if (idx >= (1 << value_size)) return;
+	if (idx >= 1 << value_size)
+		return;
 
-	uint d = 1u << (block_step - sub_block_step);
+	uint e = idx ^ step;
 
-	bool up = ((idx >> block_step) & 2u) == 0u;
+	if (e > idx)
+	{
+		uint v1 = in_values[idx];
+		uint v2 = in_values[e];
 
-	uint target_index = 0u;
-    if ((idx & d) == 0u)
-    {
-        target_index = idx | d;
-    }
-    else
-    {
-        target_index = idx & ~d;
-        up = !up;
-    }
-
-    float a = in_values[idx];
-    float b = in_values[target_index];
-
-    if ((a > b) == up || a == b)
-    {
-        out_values[idx] = in_values[target_index];
-    }
-    else
-    {
-        out_values[idx] = in_values[idx];
-    }
+		if ((idx & block) != 0)
+		{
+			if (v1 < v2)
+			{
+				in_values[e] = v1;
+				in_values[idx] = v2;
+			}
+		}
+		else
+		{
+			if (v1 > v2)
+			{
+				in_values[e] = v1;
+				in_values[idx] = v2;
+			}
+		}
+	}
 }

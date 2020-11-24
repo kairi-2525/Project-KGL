@@ -56,8 +56,8 @@ void ParticleManager::SetParent(const ParticleParent& particle_parent)
 
 void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks)
 {
-	const UINT32 oj_size = affect_objects.size();
-	const UINT32 fw_size = affect_fireworks.size();
+	const UINT32 oj_size = SCAST<UINT32>(affect_objects.size());
+	const UINT32 fw_size = SCAST<UINT32>(affect_fireworks.size());
 	const UINT32 size = oj_size + fw_size;
 	{
 		auto* parent_data = parent_res->Map();

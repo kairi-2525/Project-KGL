@@ -74,7 +74,7 @@ namespace KGL
 			{
 				m_buffer->Unmap(subresource, &wwriten_range);
 			}
-			UINT64 AlignmentStructSize(size_t size) const noexcept { return AlignmentStructSize<_Ty>(size); }
+			UINT64 AlignmentStructSize(size_t size) const noexcept { return ResourcesBase::AlignmentStructSize<_Ty>(size); }
 		};
 
 		template <class _Ty>
@@ -99,6 +99,12 @@ namespace KGL
 		class MultiResource : public ResourceTyBase<_Ty>
 		{
 		public:
+			static _Ty* IncrementPtr(_Ty* ptr, size_t offset = 1u) noexcept
+			{
+				RCHECK(!ptr, "ptr ‚ªnullptr", nullptr);
+				return (_Ty*)(((char*)ptr) + (ResourcesBase::AlignmentStructSize<_Ty>(1u) * offset));
+			}
+		public:
 			MultiResource(ComPtrC<ID3D12Device> device, size_t size,
 				const D3D12_HEAP_PROPERTIES* prop = nullptr,
 				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
@@ -115,8 +121,8 @@ namespace KGL
 				RCHECK(count <= 0, "count ‚ª¬‚³‚·‚¬‚Ü‚·", E_FAIL);
 				RCHECK(begin + count > ResourcesBase::m_size, "begin + count ‚ª‘½‚«‚·‚¬‚Ü‚·", E_FAIL);
 				auto begin_address = ResourcesBase::m_buffer->GetGPUVirtualAddress();
-				begin_address += begin * ResourcesBase::AlignmentStructSize<_Ty>(1u);
-				return ResourcesBase::CreateCBV(begin_address, (sizeof(_Ty) * count), p_handle);
+				begin_address += ResourcesBase::AlignmentStructSize<_Ty>(1u) * begin;
+				return ResourcesBase::CreateCBV(begin_address, ResourcesBase::AlignmentStructSize<_Ty>(1u) * count, p_handle);
 			}
 			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
 			{

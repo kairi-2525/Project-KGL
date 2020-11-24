@@ -29,6 +29,8 @@
 #define DEBUG_LAYER (false)
 #endif
 
+using StartScene = LoadScene00<TestScene07>;
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, KGL::Window* window)
@@ -111,7 +113,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
 				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle, dxc };
-				hr = scene_mgr.Init<LoadScene00<TestScene07>>(scene_desc);
+				hr = scene_mgr.Init<StartScene>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
 				HRESULT scene_hr = S_OK;

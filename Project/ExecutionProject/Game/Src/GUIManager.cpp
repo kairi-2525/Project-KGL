@@ -764,8 +764,8 @@ DirectX::XMUINT2 GUIManager::GetNoWindowSpace(const DirectX::XMUINT2& rt_resolut
 			offset = i;
 	}
 
-	result.x -= (base_size.x * offset);
-	result.y -= (base_size.y);
+	result.x -= SCAST<UINT>(base_size.x * offset);
+	result.y -= SCAST<UINT>(base_size.y);
 
 	return result;
 }

@@ -91,7 +91,7 @@ namespace KGL
 				{
 					average_time += it;
 				}
-				average_time /= average_frame_data.capacity();
+				average_time /= SCAST<UINT>(average_frame_data.capacity());
 				average_frame_data.clear();
 			}
 		}

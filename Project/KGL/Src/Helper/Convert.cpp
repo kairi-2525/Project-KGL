@@ -1,4 +1,5 @@
 #include <Helper/Convert.hpp>
+#include <Helper/Cast.hpp>
 #include <filesystem>
 #include <locale>
 
@@ -21,9 +22,9 @@ void CONVERT::CHARToTCHAR(TCHAR pDestStr[512], const char* pSrcStr) noexcept
 // string Ç∆ wstringÇÃï∂éöÉRÅ[Éhïœä∑
 static std::wstring StrToWstr(const std::string& src, int code_page)
 {
-	auto const dest_size = ::MultiByteToWideChar(code_page, 0U, src.data(), -1, nullptr, 0U);
+	auto const dest_size = ::MultiByteToWideChar(SCAST<UINT>(code_page), 0U, src.data(), -1, nullptr, 0);
 	std::vector<wchar_t> dest(dest_size, L'\0');
-	if (::MultiByteToWideChar(code_page, 0U, src.data(), -1, dest.data(), dest.size()) == 0) {
+	if (::MultiByteToWideChar(SCAST<UINT>(code_page), 0U, src.data(), -1, dest.data(), SCAST<int>(dest.size())) == 0) {
 		throw std::system_error{ static_cast<int>(::GetLastError()), std::system_category() };
 	}
 	dest.resize(std::char_traits<wchar_t>::length(dest.data()));
@@ -32,9 +33,9 @@ static std::wstring StrToWstr(const std::string& src, int code_page)
 }
 static std::string WstrToStr(const std::wstring& src, int code_page)
 {
-	auto const dest_size = ::WideCharToMultiByte(code_page, 0U, src.data(), -1, nullptr, 0, nullptr, nullptr);
+	auto const dest_size = ::WideCharToMultiByte(SCAST<UINT>(code_page), 0U, src.data(), -1, nullptr, 0, nullptr, nullptr);
 	std::vector<char> dest(dest_size, '\0');
-	if (::WideCharToMultiByte(code_page, 0U, src.data(), -1, dest.data(), dest.size(), nullptr, nullptr) == 0) {
+	if (::WideCharToMultiByte(SCAST<UINT>(code_page), 0U, src.data(), -1, dest.data(), SCAST<int>(dest.size()), nullptr, nullptr) == 0) {
 		throw std::system_error{ static_cast<int>(::GetLastError()), std::system_category() };
 	}
 	dest.resize(std::char_traits<char>::length(dest.data()));

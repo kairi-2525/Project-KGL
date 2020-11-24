@@ -71,7 +71,7 @@ HRESULT ResourcesBase::CreateCBV(
 		// CBV—pDesc
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
 		cbv_desc.BufferLocation = address;
-		cbv_desc.SizeInBytes = AlignmentSize(size);
+		cbv_desc.SizeInBytes = SCAST<UINT>(AlignmentSize(size));
 
 		ComPtr<ID3D12Device> device;
 		hr = m_buffer->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
