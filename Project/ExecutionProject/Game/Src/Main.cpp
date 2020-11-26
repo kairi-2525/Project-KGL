@@ -29,7 +29,7 @@
 #define DEBUG_LAYER (false)
 #endif
 
-using StartScene = LoadScene00<TestScene07>;
+using StartScene = LoadScene00<TestScene08>;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 

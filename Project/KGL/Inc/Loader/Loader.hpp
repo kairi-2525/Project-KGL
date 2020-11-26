@@ -5,6 +5,7 @@
 #undef NOMINMAX
 
 #include <string>
+#include <filesystem>
 #include "../Helper/ThrowAssert.hpp"
 
 namespace KGL
@@ -30,5 +31,30 @@ namespace KGL
 			}
 			assert(SUCCEEDED(hr) && "AssertLoadResult::原因不明のエラーが発生しました。");
 		}
+
+		class Loader
+		{
+		protected:
+			std::filesystem::path path;
+		protected:
+			static bool IsExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept;
+			static void CheckExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept(false);
+		protected:
+			bool IsExtensiton(const std::string& extension) noexcept
+			{
+				return IsExtensiton(path, extension);
+			}
+			void CheckExtensiton(const std::string& extension) noexcept(false)
+			{
+				return CheckExtensiton(path, extension);
+			}
+			explicit Loader(const std::filesystem::path& path) noexcept	:
+				// 文字列は正規化する
+				path(path.lexically_normal())
+			{
+
+			}
+			virtual ~Loader() = default;
+		};
 	}
 }

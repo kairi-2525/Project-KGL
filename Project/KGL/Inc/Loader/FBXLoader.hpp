@@ -42,7 +42,7 @@ namespace KGL
 				DirectX::XMFLOAT4X4* xmfloat4x4
 			) noexcept;
 		public:
-			explicit FBX_Loader(std::filesystem::path path) noexcept;
+			explicit FBX_Loader(const std::filesystem::path& path) noexcept;
 			const std::shared_ptr<const FBX::Desc>& GetDesc() const noexcept { return m_desc; }
 		};
 	}

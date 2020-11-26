@@ -165,7 +165,7 @@ void FBX_Loader::FbxMatrix_To_XMFLOAT4X4(
 	}
 }
 
-FBX_Loader::FBX_Loader(std::filesystem::path path) noexcept
+FBX_Loader::FBX_Loader(const std::filesystem::path& path) noexcept
 {
 	std::shared_ptr<FBX::Desc> desc = std::make_shared<FBX::Desc>();
 	m_desc = desc;

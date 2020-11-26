@@ -26,6 +26,7 @@
     <ClInclude Include="Inc\Base\Input.hpp" />
     <ClInclude Include="Inc\Base\DLL.hpp" />
     <ClInclude Include="Inc\Base\Model.hpp" />
+    <ClInclude Include="Inc\Base\OBJ.hpp" />
     <ClInclude Include="Inc\Base\PMD.hpp" />
     <ClInclude Include="Inc\Base\VMD.hpp" />
     <ClInclude Include="Inc\Dx12\2D\Renderer.hpp" />
@@ -61,6 +62,7 @@
     <ClInclude Include="Inc\Input\Pad.hpp" />
     <ClInclude Include="Inc\Input\X.hpp" />
     <ClInclude Include="Inc\Loader\FBXLoader.hpp" />
+    <ClInclude Include="Inc\Loader\OBJLoader.hpp" />
     <ClInclude Include="Inc\Math\Easing.hpp" />
     <ClInclude Include="Inc\Math\Gaussian.hpp" />
     <ClInclude Include="Inc\Math\Matrix.hpp" />
@@ -103,6 +105,8 @@
     <ClCompile Include="Src\Helper\Timer.cpp" />
     <ClCompile Include="Src\Input\Direct.cpp" />
     <ClCompile Include="Src\Loader\FBXLoader.cpp" />
+    <ClCompile Include="Src\Loader\Loader.cpp" />
+    <ClCompile Include="Src\Loader\OBJLoader.cpp" />
     <ClCompile Include="Src\Loader\PMDLoader.cpp" />
     <ClCompile Include="Src\Loader\VMDLoader.cpp" />
     <ClCompile Include="Src\Math\Gaussian.cpp" />

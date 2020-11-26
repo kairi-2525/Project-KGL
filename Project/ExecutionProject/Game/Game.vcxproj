@@ -212,6 +212,7 @@
     <ClCompile Include="Src\Scenes\TestScene05.cpp" />
     <ClCompile Include="Src\Scenes\TestScene06.cpp" />
     <ClCompile Include="Src\Scenes\TestScene07.cpp" />
+    <ClCompile Include="Src\Scenes\TestScene08.cpp" />
     <ClCompile Include="Src\Scenes\TestSceneBase.cpp" />
     <ClCompile Include="Src\SkyMap.cpp" />
   </ItemGroup>
@@ -244,6 +245,7 @@
     <ClInclude Include="Hrd\Scenes\TestScene05.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene06.hpp" />
     <ClInclude Include="Hrd\Scenes\TestScene07.hpp" />
+    <ClInclude Include="Hrd\Scenes\TestScene08.hpp" />
     <ClInclude Include="Hrd\Scenes\TestSceneBase.hpp" />
     <ClInclude Include="Hrd\Particle.hpp" />
     <ClInclude Include="Hrd\SkyMap.hpp" />

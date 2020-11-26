@@ -25,6 +25,11 @@ namespace KGL
 			// string(Shift_JIS)‚Æstring(UTF-8)‚Ì•¶šƒR[ƒh•ÏŠ·
 			extern std::string MultiToUtf8(std::string const& src) noexcept;
 			extern std::string Utf8ToMulti(std::string const& src) noexcept;
+
+			// ‘å•¶š‚É•ÏŠ·
+			extern std::string StrToUpper(std::string const& src) noexcept;
+			// ¬•¶š‚É•ÏŠ·
+			extern std::string StrToLower(std::string const& src) noexcept;
 		}
 	}
 }

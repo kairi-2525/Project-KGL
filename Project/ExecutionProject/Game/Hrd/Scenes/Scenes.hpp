@@ -10,3 +10,4 @@
 #include "TestScene05.hpp"
 #include "TestScene06.hpp"
 #include "TestScene07.hpp"
+#include "TestScene08.hpp"

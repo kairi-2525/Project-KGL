@@ -74,3 +74,18 @@ std::string CONVERT::Utf8ToMulti(std::string const& src) noexcept
 	const auto wide = Utf8ToWide(src);
 	return WideToMulti(wide);
 }
+
+// ‘å•¶š‚É•ÏŠ·
+std::string CONVERT::StrToUpper(std::string const& src) noexcept
+{
+	std::string ret = src;
+	std::transform(ret.begin(), ret.end(), ret.begin(), static_cast<int (*)(int)>(&std::toupper));
+	return ret;
+}
+// ¬•¶š‚É•ÏŠ·
+std::string CONVERT::StrToLower(std::string const& src) noexcept
+{
+	std::string ret = src;
+	std::transform(ret.begin(), ret.end(), ret.begin(), static_cast<int (*)(int)>(&std::tolower));
+	return ret;
+}
