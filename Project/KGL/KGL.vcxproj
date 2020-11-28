@@ -34,6 +34,7 @@
     <ClInclude Include="Inc\Dx12\3D\BillBoard.hpp" />
     <ClInclude Include="Inc\Dx12\3D\Board.hpp" />
     <ClInclude Include="Inc\Dx12\3D\Renderer.hpp" />
+    <ClInclude Include="Inc\Dx12\3D\StaticModel.hpp" />
     <ClInclude Include="Inc\Dx12\Application.hpp" />
     <ClInclude Include="Inc\Dx12\BlendState.hpp" />
     <ClInclude Include="Inc\Dx12\CommandQueue.hpp" />
@@ -236,6 +237,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(ProjectDir)Inc;$(SolutionDir)DirectXTexLoader\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -259,6 +261,7 @@
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <AdditionalIncludeDirectories>$(SolutionDir)Inc;$(ProjectDir)Inc;$(SolutionDir)DirectXTexLoader\Inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <DebugInformationFormat>None</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

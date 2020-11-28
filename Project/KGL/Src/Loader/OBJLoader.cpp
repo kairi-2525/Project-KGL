@@ -193,8 +193,9 @@ static bool LoadTexture(
 				return false;
 			}
 			// 一行コピー
-			std::string mtl_name;
-			std::getline(ifs, out_texture->name);
+			std::string tex_path;
+			std::getline(ifs, tex_path);
+			out_texture->path = tex_path;
 
 			return true;
 		}
@@ -475,6 +476,24 @@ static void LoadMTL(
 			// 一行コピー
 			std::getline(ifs, out_material->tex_reflections[type_str]);
 		}
+
+		// 物理ベースレンダリング用パラメーター
+		else if (
+			buff == "MAP_PR" || buff == "PR" ||	// ラフネス
+			buff == "MAP_PM" || buff == "PM" ||	// メタリック
+			buff == "MAP_PS" || buff == "PS" ||	// Sheen
+			buff == "PC" ||						// クリアコートの厚さ
+			buff == "PCR" ||					// クリアコートのラフネス
+			buff == "MAP_KE" || buff == "KE" ||	// 放射
+			buff == "ANISO" ||					// 異方性
+			buff == "ANISOR" ||					// 異方性の回転
+			buff == "NORM"						// 法線マップ、"bump" パラメーターと同じ形式
+		){
+			// 一行飛ばす
+			std::getline(ifs, buff);
+		}
+
+		// その他はbreak
 		else
 		{
 			ifs.seekg(old_pos);
@@ -494,7 +513,7 @@ void OBJ_Loader::LoadMTLFile(
 
 	if (out_desc->mtl_path.is_relative())
 	{	// 相対パス
-		out_desc->mtl_path = r_path.string() + out_desc->mtl_path.string();
+		out_desc->mtl_path = r_path / out_desc->mtl_path;
 	}
 
 	std::ifstream ifs(out_desc->mtl_path);
@@ -552,7 +571,12 @@ void OBJ_Loader::LoadMTLFile(
 			LoadMTL(out_desc->mtl_path, ifs, materials);
 		}
 
-		ifs >> buff;
+		// 空白が無視されてEOFにならない問題を回避
+		else if(buff.empty())
+		{
+			if (ifs.get() == EOF)
+				break;
+		}
 	}
 }
 
@@ -745,4 +769,5 @@ void OBJ_Loader::ConvertMaterial()
 
 		materials->insert(std::make_pair(obj_mt.first, mt));
 	}
+	SetMaterials(materials);
 }

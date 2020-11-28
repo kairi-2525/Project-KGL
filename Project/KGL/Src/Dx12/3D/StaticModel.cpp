@@ -2,14 +2,22 @@
 
 using namespace KGL;
 
-StaticModel::StaticModel(std::shared_ptr<const StaticModelLoader> loader) noexcept
+StaticModel::StaticModel(
+	ComPtrC<ID3D12Device> device,
+	std::shared_ptr<const StaticModelLoader> loader
+) noexcept
 {
 	if (!loader) return;
 	auto materials = loader->GetMaterials();
 	if (!materials) return;
 
-	for (auto& mt : *materials)
+	// Loaderが持つ情報からGPUリソースを構築する
+	m_materials.reserve(materials->size());
+	for (auto& it : *materials)
 	{
-		mt.second.vertices.size();
+		const auto& load_mt = it.second;
+		auto& mt = m_materials.emplace_back();
+		
+		mt.rs_vertices = std::make_shared<Resource<S_MODEL::Vertex>>(device, load_mt.vertices.size());
 	}
 }

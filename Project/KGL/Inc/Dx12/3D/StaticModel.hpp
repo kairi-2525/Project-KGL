@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../Loader/Loader.hpp"
+#include "../ConstantBuffer.hpp"
 
 namespace KGL
 {
@@ -11,8 +12,17 @@ namespace KGL
 			class StaticModel
 			{
 			private:
+				struct Material
+				{
+					std::shared_ptr<Resource<S_MODEL::Vertex>>	rs_vertices;
+				};
+			private:
+				std::vector<Material>	m_materials;
 			public:
-				explicit StaticModel(std::shared_ptr<const StaticModelLoader> loader) noexcept;
+				explicit StaticModel(
+					ComPtrC<ID3D12Device> device,
+					std::shared_ptr<const StaticModelLoader> loader
+				) noexcept;
 			};
 		}
 	}

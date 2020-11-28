@@ -21,7 +21,13 @@ HRESULT TestScene08::Load(const SceneDesc& desc)
 
 	cube_buffer = std::make_shared<KGL::Resource<CubeMapBuffer>>(device, 1u);
 
-	KGL::OBJ_Loader obj_file("./Assets/Models/Mr.Incredible/Mr.Incredible.obj");
+	// KGL::OBJ_Loader obj_file("./Assets/Models/Mr.Incredible/Mr.Incredible.obj");
+	std::shared_ptr<KGL::StaticModelLoader> s_loader =
+		std::make_shared<KGL::OBJ_Loader>(
+			"./Assets/Models/SpaceShip/99-intergalactic_spaceship-obj/Intergalactic_Spaceship-(Wavefront).obj"
+			);
+	auto& model = s_models.emplace_back();
+	model = std::make_shared<KGL::StaticModel>(device, s_loader);
 
 	return hr;
 }

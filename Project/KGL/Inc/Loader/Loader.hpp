@@ -70,6 +70,7 @@ namespace KGL
 			{
 			}
 			virtual ~StaticModelLoader() = default;
+			void SetMaterials(std::shared_ptr<const S_MODEL::Materials> materials) noexcept { m_materials = materials; }
 		public:
 			std::shared_ptr<const S_MODEL::Materials> GetMaterials() const noexcept { return m_materials; }
 		};

@@ -15,6 +15,7 @@
 #include <Dx12/3D/Board.hpp>
 
 #include "../Obj3D.hpp"
+#include <Dx12/3D/StaticModel.hpp>
 
 class TestScene08 : public SceneBase
 {
@@ -31,6 +32,7 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
 
 	std::shared_ptr<KGL::Resource<CubeMapBuffer>> cube_buffer;
+	std::vector<std::shared_ptr<KGL::StaticModel>> s_models;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

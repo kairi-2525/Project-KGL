@@ -396,9 +396,9 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		vertex[1] = { { +0.7f, -0.7f, +0.0f }, { 0.f, 1.f, 1.f, 1.f } };
 		vertex[2] = { { -0.7f, -0.7f, +0.0f }, { 1.f, 0.f, 1.f, 1.f } };
 
-		auto* mapped_vertices = t_vert_res->Map(0, &CD3DX12_RANGE(0, 0));
+		auto* mapped_vertices = t_vert_res->Map();
 		std::copy(vertex.cbegin(), vertex.cend(), mapped_vertices);
-		t_vert_res->Unmap(0, &CD3DX12_RANGE(0, 0));
+		t_vert_res->Unmap();
 
 		t_vert_view.BufferLocation = t_vert_res->Data()->GetGPUVirtualAddress();
 		t_vert_view.StrideInBytes = sizeof(TriangleVertex);
