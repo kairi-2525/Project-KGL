@@ -4,27 +4,55 @@
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
     <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
     <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|Win32'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\$(MSBuildProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\$(MSBuildProjectName)\</RemoteDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
     <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
     <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|Win32'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\$(MSBuildProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\$(MSBuildProjectName)\</RemoteDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
-    <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\$(MSBuildProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).exe</RemoteDebuggerCommand>
     <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
-    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\$(MSBuildProjectName)\</RemoteDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteDebug|x64'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\$(MSBuildProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\$(MSBuildProjectName)\</RemoteDebuggerWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <RemoteDebuggerCommand>\\192.168.1.21\kgl\DXR.exe</RemoteDebuggerCommand>
     <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
     <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\</RemoteDebuggerWorkingDirectory>
+    <LocalDebuggerWorkingDirectory>$(ProjectDir)</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RemoteRelease|x64'">
+    <DebuggerFlavor>WindowsRemoteDebugger</DebuggerFlavor>
+    <RemoteDebuggerCommand>\\192.168.1.21\kgl\$(MSBuildProjectName)\$(Platform)\$(Configuration)\$(MSBuildProjectName).exe</RemoteDebuggerCommand>
+    <RemoteDebuggerServerName>192.168.1.21:4024</RemoteDebuggerServerName>
+    <RemoteDebuggerWorkingDirectory>\\192.168.1.21\kgl\$(MSBuildProjectName)\</RemoteDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
