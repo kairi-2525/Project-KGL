@@ -5,9 +5,10 @@
 using namespace KGL;
 
 OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
-	Loader(path)
+	StaticModelLoader(path)
 {
-	std::ifstream ifs(this->path);
+	const auto& n_path = GetPath();
+	std::ifstream ifs(n_path);
 
 	auto desc = std::make_shared<OBJ::Desc>();
 
@@ -18,7 +19,7 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 		if (!ifs.is_open())
 		{
 			throw std::runtime_error(
-				"[ " + this->path.string() + " ] の読み込みに失敗\n"
+				"[ " + n_path.string() + " ] の読み込みに失敗\n"
 				+ "[ファイルが開けません]"
 			);
 		}
@@ -31,7 +32,7 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 		ifs.rdbuf()->pubsetbuf(nullptr, 0);
 
 		// ファイルの相対パスを保存
-		auto r_path = this->path;
+		auto r_path = n_path;
 		r_path.remove_filename();
 
 		std::string buff;
@@ -76,7 +77,7 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 				if (SCAST<char>(ifs.get()) != ' ')
 				{
 					throw std::runtime_error(
-						"[ " + this->path.string() + " ] の読み込みに失敗\n"
+						"[ " + n_path.string() + " ] の読み込みに失敗\n"
 						+ "[フォーマットエラー]"
 					);
 				}
@@ -102,7 +103,7 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 				if (SCAST<char>(ifs.get()) != ' ')
 				{
 					throw std::runtime_error(
-						"[ " + this->path.string() + " ] の読み込みに失敗\n"
+						"[ " + n_path.string() + " ] の読み込みに失敗\n"
 						+ "[フォーマットエラー]"
 					);
 				}
@@ -110,40 +111,376 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 				std::string tex_path;
 				std::getline(ifs, tex_path);
 
-				if (CONVERT::StrToUpper(tex_path) != "NONE")
-				{
-					std::filesystem::path tpath = tex_path;
-
-					// 相対パスの場合パスを結合する
-					if (tpath.is_relative())
-					{
-						tex_path = r_path.string() + tex_path;
-					}
-				}
+				auto materials = desc->materials[tex_path];
 				
-				// NONEの場合　同じ名前が来るため確認する
-				if (desc->materials.count(tex_path) == 0u)
+				// まだ作られていない場合作成
+				if (!materials)
 				{
-					desc->materials[tex_path] = std::make_shared<OBJ::Material>();
+					materials = std::make_shared<OBJ::Material>();
+					desc->materials[tex_path] = materials;
 				}
 
 				// マテリアルデータを読み込む
-				smooth = LoadMaterials(ifs, r_path, desc, desc->materials[tex_path], smooth);
+				smooth = LoadMaterials(ifs, r_path, desc, materials, smooth);
 			}
 		}
+		// コンテナのキャパシティを切り詰める
+		desc->object_data.positions.shrink_to_fit();
+		desc->object_data.uvs.shrink_to_fit();
+		desc->object_data.normals.shrink_to_fit();
+
+		// const のメンバに譲渡
+		m_desc = desc;
+
+		// StaticModel用のマテリアルに変換
+		ConvertMaterial();
 	}
 	catch (std::runtime_error& exception)
 	{
 		RuntimeErrorStop(exception);
 	}
+}
 
-	// コンテナのキャパシティを切り詰める
-	desc->object_data.positions.shrink_to_fit();
-	desc->object_data.uvs.shrink_to_fit();
-	desc->object_data.normals.shrink_to_fit();
+static void InitTexture(std::shared_ptr<OBJ::Material::Texture> out_texture)
+noexcept
+{
+	out_texture->blend_u = true;
+	out_texture->blend_v = true;
 
-	// const のメンバに譲渡
-	m_desc = desc;
+	out_texture->mipmap_boost = 0.f;
+	out_texture->texture_map = { 0.f, 1.f };
+
+	out_texture->offset_pos = { 0.f, 0.f, 0.f };
+	out_texture->offset_scale = { 1.f, 1.f, 1.f };
+	out_texture->offset_turbulence = { 0.f, 0.f, 0.f };
+
+	out_texture->resolution = { 0u, 0u };
+	out_texture->clamp = false;
+	out_texture->bump_mult = 0.f;
+
+	out_texture->bump_file_ch = "L";
+}
+
+static bool LoadTexture(
+	std::ifstream& ifs,
+	std::shared_ptr<OBJ::Material::Texture> out_texture
+) noexcept
+{
+	// テクスチャパラメータ初期化
+	InitTexture(out_texture);
+
+	std::string buff;
+	buff.reserve(256);
+
+	while (!ifs.eof())
+	{
+		auto old_pos = ifs.tellg();
+
+		// 最初の空白を飛ばす
+		if (SCAST<char>(ifs.get()) != ' ')
+		{
+			return false;
+		}
+
+		// "-"でなければテクスチャパス
+		if (SCAST<char>(ifs.get()) != '-')
+		{
+			ifs.seekg(old_pos);
+
+			// 最初の空白を飛ばして、一行コピー
+			if (SCAST<char>(ifs.get()) != ' ')
+			{
+				return false;
+			}
+			// 一行コピー
+			std::string mtl_name;
+			std::getline(ifs, out_texture->name);
+
+			return true;
+		}
+
+		buff.clear();
+
+		// 大文字で統一
+		buff = CONVERT::StrToUpper(buff);
+
+		// 水平テクスチャ混合を設定
+		if (buff == "-BLENDU")
+		{
+			std::string flg_str;
+			ifs >> flg_str;
+			flg_str = CONVERT::StrToUpper(flg_str);
+
+			if (flg_str == "OFF")
+			{
+				out_texture->blend_u = false;
+			}
+		}
+		// 垂直テクスチャ混合を設定 
+		else if (buff == "-BLENDV")
+		{
+			std::string flg_str;
+			ifs >> flg_str;
+			flg_str = CONVERT::StrToUpper(flg_str);
+
+			if (flg_str == "OFF")
+			{
+				out_texture->blend_v = false;
+			}
+		}
+
+		// mip-mapのシャープさを押し上げ
+		else if (buff == "-BOOST")
+		{
+			ifs >> out_texture->mipmap_boost;
+		}
+		// テクスチャマップの値を変更 (標準は 0 1)
+		else if (buff == "-MM")
+		{
+			ifs >> out_texture->texture_map.gain;
+			ifs >> out_texture->texture_map.contrast;
+		}
+
+		// 原点オフセット
+		else if (buff == "-O")
+		{
+			ifs >> out_texture->offset_pos.x;
+			ifs >> out_texture->offset_pos.y;
+			ifs >> out_texture->offset_pos.z;
+		}
+		// スケール
+		else if (buff == "-S")
+		{
+			ifs >> out_texture->offset_scale.x;
+			ifs >> out_texture->offset_scale.y;
+			ifs >> out_texture->offset_scale.z;
+		}
+		// Turbulence
+		else if (buff == "-T")
+		{
+			ifs >> out_texture->offset_turbulence.x;
+			ifs >> out_texture->offset_turbulence.y;
+			ifs >> out_texture->offset_turbulence.z;
+		}
+		// 作成するテクスチャ解像度
+		else if (buff == "-TEXRES")
+		{
+			ifs >> out_texture->resolution.x;
+			ifs >> out_texture->resolution.y;
+		}
+		// 0から1の範囲でクランプされたテクセルのみレンダリング (標準は off)
+		else if (buff == "-CLAMP")
+		{
+			std::string flg_str;
+			ifs >> flg_str;
+			flg_str = CONVERT::StrToUpper(flg_str);
+
+			if (flg_str == "ON")
+			{
+				out_texture->blend_v = true;
+			}
+		}
+		// バンプ乗数
+		else if (buff == "-BM")
+		{
+			ifs >> out_texture->bump_mult;
+		}
+		// スカラーまたはバンプテクスチャを作成するために
+		else if (buff == "-IMFCHAN")
+		{
+			ifs >> out_texture->bump_file_ch;
+		}
+
+		// 不正値
+		else
+		{
+			ifs.seekg(old_pos);
+			return false;
+		}
+	}
+
+	return false;
+}
+
+static void InitMTL(std::shared_ptr<OBJ::Material> out_material) noexcept
+{
+	out_material->refraction = 1.0f;
+}
+
+static void LoadMTL(
+	const std::filesystem::path& path,
+	std::ifstream& ifs,
+	std::shared_ptr<OBJ::Material> out_material
+) noexcept(false)
+{
+	std::string buff;
+	buff.reserve(256);
+
+	// 読み込まれなかったパラメーターが
+	// 不定値にならないように初期化する
+	InitMTL(out_material);
+
+	while (!ifs.eof())
+	{
+		buff.clear();
+
+		// 戻すための座標を保管
+		std::ifstream::pos_type old_pos = ifs.tellg();
+
+		ifs >> buff;
+
+		// コメントアウトをスキップ
+		if (buff[0] == '#')
+		{
+			std::getline(ifs, buff);
+			continue;
+		}
+
+		// 大文字で統一
+		buff = CONVERT::StrToUpper(buff);
+
+		if (buff == "KA")
+		{
+			// 0 ~ 1
+			ifs >> out_material->ambient_color.x;
+			ifs >> out_material->ambient_color.y;
+			ifs >> out_material->ambient_color.z;
+		}
+		else if (buff == "KD")
+		{
+			// 0 ~ 1
+			ifs >> out_material->diffuse_color.x;
+			ifs >> out_material->diffuse_color.y;
+			ifs >> out_material->diffuse_color.z;
+		}
+		else if (buff == "KS")
+		{
+			// 0 ~ 1
+			ifs >> out_material->specular_color.x;
+			ifs >> out_material->specular_color.y;
+			ifs >> out_material->specular_color.z;
+		}
+		else if (buff == "NS")
+		{
+			// 0 ~ 1000
+			ifs >> out_material->specular_weight;
+
+		}
+
+		// 透明度
+		else if (buff == "D")
+		{
+			// 0 ~ 1
+			ifs >> out_material->dissolve;
+		}
+		// Dの反転
+		else if (buff == "TR")
+		{
+			// 0 ~ 1
+			ifs >> out_material->dissolve;
+			out_material->dissolve = 1.f - out_material->dissolve;
+		}
+
+		// 光学密度(屈折率)
+		else if (buff == "NI")
+		{
+			// 0.001 ~ 10
+			// 1.0の値は光がオブジェクトをパススルーし曲がらないことを意味する。
+			ifs >> out_material->refraction;
+		}
+		// 照明モデル
+		else if (buff == "ILLUM")
+		{
+			// 1で鏡面反射無効, 2で有効
+			int flg_value;
+			ifs >> flg_value;
+			out_material->specular_flg = flg_value == 2;
+		}
+
+		// アンビエントテクスチャマップ
+		else if (buff == "MAP_KA")
+		{
+			out_material->tex_ambient = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_ambient))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// ディフューズテクスチャマップ (多くの場合、アンビエントテクスチャマップと同じにされる)
+		else if (buff == "MAP_KD")
+		{
+			out_material->tex_diffuse = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_diffuse))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// スペキュラカラーテクスチャマップ
+		else if (buff == "MAP_KS")
+		{
+			out_material->tex_specular = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_specular))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// スペキュラハイライト成分
+		else if (buff == "MAP_NS")
+		{
+			out_material->tex_specular_highlights = std::make_shared<OBJ::Material::Texture>();
+				if(!LoadTexture(ifs, out_material->tex_specular_highlights))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]"); LoadTexture(ifs, out_material->tex_specular_highlights);
+		}
+		// 透過度テクスチャマップ
+		else if (buff == "MAP_D")
+		{
+			out_material->tex_dissolve = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_dissolve))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// バンプマップ(標準で画像の輝度値チャンネルを使用)
+		else if (buff == "MAP_BUMP" || buff == "BUMP")
+		{
+			out_material->tex_bump = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_bump))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// ディスプレースメントマップ
+		else if (buff == "MAP_DISP" || buff == "DISP")
+		{
+			out_material->tex_displacement = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_displacement))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+		// ステンシルデカールテクスチャ (標準で画像の'matte'チャンネルを使用)
+		else if (buff == "MAP_DECAL" || buff == "DECAL")
+		{
+			out_material->tex_stencil_decal = std::make_shared<OBJ::Material::Texture>();
+			if (!LoadTexture(ifs, out_material->tex_stencil_decal))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+		}
+
+		// 反射マップ
+		else if (buff == "REFL")
+		{
+			std::string type_str;
+			ifs >> type_str;
+			type_str = CONVERT::StrToUpper(type_str);
+
+			if (type_str != "-TYPE")
+			{
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+			}
+			type_str.clear();
+			ifs >> type_str;
+			type_str = CONVERT::StrToUpper(type_str);
+
+			// 最初の空白を飛ばして、一行コピー
+			if (SCAST<char>(ifs.get()) != ' ')
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
+			// 一行コピー
+			std::getline(ifs, out_material->tex_reflections[type_str]);
+		}
+		else
+		{
+			ifs.seekg(old_pos);
+			break;
+		}
+	}
 }
 
 void OBJ_Loader::LoadMTLFile(
@@ -168,7 +505,7 @@ void OBJ_Loader::LoadMTLFile(
 	}
 
 	// テキストモードでファイルを開いたときに発生するずれを
-		// バッファリングを無効にすることで解決する
+	// バッファリングを無効にすることで解決する
 	ifs.rdbuf()->pubsetbuf(nullptr, 0);
 
 	std::string buff;
@@ -177,6 +514,8 @@ void OBJ_Loader::LoadMTLFile(
 	while (!ifs.eof())
 	{
 		buff.clear();
+
+		ifs >> buff;
 
 		// コメントアウトをスキップ
 		if (buff[0] == '#')
@@ -187,6 +526,31 @@ void OBJ_Loader::LoadMTLFile(
 
 		// 大文字で統一
 		buff = CONVERT::StrToUpper(buff);
+
+		if (buff == "NEWMTL")
+		{
+			// 最初の空白を飛ばして、一行コピー
+			if (SCAST<char>(ifs.get()) != ' ')
+			{
+				throw std::runtime_error(
+					"[ " + out_desc->mtl_path.string() + " ] の読み込みに失敗\n"
+					+ "[フォーマットエラー]"
+				);
+			}
+			// 一行コピー
+			std::string mtl_name;
+			std::getline(ifs, mtl_name);
+
+			auto materials = out_desc->materials[mtl_name];
+			// まだ作られていない場合作成
+			if (!materials)
+			{
+				materials = std::make_shared<OBJ::Material>();
+				out_desc->materials[mtl_name] = materials;
+			}
+
+			LoadMTL(out_desc->mtl_path, ifs, materials);
+		}
 
 		ifs >> buff;
 	}
@@ -273,6 +637,7 @@ bool OBJ_Loader::LoadMaterials(
 	bool smooth_flg
 ) noexcept(false)
 {
+	const auto& n_path = GetPath();
 	out_material->smooth = smooth_flg;
 
 	std::string buff;
@@ -308,7 +673,7 @@ bool OBJ_Loader::LoadMaterials(
 		}
 
 		// 頂点データ番号
-		if (buff == "F")
+		else if (buff == "F")
 		{
 			// 3頂点分
 			for (UINT i = 0; i < 3; i++)
@@ -318,7 +683,7 @@ bool OBJ_Loader::LoadMaterials(
 				if (SCAST<char>(ifs.get()) != '/')
 				{
 					throw std::runtime_error(
-						"[ " + this->path.string() + " ] の読み込みに失敗\n"
+						"[ " + n_path.string() + " ] の読み込みに失敗\n"
 						+ "[フォーマットエラー]"
 					);
 				}
@@ -326,7 +691,7 @@ bool OBJ_Loader::LoadMaterials(
 				if (SCAST<char>(ifs.get()) != '/')
 				{
 					throw std::runtime_error(
-						"[ " + this->path.string() + " ] の読み込みに失敗\n"
+						"[ " + n_path.string() + " ] の読み込みに失敗\n"
 						+ "[フォーマットエラー]"
 					);
 				}
@@ -348,4 +713,36 @@ bool OBJ_Loader::LoadMaterials(
 	out_material->vertices.shrink_to_fit();
 
 	return out_material->smooth;
+}
+
+void OBJ_Loader::ConvertMaterial()
+{
+	auto materials = std::make_shared<S_MODEL::Materials>();
+
+	const auto& obj_positions = m_desc->object_data.positions;
+	const auto& obj_uvs = m_desc->object_data.uvs;
+	const auto& obj_normals = m_desc->object_data.normals;
+
+	// マテリアルデータを変換
+	for (const auto& obj_mt : m_desc->materials)
+	{
+		S_MODEL::Material mt;
+		mt.smooth = obj_mt.second->smooth;
+
+		const size_t v_size = obj_mt.second->vertices.size();
+		mt.vertices.resize(v_size);
+
+		// 頂点データを変換
+		for (size_t i = 0u; i < v_size; i++)
+		{
+			auto& mt_vertex = mt.vertices[i];
+			const auto& obj_vertex = obj_mt.second->vertices[i];
+
+			mt_vertex.position = obj_positions[obj_vertex.position - 1];
+			mt_vertex.uv = obj_uvs[obj_vertex.uv - 1];
+			mt_vertex.normal = obj_normals[obj_vertex.normal - 1];
+		}
+
+		materials->insert(std::make_pair(obj_mt.first, mt));
+	}
 }

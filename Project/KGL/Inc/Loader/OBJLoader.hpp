@@ -8,7 +8,7 @@ namespace KGL
 {
 	inline namespace LOADER
 	{
-		class OBJ_Loader : public Loader
+		class OBJ_Loader : public StaticModelLoader
 		{
 		private:
 			std::shared_ptr<const OBJ::Desc> m_desc;
@@ -29,6 +29,9 @@ namespace KGL
 				std::shared_ptr<OBJ::Material> out_material,
 				bool smooth_flg
 			) noexcept(false);
+
+			// StaticModel用のマテリアルに変換
+			void ConvertMaterial() noexcept(false);
 		public:
 			explicit OBJ_Loader(const std::filesystem::path& path) noexcept;
 		};

@@ -7,6 +7,7 @@
 #include <string>
 #include <filesystem>
 #include "../Helper/ThrowAssert.hpp"
+#include "../Base/Model/StaticModel.hpp"
 
 namespace KGL
 {
@@ -34,27 +35,43 @@ namespace KGL
 
 		class Loader
 		{
-		protected:
-			std::filesystem::path path;
+		private:
+			std::filesystem::path m_path;
 		protected:
 			static bool IsExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept;
 			static void CheckExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept(false);
 		protected:
 			bool IsExtensiton(const std::string& extension) noexcept
 			{
-				return IsExtensiton(path, extension);
+				return IsExtensiton(m_path, extension);
 			}
 			void CheckExtensiton(const std::string& extension) noexcept(false)
 			{
-				return CheckExtensiton(path, extension);
+				return CheckExtensiton(m_path, extension);
 			}
-			explicit Loader(const std::filesystem::path& path) noexcept	:
+			explicit Loader(const std::filesystem::path& path) noexcept :
 				// ï∂éöóÒÇÕê≥ãKâªÇ∑ÇÈ
-				path(path.lexically_normal())
+				m_path(path.lexically_normal())
 			{
 
 			}
 			virtual ~Loader() = default;
+		public:
+			const std::filesystem::path& GetPath() const noexcept { return m_path; }
+		};
+
+		class StaticModelLoader : public Loader
+		{
+		private:
+			std::shared_ptr<const S_MODEL::Materials> m_materials;
+		protected:
+			explicit StaticModelLoader(const std::filesystem::path& path) noexcept	:
+				Loader(path)
+			{
+			}
+			virtual ~StaticModelLoader() = default;
+		public:
+			std::shared_ptr<const S_MODEL::Materials> GetMaterials() const noexcept { return m_materials; }
 		};
 	}
 }
