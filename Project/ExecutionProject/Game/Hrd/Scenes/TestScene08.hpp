@@ -33,6 +33,7 @@ private:
 
 	std::shared_ptr<KGL::Resource<CubeMapBuffer>> cube_buffer;
 	std::vector<std::shared_ptr<KGL::StaticModel>> s_models;
+	std::vector<KGL::BaseRenderer>					s_model_renderer;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

@@ -29,6 +29,8 @@ HRESULT TestScene08::Load(const SceneDesc& desc)
 	auto& model = s_models.emplace_back();
 	model = std::make_shared<KGL::StaticModel>(device, s_loader);
 
+	s_model_renderer = std::make_shared<>
+
 	return hr;
 }
 
@@ -72,6 +74,8 @@ HRESULT TestScene08::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
 		desc.app->SetRtvDsv(cmd_list);
 		desc.app->ClearRtvDsv(cmd_list, { 0.5f, 1.0f, 0.5f, 1.f });
+
+		
 
 		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
 	}
