@@ -258,6 +258,8 @@
     <FxCompile Include="HLSL\3D\Particle8_gs.hlsl" />
     <FxCompile Include="HLSL\2D\NoiseEffect_ps.hlsl" />
     <FxCompile Include="HLSL\CPT\BitonicSort_cs.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticModel_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticModel_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -275,6 +277,8 @@
     <None Include="HLSL\3D\StaticObject.hlsli" />
     <None Include="HLSL\2D\FXAA3_11.hlsli" />
     <None Include="HLSL\3D\Particle_gs.hlsli" />
+    <None Include="HLSL\3D\Global.hlsli" />
+    <None Include="HLSL\3D\StaticModel.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KGL_ICON.rc">

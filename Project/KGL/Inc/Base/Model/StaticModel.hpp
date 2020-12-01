@@ -3,7 +3,8 @@
 #include <DirectXMath.h>
 #include <vector>
 #include <string>
-#include <map>
+#include <unordered_map>
+#include <filesystem>
 
 namespace KGL
 {
@@ -20,13 +21,42 @@ namespace KGL
 			
 			using Vertices = std::vector<Vertex>;
 
+			struct Textures
+			{
+				using ReflectionsPath = std::unordered_map<std::string, std::filesystem::path>;
+
+				std::filesystem::path	ambient;
+				std::filesystem::path	diffuse;
+				std::filesystem::path	specular;
+				std::filesystem::path	specular_highlights;
+				std::filesystem::path	dissolve;
+				std::filesystem::path	bump;
+				std::filesystem::path	displacement;
+				std::filesystem::path	stencil_decal;
+				ReflectionsPath			reflections;
+			};
+
 			struct Material
 			{
-				bool		smooth;
+				struct Parameter
+				{
+					DirectX::XMFLOAT3			ambient_color;
+					DirectX::XMFLOAT3			diffuse_color;
+					DirectX::XMFLOAT3			specular_color;
+					float						specular_weight;
+					bool						specular_flg;
+					float						dissolve;	// ìßñæìx 1Ç»ÇÁìßñæ
+					float						refraction;	// ã¸ê‹ó¶
+					bool						smooth;
+				};
+
 				Vertices	vertices;
+				Textures	tex;
+
+				Parameter	param;
 			};
 			
-			using Materials = std::map<std::string, Material>;
+			using Materials = std::unordered_map<std::string, Material>;
 		}
 	}
 }

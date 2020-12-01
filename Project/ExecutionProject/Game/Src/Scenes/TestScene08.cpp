@@ -53,7 +53,38 @@ HRESULT TestScene08::Update(const SceneDesc& desc, float elapsed_time)
 
 HRESULT TestScene08::Render(const SceneDesc& desc)
 {
+	auto resolution = desc.app->GetResolution();
+	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
 
+	// ビューとシザーをセット
+	D3D12_VIEWPORT full_viewport =
+		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
+	auto full_scissorrect =
+		CD3DX12_RECT(0, 0, resolutionf.x, resolutionf.y);
+	D3D12_VIEWPORT viewport =
+		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
+	auto scissorrect =
+		CD3DX12_RECT(0, 0, resolution.x, resolution.y);
+	cmd_list->RSSetViewports(1, &full_viewport);
+	cmd_list->RSSetScissorRects(1, &full_scissorrect);
+
+	{
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+		desc.app->SetRtvDsv(cmd_list);
+		desc.app->ClearRtvDsv(cmd_list, { 0.5f, 1.0f, 0.5f, 1.f });
+
+		cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+	}
+
+	cmd_list->Close();
+
+	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };
+	desc.app->GetQueue()->Data()->ExecuteCommandLists(1, cmd_lists);
+	desc.app->GetQueue()->Signal();
+	desc.app->GetQueue()->Wait();
+
+	cmd_allocator->Reset();
+	cmd_list->Reset(cmd_allocator.Get(), nullptr);
 
 	if (desc.app->IsTearingSupport())
 		desc.app->GetSwapchain()->Present(0, DXGI_PRESENT_ALLOW_TEARING);

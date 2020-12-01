@@ -4,11 +4,7 @@
 #include <Windows.h>
 #undef NOMINMAX
 
-#include <filesystem>
-#include <map>
-#include <string>
-#include <DirectXMath.h>
-#include <memory>
+#include "Model/StaticModel.hpp"
 
 namespace KGL
 {
@@ -67,39 +63,33 @@ namespace KGL
 					std::string				bump_file_ch;		// スカラーまたはバンプテクスチャを作成するために
 																// どのファイルのチャンネルを使用するか指定。
 				};
+				using ReflectionsTexture = std::unordered_map<std::string, std::filesystem::path>;
 
 				// パラメーター
-				DirectX::XMFLOAT3									ambient_color;
-				DirectX::XMFLOAT3									diffuse_color;
-				DirectX::XMFLOAT3									specular_color;
-				float												specular_weight;
-				bool												specular_flg;
-				float												dissolve;	// 透明度 1なら透明
-				float												refraction;	// 屈折率
-				bool												smooth;
+				S_MODEL::Material::Parameter param;
 				
 				// テクスチャ
-				std::shared_ptr<Texture>							tex_ambient;
-				std::shared_ptr<Texture>							tex_diffuse;
-				std::shared_ptr<Texture>							tex_specular;
-				std::shared_ptr<Texture>							tex_specular_highlights;
-				std::shared_ptr<Texture>							tex_dissolve;
-				std::shared_ptr<Texture>							tex_bump;
-				std::shared_ptr<Texture>							tex_displacement;
-				std::shared_ptr<Texture>							tex_stencil_decal;
+				std::shared_ptr<Texture>	tex_ambient;
+				std::shared_ptr<Texture>	tex_diffuse;
+				std::shared_ptr<Texture>	tex_specular;
+				std::shared_ptr<Texture>	tex_specular_highlights;
+				std::shared_ptr<Texture>	tex_dissolve;
+				std::shared_ptr<Texture>	tex_bump;
+				std::shared_ptr<Texture>	tex_displacement;
+				std::shared_ptr<Texture>	tex_stencil_decal;
 
-				std::map<std::string, std::string>					tex_reflections;
+				ReflectionsTexture			tex_reflections;
 
 				// 頂点
-				Vertices											vertices;
+				Vertices					vertices;
 			};
 
 			struct Desc
 			{
-				std::filesystem::path								mtl_path;
-				std::map<std::string, std::shared_ptr<Material>>	materials;
-				std::map<std::string, std::shared_ptr<Object>>		objects;
-				ObjectData											object_data;
+				std::filesystem::path										mtl_path;
+				std::unordered_map<std::string, std::shared_ptr<Material>>	materials;
+				std::unordered_map<std::string, std::shared_ptr<Object>>	objects;
+				ObjectData													object_data;
 			};
 		}
 	}

@@ -162,6 +162,7 @@ noexcept
 }
 
 static bool LoadTexture(
+	const std::filesystem::path& r_path,
 	std::ifstream& ifs,
 	std::shared_ptr<OBJ::Material::Texture> out_texture
 ) noexcept
@@ -196,6 +197,14 @@ static bool LoadTexture(
 			std::string tex_path;
 			std::getline(ifs, tex_path);
 			out_texture->path = tex_path;
+
+			// パスの正規化
+			out_texture->path = out_texture->path.lexically_normal();
+			// 相対パスの場合
+			if (out_texture->path.is_relative())
+			{
+				out_texture->path = r_path / out_texture->path;
+			}
 
 			return true;
 		}
@@ -305,10 +314,11 @@ static bool LoadTexture(
 
 static void InitMTL(std::shared_ptr<OBJ::Material> out_material) noexcept
 {
-	out_material->refraction = 1.0f;
+	out_material->param.refraction = 1.0f;
 }
 
 static void LoadMTL(
+	const std::filesystem::path& r_path,
 	const std::filesystem::path& path,
 	std::ifstream& ifs,
 	std::shared_ptr<OBJ::Material> out_material
@@ -343,28 +353,28 @@ static void LoadMTL(
 		if (buff == "KA")
 		{
 			// 0 ~ 1
-			ifs >> out_material->ambient_color.x;
-			ifs >> out_material->ambient_color.y;
-			ifs >> out_material->ambient_color.z;
+			ifs >> out_material->param.ambient_color.x;
+			ifs >> out_material->param.ambient_color.y;
+			ifs >> out_material->param.ambient_color.z;
 		}
 		else if (buff == "KD")
 		{
 			// 0 ~ 1
-			ifs >> out_material->diffuse_color.x;
-			ifs >> out_material->diffuse_color.y;
-			ifs >> out_material->diffuse_color.z;
+			ifs >> out_material->param.diffuse_color.x;
+			ifs >> out_material->param.diffuse_color.y;
+			ifs >> out_material->param.diffuse_color.z;
 		}
 		else if (buff == "KS")
 		{
 			// 0 ~ 1
-			ifs >> out_material->specular_color.x;
-			ifs >> out_material->specular_color.y;
-			ifs >> out_material->specular_color.z;
+			ifs >> out_material->param.specular_color.x;
+			ifs >> out_material->param.specular_color.y;
+			ifs >> out_material->param.specular_color.z;
 		}
 		else if (buff == "NS")
 		{
 			// 0 ~ 1000
-			ifs >> out_material->specular_weight;
+			ifs >> out_material->param.specular_weight;
 
 		}
 
@@ -372,14 +382,14 @@ static void LoadMTL(
 		else if (buff == "D")
 		{
 			// 0 ~ 1
-			ifs >> out_material->dissolve;
+			ifs >> out_material->param.dissolve;
 		}
 		// Dの反転
 		else if (buff == "TR")
 		{
 			// 0 ~ 1
-			ifs >> out_material->dissolve;
-			out_material->dissolve = 1.f - out_material->dissolve;
+			ifs >> out_material->param.dissolve;
+			out_material->param.dissolve = 1.f - out_material->param.dissolve;
 		}
 
 		// 光学密度(屈折率)
@@ -387,7 +397,7 @@ static void LoadMTL(
 		{
 			// 0.001 ~ 10
 			// 1.0の値は光がオブジェクトをパススルーし曲がらないことを意味する。
-			ifs >> out_material->refraction;
+			ifs >> out_material->param.refraction;
 		}
 		// 照明モデル
 		else if (buff == "ILLUM")
@@ -395,63 +405,63 @@ static void LoadMTL(
 			// 1で鏡面反射無効, 2で有効
 			int flg_value;
 			ifs >> flg_value;
-			out_material->specular_flg = flg_value == 2;
+			out_material->param.specular_flg = flg_value == 2;
 		}
 
 		// アンビエントテクスチャマップ
 		else if (buff == "MAP_KA")
 		{
 			out_material->tex_ambient = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_ambient))
+			if (!LoadTexture(r_path, ifs, out_material->tex_ambient))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// ディフューズテクスチャマップ (多くの場合、アンビエントテクスチャマップと同じにされる)
 		else if (buff == "MAP_KD")
 		{
 			out_material->tex_diffuse = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_diffuse))
+			if (!LoadTexture(r_path, ifs, out_material->tex_diffuse))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// スペキュラカラーテクスチャマップ
 		else if (buff == "MAP_KS")
 		{
 			out_material->tex_specular = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_specular))
+			if (!LoadTexture(r_path, ifs, out_material->tex_specular))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// スペキュラハイライト成分
 		else if (buff == "MAP_NS")
 		{
 			out_material->tex_specular_highlights = std::make_shared<OBJ::Material::Texture>();
-				if(!LoadTexture(ifs, out_material->tex_specular_highlights))
-				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]"); LoadTexture(ifs, out_material->tex_specular_highlights);
+			if(!LoadTexture(r_path, ifs, out_material->tex_specular_highlights))
+				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// 透過度テクスチャマップ
 		else if (buff == "MAP_D")
 		{
 			out_material->tex_dissolve = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_dissolve))
+			if (!LoadTexture(r_path, ifs, out_material->tex_dissolve))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// バンプマップ(標準で画像の輝度値チャンネルを使用)
 		else if (buff == "MAP_BUMP" || buff == "BUMP")
 		{
 			out_material->tex_bump = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_bump))
+			if (!LoadTexture(r_path, ifs, out_material->tex_bump))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// ディスプレースメントマップ
 		else if (buff == "MAP_DISP" || buff == "DISP")
 		{
 			out_material->tex_displacement = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_displacement))
+			if (!LoadTexture(r_path, ifs, out_material->tex_displacement))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 		// ステンシルデカールテクスチャ (標準で画像の'matte'チャンネルを使用)
 		else if (buff == "MAP_DECAL" || buff == "DECAL")
 		{
 			out_material->tex_stencil_decal = std::make_shared<OBJ::Material::Texture>();
-			if (!LoadTexture(ifs, out_material->tex_stencil_decal))
+			if (!LoadTexture(r_path, ifs, out_material->tex_stencil_decal))
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 		}
 
@@ -474,7 +484,9 @@ static void LoadMTL(
 			if (SCAST<char>(ifs.get()) != ' ')
 				throw std::runtime_error("[ " + path.string() + " ] の読み込みに失敗\n[フォーマットエラー]");
 			// 一行コピー
-			std::getline(ifs, out_material->tex_reflections[type_str]);
+			std::string reflection_str;
+			std::getline(ifs, reflection_str);
+			out_material->tex_reflections[type_str] = reflection_str;
 		}
 
 		// 物理ベースレンダリング用パラメーター
@@ -515,6 +527,10 @@ void OBJ_Loader::LoadMTLFile(
 	{	// 相対パス
 		out_desc->mtl_path = r_path / out_desc->mtl_path;
 	}
+
+	// ファイルの相対パスを保存
+	auto mtl_r_path = out_desc->mtl_path;
+	mtl_r_path.remove_filename();
 
 	std::ifstream ifs(out_desc->mtl_path);
 
@@ -568,7 +584,7 @@ void OBJ_Loader::LoadMTLFile(
 				out_desc->materials[mtl_name] = materials;
 			}
 
-			LoadMTL(out_desc->mtl_path, ifs, materials);
+			LoadMTL(mtl_r_path, out_desc->mtl_path, ifs, materials);
 		}
 
 		// 空白が無視されてEOFにならない問題を回避
@@ -662,7 +678,7 @@ bool OBJ_Loader::LoadMaterials(
 ) noexcept(false)
 {
 	const auto& n_path = GetPath();
-	out_material->smooth = smooth_flg;
+	out_material->param.smooth = smooth_flg;
 
 	std::string buff;
 	buff.reserve(256);
@@ -693,7 +709,7 @@ bool OBJ_Loader::LoadMaterials(
 			std::string smooth;
 			ifs >> smooth;
 
-			out_material->smooth = smooth == "1";
+			out_material->param.smooth = smooth == "1";
 		}
 
 		// 頂点データ番号
@@ -736,7 +752,7 @@ bool OBJ_Loader::LoadMaterials(
 	// コンテナのキャパシティを切り詰める
 	out_material->vertices.shrink_to_fit();
 
-	return out_material->smooth;
+	return out_material->param.smooth;
 }
 
 void OBJ_Loader::ConvertMaterial()
@@ -747,11 +763,32 @@ void OBJ_Loader::ConvertMaterial()
 	const auto& obj_uvs = m_desc->object_data.uvs;
 	const auto& obj_normals = m_desc->object_data.normals;
 
+	constexpr auto ConvertTexture = [](
+		std::filesystem::path* out_tex_path,
+		std::shared_ptr<const OBJ::Material::Texture> tex
+		){
+			if (tex)
+			{
+				*out_tex_path = tex->path;
+			}
+		};
+
 	// マテリアルデータを変換
 	for (const auto& obj_mt : m_desc->materials)
 	{
 		S_MODEL::Material mt;
-		mt.smooth = obj_mt.second->smooth;
+		mt.param = obj_mt.second->param;
+
+		// テクスチャデータを変換
+		ConvertTexture(&mt.tex.ambient, obj_mt.second->tex_ambient);
+		ConvertTexture(&mt.tex.diffuse, obj_mt.second->tex_diffuse);
+		ConvertTexture(&mt.tex.specular, obj_mt.second->tex_specular);
+		ConvertTexture(&mt.tex.specular_highlights, obj_mt.second->tex_specular_highlights);
+		ConvertTexture(&mt.tex.dissolve, obj_mt.second->tex_dissolve);
+		ConvertTexture(&mt.tex.bump, obj_mt.second->tex_bump);
+		ConvertTexture(&mt.tex.displacement, obj_mt.second->tex_displacement);
+		ConvertTexture(&mt.tex.stencil_decal, obj_mt.second->tex_stencil_decal);
+		mt.tex.reflections = obj_mt.second->tex_reflections;
 
 		const size_t v_size = obj_mt.second->vertices.size();
 		mt.vertices.resize(v_size);
