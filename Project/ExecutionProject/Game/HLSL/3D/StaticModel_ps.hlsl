@@ -18,5 +18,8 @@ SamplerState smp : register(s0);
 
 float4 PSMain(PS_Input input) : SV_TARGET
 {
-	return float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float3 L = -light_vec;
+	float3 N = input.normal;
+
+	return float4(float3(1.0f, 1.0f, 1.0f) * max(0, dot(N, L)), 1.0f);
 }

@@ -3,6 +3,8 @@
 #include <d3d12.h>
 #pragma comment(lib, "d3d12.lib")
 
+#include <cstring>
+
 #include "../Helper/ComPtr.hpp"
 #include "../Helper/ThrowAssert.hpp"
 #include "../Helper/Cast.hpp"
@@ -45,13 +47,14 @@ namespace KGL
 			{
 				return CreateCBV(m_buffer->GetGPUVirtualAddress(), SCAST<UINT>(m_size_in_bytes), p_handle);
 			}
+
+			ResourcesBase& operator=(const ResourcesBase& m) noexcept;
+			ResourcesBase(const ResourcesBase& m) noexcept { *this = m; }
 		};
 
 		template <class _Ty>
 		class ResourceTyBase : public ResourcesBase
 		{
-		private:
-			_Ty* m_mapped_ptr;
 		protected:
 			ResourceTyBase(
 				ComPtrC<ID3D12Device> device,
@@ -59,7 +62,7 @@ namespace KGL
 				const D3D12_HEAP_PROPERTIES* prop,
 				D3D12_RESOURCE_FLAGS flag
 			) noexcept :
-				ResourcesBase(device, size, struct_size, prop, flag), m_mapped_ptr(nullptr)
+				ResourcesBase(device, size, struct_size, prop, flag)
 			{
 			}
 		public:

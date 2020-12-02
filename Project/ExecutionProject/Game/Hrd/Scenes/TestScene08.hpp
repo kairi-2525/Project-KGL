@@ -15,7 +15,7 @@
 #include <Dx12/3D/Board.hpp>
 
 #include "../Obj3D.hpp"
-#include <Dx12/3D/StaticModel.hpp>
+#include <Dx12/3D/StaticModelActor.hpp>
 
 class TestScene08 : public SceneBase
 {
@@ -27,13 +27,27 @@ private:
 		DirectX::XMFLOAT4X4	view_mat[6];
 		DirectX::XMFLOAT4X4 proj;
 	};
+	struct FrameBuffer
+	{
+		DirectX::XMFLOAT4X4 view;
+		DirectX::XMFLOAT4X4 proj;
+		DirectX::XMFLOAT4X4 view_proj;
+		DirectX::XMFLOAT3	eye_pos; float pad;
+		DirectX::XMFLOAT3	light_vec;
+	};
 private:
-	KGL::ComPtr<ID3D12CommandAllocator>			cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>		cmd_list;
+	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				cmd_list;
+	std::shared_ptr<KGL::DescriptorManager>				descriptor;
 
-	std::shared_ptr<KGL::Resource<CubeMapBuffer>> cube_buffer;
-	std::vector<std::shared_ptr<KGL::StaticModel>> s_models;
-	std::vector<KGL::BaseRenderer>					s_model_renderer;
+	std::shared_ptr<KGL::Resource<FrameBuffer>>			frame_buffer;
+	std::shared_ptr<KGL::DescriptorHandle>				frame_buffer_handle;
+	KGL::Camera											camera;
+
+	std::shared_ptr<KGL::Resource<CubeMapBuffer>>		cube_buffer;
+	std::shared_ptr<KGL::StaticModel>					s_model;
+	std::vector<std::shared_ptr<KGL::StaticModelActor>>	s_actors;
+	std::shared_ptr<KGL::BaseRenderer>					s_model_renderer;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

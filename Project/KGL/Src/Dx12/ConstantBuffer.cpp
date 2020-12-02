@@ -85,3 +85,37 @@ HRESULT ResourcesBase::CreateCBV(
 	}
 	return hr;
 }
+
+ResourcesBase& ResourcesBase::operator=(const ResourcesBase& m) noexcept
+{
+	m_size = m.m_size;
+	m_size_in_bytes = m.m_size_in_bytes;
+
+	ComPtr<ID3D12Device> device;
+	m.Data()->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+
+	// リソースを作成
+	auto resource_desc = m.Data()->GetDesc();
+	D3D12_HEAP_PROPERTIES propeties = {};
+	D3D12_HEAP_FLAGS heap_flg;
+	m.Data()->GetHeapProperties(&propeties, &heap_flg);
+	auto hr = device->CreateCommittedResource(
+		&propeties,
+		heap_flg,
+		&resource_desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+	);
+
+	// バッファの中身をコピー
+	const D3D12_RANGE read_range = { 0, 0 };
+	void* dest_ptr, * src_ptr;
+	m_buffer->Map(0u, &read_range, &dest_ptr);
+	m.m_buffer->Map(0u, &read_range, &src_ptr);
+	std::memcpy(dest_ptr, src_ptr, SCAST<size_t>(m.SizeInBytes()));
+	m.m_buffer->Unmap(0u, &read_range);
+	m_buffer->Unmap(0u, &read_range);
+
+	return *this;
+}
