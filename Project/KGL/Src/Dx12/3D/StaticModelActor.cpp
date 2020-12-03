@@ -23,7 +23,7 @@ StaticModelActor::StaticModelActor(
 	for (const auto& it : mtls)
 	{
 		auto& mtl = m_mtl_buffers[it.first];
-		mtl.resource = std::make_shared<KGL::Resource<MaterialBuffer>>(device, 1u);
+		mtl.resource = std::make_shared<KGL::Resource<MaterialBuffer>>(*it.second.rs_param);
 		mtl.handle = std::make_shared<KGL::DescriptorHandle>(m_descriptor->Alloc());
 		mtl.resource->CreateCBV(mtl.handle);
 	}
@@ -88,9 +88,25 @@ void StaticModelActor::Render(ComPtrC<ID3D12GraphicsCommandList> cmd_list) const
 		const auto& mtl_buff = m_mtl_buffers.at(it.first);
 
 		// マテリアルバッファをセット
+		cmd_list->SetDescriptorHeaps(1, m_descriptor->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(2, mtl_buff.handle->Gpu());
+
+		// テクスチャバッファをセット
+		cmd_list->SetDescriptorHeaps(1, mtl.ambient.handle->Heap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(3, mtl.ambient.handle->Gpu());
 
 		cmd_list->IASetVertexBuffers(0, 1, &mtl.vertex_buffer_view);
 		cmd_list->DrawInstanced(SCAST<UINT>(mtl.rs_vertices->Size()), 1, 0, 0);
 	}
+}
+
+StaticModelActor::MaterialBufferResource 
+	StaticModelActor::GetMTLResource(const std::string mtl_name) noexcept
+{
+	auto itr = m_mtl_buffers.find(mtl_name);
+	if (itr != m_mtl_buffers.end())
+	{
+		return itr->second.resource;
+	}
+	return nullptr;
 }

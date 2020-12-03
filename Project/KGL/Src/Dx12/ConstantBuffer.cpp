@@ -97,11 +97,11 @@ ResourcesBase& ResourcesBase::operator=(const ResourcesBase& m) noexcept
 	// ƒŠƒ\[ƒX‚ðì¬
 	auto resource_desc = m.Data()->GetDesc();
 	D3D12_HEAP_PROPERTIES propeties = {};
-	D3D12_HEAP_FLAGS heap_flg;
-	m.Data()->GetHeapProperties(&propeties, &heap_flg);
+	m.Data()->GetHeapProperties(&propeties, nullptr);
+
 	auto hr = device->CreateCommittedResource(
 		&propeties,
-		heap_flg,
+		D3D12_HEAP_FLAG_NONE,
 		&resource_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,

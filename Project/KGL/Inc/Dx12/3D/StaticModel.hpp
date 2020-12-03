@@ -37,6 +37,16 @@ namespace KGL
 						"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
 						D3D12_APPEND_ALIGNED_ELEMENT,
 						D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+					},
+					{
+						"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+						D3D12_APPEND_ALIGNED_ELEMENT,
+						D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
+					},
+					{
+						"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+						D3D12_APPEND_ALIGNED_ELEMENT,
+						D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0
 					}
 				};
 				static inline const std::vector<D3D12_DESCRIPTOR_RANGE> DESCRIPTOR_RANGES0 =
@@ -76,10 +86,7 @@ namespace KGL
 					DirectX::XMFLOAT4X4 world;
 					DirectX::XMFLOAT4X4 wvp;
 				};
-				struct MaterialBuffer
-				{
-					DirectX::XMFLOAT3	color;
-				};
+				using MaterialBuffer = S_MODEL::Material::Parameter;
 			private:
 				enum REFLECTIONS_TYPE : UINT
 				{

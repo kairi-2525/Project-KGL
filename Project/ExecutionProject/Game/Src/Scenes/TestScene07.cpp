@@ -168,9 +168,9 @@ HRESULT TestScene07::Init(const SceneDesc& desc)
 		auto offset = step_buff_rs->AlignmentStructSize(1u);
 		StepBuffer* p = step_buff_rs->Map();
 		std::vector<StepBuffer> sb;
-		for (int block = 2; block <= value_size; block *= 2)
+		for (UINT32 block = 2; block <= value_size; block *= 2)
 		{
-			for (int step = block / 2; step >= 1; step /= 2)
+			for (UINT32 step = block / 2; step >= 1; step /= 2)
 			{
 				//StepBuffer s;
 				//s.block_step = block;

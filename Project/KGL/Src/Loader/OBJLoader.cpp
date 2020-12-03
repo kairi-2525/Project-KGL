@@ -315,6 +315,9 @@ static bool LoadTexture(
 static void InitMTL(std::shared_ptr<OBJ::Material> out_material) noexcept
 {
 	out_material->param.refraction = 1.0f;
+	out_material->param.ambient_color = { 0.5f, 0.5f, 0.5f };
+	out_material->param.specular_color = { 1.0f, 1.0f, 1.0f };
+	out_material->param.specular_weight = 0.f;
 }
 
 static void LoadMTL(
@@ -375,7 +378,8 @@ static void LoadMTL(
 		{
 			// 0 ~ 1000
 			ifs >> out_material->param.specular_weight;
-
+			// 0 ~ 1
+			out_material->param.specular_weight /= 1000.f;
 		}
 
 		// 透明度
@@ -801,7 +805,29 @@ void OBJ_Loader::ConvertMaterial()
 
 			mt_vertex.position = obj_positions[obj_vertex.position - 1];
 			mt_vertex.uv = obj_uvs[obj_vertex.uv - 1];
+			mt_vertex.uv.y = 1.f - mt_vertex.uv.y;
 			mt_vertex.normal = obj_normals[obj_vertex.normal - 1];
+			using namespace DirectX;
+			XMVECTOR normal = XMVector3Normalize(XMLoadFloat3(&mt_vertex.normal));
+			XMStoreFloat3(&mt_vertex.normal, normal);
+
+			// Tangentを計算
+			XMVECTOR y_up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+			XMVECTOR tangent = XMVector3Normalize(XMVector3Cross(normal, y_up));
+			float length;
+			XMStoreFloat(&length, XMVector3Length(tangent));
+
+			// 同じベクトルだったので外積をし直す
+			if (length <= FLT_EPSILON)
+			{
+				XMVECTOR x_right = XMVectorSet(1.f, 0.f, 0.f, 0.f);
+				tangent = XMVector3Normalize(XMVector3Cross(normal, x_right));
+			}
+			XMStoreFloat3(&mt_vertex.tangent, tangent);
+
+			// bitangent も tangent と normal から計算可能
+			XMStoreFloat3(&mt_vertex.bitangent, XMVector3Normalize(XMVector3Cross(tangent, normal)));
 		}
 
 		materials->insert(std::make_pair(obj_mt.first, mt));

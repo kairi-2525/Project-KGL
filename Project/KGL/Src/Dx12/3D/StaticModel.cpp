@@ -31,6 +31,7 @@ StaticModel::StaticModel(
 
 	auto white_tex = std::make_shared<Texture>(device, 0xff, 0xff, 0xff, 0xff, m_tex_mgr.get());
 	auto black_tex = std::make_shared<Texture>(device, 0x00, 0x00, 0x00, 0xff, m_tex_mgr.get());
+	auto y_up_tex = std::make_shared<Texture>(device, 0xff / 2, 0xff, 0xff / 2, 0x00, m_tex_mgr.get());
 
 	constexpr auto CreateTexture = [](
 		ComPtrC<ID3D12Device>				device,
@@ -108,7 +109,7 @@ StaticModel::StaticModel(
 		CreateTexture(device, &mt.specular, load_mt.tex.specular, white_tex, m_tex_mgr, m_descriptor_mgr);
 		CreateTexture(device, &mt.specular_highlights, load_mt.tex.specular_highlights, white_tex, m_tex_mgr, m_descriptor_mgr);
 		CreateTexture(device, &mt.dissolve, load_mt.tex.dissolve, white_tex, m_tex_mgr, m_descriptor_mgr);
-		CreateTexture(device, &mt.bump, load_mt.tex.bump, white_tex, m_tex_mgr, m_descriptor_mgr);
+		CreateTexture(device, &mt.bump, load_mt.tex.bump, y_up_tex, m_tex_mgr, m_descriptor_mgr);
 		CreateTexture(device, &mt.displacement, load_mt.tex.displacement, white_tex, m_tex_mgr, m_descriptor_mgr);
 		CreateTexture(device, &mt.stencil_decal, load_mt.tex.stencil_decal, white_tex, m_tex_mgr, m_descriptor_mgr);
 		CreateReflectionTexture(device, &mt.reflections[SPHERE], load_mt.tex.reflections, "sphere", white_tex, m_tex_mgr, m_descriptor_mgr);

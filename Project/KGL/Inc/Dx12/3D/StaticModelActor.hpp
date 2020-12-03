@@ -35,6 +35,12 @@ namespace KGL
 					std::shared_ptr<const StaticModel> model
 				) noexcept;
 
+				std::shared_ptr<KGL::Resource<MaterialBuffer>> GetMTLResource(
+					const std::string mtl_name) noexcept;
+				const std::unordered_map<std::string, Material>& GetMaterials() noexcept {
+					return m_mtl_buffers;
+				};
+
 				void UpdateBuffer(DirectX::CXMMATRIX view_proj);
 				void Render(ComPtrC<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 				

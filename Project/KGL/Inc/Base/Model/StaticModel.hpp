@@ -17,6 +17,8 @@ namespace KGL
 				DirectX::XMFLOAT3 position;
 				DirectX::XMFLOAT2 uv;
 				DirectX::XMFLOAT3 normal;
+				DirectX::XMFLOAT3 tangent;
+				DirectX::XMFLOAT3 bitangent;
 			};
 			
 			using Vertices = std::vector<Vertex>;
@@ -40,8 +42,8 @@ namespace KGL
 			{
 				struct Parameter
 				{
-					DirectX::XMFLOAT3			ambient_color;
-					DirectX::XMFLOAT3			diffuse_color;
+					DirectX::XMFLOAT3			ambient_color; float pad0;
+					DirectX::XMFLOAT3			diffuse_color; float pad1;
 					DirectX::XMFLOAT3			specular_color;
 					float						specular_weight;
 					bool						specular_flg;

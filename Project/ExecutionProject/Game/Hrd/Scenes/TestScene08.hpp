@@ -20,6 +20,12 @@
 class TestScene08 : public SceneBase
 {
 private:
+	enum RT
+	{
+		WORLD,
+		WORLD_BT,	// WORLD‚ðBrighten‚µ‚Ä–¾‚é‚­‚µ‚½Œã‚ÌRT
+		FXAA
+	};
 	using SpDpHandle = std::shared_ptr<KGL::DescriptorHandle>;
 
 	struct CubeMapBuffer
@@ -34,10 +40,13 @@ private:
 		DirectX::XMFLOAT4X4 view_proj;
 		DirectX::XMFLOAT3	eye_pos; float pad;
 		DirectX::XMFLOAT3	light_vec;
+		float				light_radiance;
 	};
 private:
 	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>				cmd_list;
+	std::shared_ptr<KGL::RenderTargetView>				rtvs;
+	std::vector<std::shared_ptr<KGL::Texture>>			rt_textures;
 	std::shared_ptr<KGL::DescriptorManager>				descriptor;
 
 	std::shared_ptr<KGL::Resource<FrameBuffer>>			frame_buffer;
@@ -48,6 +57,11 @@ private:
 	std::shared_ptr<KGL::StaticModel>					s_model;
 	std::vector<std::shared_ptr<KGL::StaticModelActor>>	s_actors;
 	std::shared_ptr<KGL::BaseRenderer>					s_model_renderer;
+
+	std::shared_ptr<FXAAManager>						fxaa_mgr;
+	std::shared_ptr<KGL::BaseRenderer>					sprite_renderer;
+	std::shared_ptr<KGL::BaseRenderer>					brighten_renderer;
+	std::shared_ptr<KGL::Sprite>						sprite;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
