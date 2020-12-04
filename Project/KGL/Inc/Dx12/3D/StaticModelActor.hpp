@@ -43,6 +43,7 @@ namespace KGL
 
 				void UpdateBuffer(DirectX::CXMMATRIX view_proj);
 				void Render(ComPtrC<ID3D12GraphicsCommandList> cmd_list) const noexcept;
+				std::shared_ptr<const StaticModel> GetModel() const noexcept { return m_model; }
 				
 				StaticModelActor(const StaticModelActor& m) noexcept { *this = m; }
 				StaticModelActor& operator=(const StaticModelActor& m) noexcept;

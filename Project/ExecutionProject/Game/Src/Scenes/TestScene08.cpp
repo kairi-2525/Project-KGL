@@ -30,8 +30,8 @@ HRESULT TestScene08::Load(const SceneDesc& desc)
 
 	std::shared_ptr<KGL::StaticModelLoader> s_loader =
 		std::make_shared<KGL::OBJ_Loader>(
-			//"./Assets/Models/Mr.Incredible/Mr.Incredible.obj"
-			"./Assets/Models/SpaceShip/99-intergalactic_spaceship-obj/Intergalactic_Spaceship-(Wavefront).obj"
+			"./Assets/Models/Mr.Incredible/Mr.Incredible.obj"
+			//"./Assets/Models/SpaceShip/99-intergalactic_spaceship-obj/Intergalactic_Spaceship-(Wavefront).obj"
 			);
 
 	s_model = std::make_shared<KGL::StaticModel>(device, s_loader);
@@ -42,8 +42,11 @@ HRESULT TestScene08::Load(const SceneDesc& desc)
 		auto renderer_desc = KGL::_3D::Renderer::DEFAULT_DESC;
 
 		renderer_desc.vs_desc.hlsl = "./HLSL/3D/StaticModel_vs.hlsl";
+		renderer_desc.gs_desc.hlsl = "./HLSL/3D/StaticModel_gs.hlsl";
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/StaticModel_ps.hlsl";
+		renderer_desc.rastarizer_desc.CullMode = D3D12_CULL_MODE_BACK;
 
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
 		renderer_desc.input_layouts = KGL::StaticModel::INPUT_LAYOUTS;
 		renderer_desc.root_params = KGL::StaticModel::ROOT_PARAMS;
 
@@ -99,7 +102,9 @@ HRESULT TestScene08::Init(const SceneDesc& desc)
 
 		XMVECTOR light_vec = XMVectorSet(0.1f, -1.f, -0.4f, 0.f);
 		XMStoreFloat3(&mapped_fb->light_vec, XMVector3Normalize(light_vec));
-		mapped_fb->light_radiance = 1.f;
+		mapped_fb->light_color = { 1.f, 1.f, 1.f };
+
+		mapped_fb->ambient_light_color = { 1.f, 1.f, 1.f };
 
 		const auto resolution = desc.app->GetResolution();
 		const XMMATRIX proj = XMMatrixPerspectiveFovLH(

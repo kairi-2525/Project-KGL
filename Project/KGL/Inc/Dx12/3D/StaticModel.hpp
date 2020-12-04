@@ -72,10 +72,10 @@ namespace KGL
 					D3D12_SHADER_VISIBILITY_ALL },
 					{ D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
 					{ { SCAST<UINT>(DESCRIPTOR_RANGES1.size()), DESCRIPTOR_RANGES1.data() } },
-					D3D12_SHADER_VISIBILITY_VERTEX },
+					D3D12_SHADER_VISIBILITY_GEOMETRY },
 					{ D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
 					{ { SCAST<UINT>(DESCRIPTOR_RANGES2.size()), DESCRIPTOR_RANGES2.data() } },
-					D3D12_SHADER_VISIBILITY_PIXEL },
+					D3D12_SHADER_VISIBILITY_ALL },
 					{ D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
 					{ { SCAST<UINT>(DESCRIPTOR_RANGES3.size()), DESCRIPTOR_RANGES3.data() } },
 					D3D12_SHADER_VISIBILITY_PIXEL },
@@ -124,6 +124,7 @@ namespace KGL
 					ReflectionsTexture										reflections;
 				};
 			private:
+				std::filesystem::path						m_path;
 				std::unordered_map<std::string, Material>	m_materials;
 				std::shared_ptr<TextureManager>				m_tex_mgr;
 				std::shared_ptr<DescriptorManager>			m_descriptor_mgr;
@@ -141,6 +142,7 @@ namespace KGL
 				{
 					return m_materials;
 				}
+				const std::filesystem::path& GetPath() const noexcept { return m_path; }
 			};
 		}
 	}

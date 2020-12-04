@@ -1,0 +1,10 @@
+# Created by Metasequoia
+
+newmtl mat1
+Ka 0.60000 0.60000 0.60000
+Kd 0.38000 0.38000 0.38000
+Ks 0.33800 0.33800 0.33800
+Ns 24.65000
+map_Kd slime.png
+
+map_Bump Nslime.png

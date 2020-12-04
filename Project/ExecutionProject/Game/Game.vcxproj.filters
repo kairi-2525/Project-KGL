@@ -108,6 +108,9 @@
     <ClCompile Include="Src\Scenes\TestScene08.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Scenes\TestScene09.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hrd\SceneGame.hpp">
@@ -206,6 +209,12 @@
     <ClInclude Include="Hrd\Scenes\TestScene08.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\Scenes\TestScene09.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Hrd\Scenes\Global.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />
@@ -261,6 +270,8 @@
     <FxCompile Include="HLSL\3D\StaticModel_vs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticModel_ps.hlsl" />
     <FxCompile Include="HLSL\2D\Brighten_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticModel_gs.hlsl" />
+    <FxCompile Include="HLSL\3D\StaticModelDiffuse_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

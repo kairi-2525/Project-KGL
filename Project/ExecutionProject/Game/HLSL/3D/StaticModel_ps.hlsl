@@ -2,18 +2,6 @@
 
 static const float PI = 3.141592;
 
-cbuffer MaterialBuffer : register(b2)
-{
-	float3			ambient_color;
-	float3			diffuse_color;
-	float3			specular_color;
-	float			specular_weight;
-	bool			specular_flg;
-	float			dissolve;	// 透明度 1なら透明
-	float			refraction;	// 屈折率
-	bool			smooth;
-};
-
 Texture2D<float4> ambient_tex				: register(t0);
 Texture2D<float4> diffuse_tex				: register(t1);
 Texture2D<float4> specular_tex				: register(t2);
@@ -31,34 +19,40 @@ float3 fresnel_schlick(float NoL, float3 F0)
 }
 
 float4 PSMain(PS_Input input) : SV_TARGET
-{
-	// 接線行列を作成
-	row_major float3x3 tanget_mat =
-	{
-		input.normal,
-		input.tangent,
-		input.bitangent
-	};
-
-	// ライト方向が反転しているように見える???
+{	
 	float3 L = -light_vec;
-	L = normalize(mul(L, tanget_mat));
-	float3 N = normalize((bump_tex.Sample(smp, input.uv).rgb * 2.f) - 1.f);
-	N = float3(0.f, 1.f, 0.f);
+
+	float3 N = (float3)0;
 	if (smooth)
 	{
+		// 接線行列を作成
+		float3x3 tanget_mat =
+		{
+			input.tangent,
+			input.bitangent,
+			input.normal
+		};
+
+		N = bump_tex.Sample(smp, input.uv).rgb;
+		N = (N * 2.f) - 1.f;
+		N = mul(N, tanget_mat);
+		N = normalize(N);
+	}
+	else
+	{
 		N = input.normal;
-		L = -light_vec;
 	}
 
-	float3 ambient = ambient_tex.Sample(smp, input.uv).rgb * ambient_color;
+	float3 ambient = ambient_tex.Sample(smp, input.uv).rgb * (ambient_color * ambient_light_color);
 
-	float s_irraduabce = max(0, dot(N, L));
-	float3 irraduabce = light_radiance * s_irraduabce + ambient;
+	float light_intensity = max(0, dot(N, L));
+	float3 irraduabce = (light_color * light_intensity) + ambient;
 
 	// 反射率
-	float reflectance = specular_flg ? fresnel_schlick(s_irraduabce, 0.4f) * specular_weight : 0.f;
-	float3 diffuse = diffuse_tex.Sample(smp, input.uv).rgb * diffuse_color;
+	float reflectance = specular_flg ? fresnel_schlick(light_intensity, 0.4f) * specular_weight : 0.f;
+	
+	float4 col = diffuse_tex.Sample(smp, input.uv);
+	float3 diffuse = col.rgb * diffuse_color;
 
 	float3 diffuse_exitance = diffuse * irraduabce * (1.f - reflectance);
 	float3 diffuse_radiance = diffuse_exitance / PI;
@@ -73,5 +67,5 @@ float4 PSMain(PS_Input input) : SV_TARGET
 
 	float3 radiance = diffuse_radiance + specular_radiance;
 
-	return float4(radiance, 1.f - dissolve);
+	return float4(radiance, col.a * dissolve);
 }

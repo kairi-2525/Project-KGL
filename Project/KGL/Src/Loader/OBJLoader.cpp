@@ -43,6 +43,8 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 		{
 			buff.clear();
 
+			auto old_pos = ifs.tellg();
+
 			ifs >> buff;
 
 			// 空白が無視されてEOFにならない問題を回避
@@ -71,21 +73,27 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 			}
 
 			// オブジェクトデータ
-			else if (buff == "O")
+			else if (buff == "O" || buff == "V" || buff == "VT" || buff == "VN")
 			{
-				// 最初の空白を飛ばして、一行コピー
-				if (SCAST<char>(ifs.get()) != ' ')
-				{
-					throw std::runtime_error(
-						"[ " + n_path.string() + " ] の読み込みに失敗\n"
-						+ "[フォーマットエラー]"
-					);
-				}
-
 				std::string obj_name;
-
-				// オブジェクトの名前を取得
-				std::getline(ifs, obj_name);
+				if (buff == "O")
+				{
+					// 最初の空白を飛ばして、一行コピー
+					if (SCAST<char>(ifs.get()) != ' ')
+					{
+						throw std::runtime_error(
+							"[ " + n_path.string() + " ] の読み込みに失敗\n"
+							+ "[フォーマットエラー]"
+						);
+					}
+					// オブジェクトの名前を取得
+					std::getline(ifs, obj_name);
+				}
+				else
+				{
+					// それ以外が来た場合は””に読み込む
+					ifs.seekg(old_pos);
+				}
 
 				// オブジェクトを読み込む
 				auto objects = desc->objects[obj_name] = std::make_shared<OBJ::Object>();
@@ -318,6 +326,8 @@ static void InitMTL(std::shared_ptr<OBJ::Material> out_material) noexcept
 	out_material->param.ambient_color = { 0.5f, 0.5f, 0.5f };
 	out_material->param.specular_color = { 1.0f, 1.0f, 1.0f };
 	out_material->param.specular_weight = 0.f;
+	out_material->param.dissolve = 1.f;
+	out_material->param.smooth = true;
 }
 
 static void LoadMTL(

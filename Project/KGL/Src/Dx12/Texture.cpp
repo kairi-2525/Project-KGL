@@ -483,14 +483,14 @@ HRESULT Texture::Save(const std::filesystem::path& dir) const noexcept
 	return S_OK;
 }
 
-D3D12_RESOURCE_BARRIER Texture::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept
+D3D12_RESOURCE_BARRIER TextureBase::RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept
 {
 	m_resource_state = after;
 	return CD3DX12_RESOURCE_BARRIER::Transition(m_buffer.Get(), before, after);
 }
 
 // SRVを作成
-HRESULT Texture::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension) const noexcept
+HRESULT TextureBase::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension) const noexcept
 {
 	HRESULT hr = S_OK;
 	if (p_handle)
@@ -519,7 +519,7 @@ HRESULT Texture::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D
 	return hr;
 }
 // RTVを作成
-HRESULT Texture::CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
+HRESULT TextureBase::CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
 {
 	HRESULT hr = S_OK;
 	if (p_handle)
@@ -544,5 +544,63 @@ HRESULT Texture::CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) con
 	{
 		hr = E_FAIL;
 	}
+	return hr;
+}
+
+// DSVを作成
+HRESULT TextureBase::CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
+{
+	D3D12_CLEAR_VALUE depth_clear_value = {};
+	depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
+	depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;	// 32ビットfloat値としてクリア
+	auto dsv_rs_desc = desc.app->GetDsvBuffer()->GetDesc();
+	dsv_rs_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	dsv_rs_desc.SampleDesc = sample_desc;
+	dsv_rs_desc.MipLevels = 1;
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+	dsv_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+	dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+	dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
+
+	rtrc.depth_stencil = std::make_shared<KGL::Texture>(device,
+		dsv_rs_desc,
+		depth_clear_value,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE
+		);
+
+	device->CreateDepthStencilView(rtrc.depth_stencil->Data().Get(), &dsv_desc, rtrc.dsv_handle.Cpu());
+}
+
+HRESULT TextureCube::Create(
+	ComPtrC<ID3D12Device> device,
+	DirectX::XMUINT2 size,
+	DXGI_FORMAT	format,
+	UINT16 mip_level,
+	TextureManager* mgr
+) noexcept
+{
+	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	if (m_path.empty()) m_path = "noname";
+
+	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+
+	auto res_desc = CD3DX12_RESOURCE_DESC::Tex2D(
+		format,
+		SCAST<UINT64>(size.x),
+		SCAST<UINT>(size.y),
+		6u, // キューブ
+		mip_level
+		);
+
+	// バッファ作成
+	auto hr = device->CreateCommittedResource(
+		&heap_prop,
+		D3D12_HEAP_FLAG_NONE,
+		&res_desc,
+		m_resource_state,
+		nullptr,
+		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+	);
+	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
 	return hr;
 }

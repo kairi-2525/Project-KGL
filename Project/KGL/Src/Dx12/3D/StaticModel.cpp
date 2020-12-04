@@ -13,6 +13,8 @@ StaticModel::StaticModel(
 	auto materials = loader->GetMaterials();
 	if (!materials) return;
 
+	m_path = loader->GetPath();
+
 	// Loaderが持つ情報からGPUリソースを構築する
 	auto mtl_size = materials->size();
 	m_materials.reserve(mtl_size);

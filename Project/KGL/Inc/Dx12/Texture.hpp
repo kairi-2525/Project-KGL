@@ -31,25 +31,39 @@ namespace KGL
 			bool GetResource(const std::filesystem::path& path, ComPtr<ID3D12Resource>* resource) const noexcept;
 			bool SetResource(const std::filesystem::path& path, const ComPtr<ID3D12Resource>& resource) noexcept;
 		};
-		class Texture
+		class TextureBase
 		{
-		private:
+		protected:
 			std::filesystem::path				m_path;
 			ComPtr<ID3D12Resource>				m_buffer;
 			std::unique_ptr<DirectX::XMFLOAT4>	m_clear_value;
 			D3D12_RESOURCE_STATES				m_resource_state;
-		private:
-			//static void Upload(ComPtrC<ID3D12Device> device, ComPtr<ID3D12Resource> buffer, );
+		protected:
+			TextureBase() = default;
+			virtual ~TextureBase() = default;
 		public:
-			Texture() = default;
-			const Texture& operator=(const Texture& tex) noexcept
+			const TextureBase& operator=(const TextureBase& tex) noexcept
 			{
 				m_path = tex.m_path;
 				m_buffer = tex.m_buffer;
 				if (tex.m_clear_value) m_clear_value = std::make_unique<DirectX::XMFLOAT4>(*tex.m_clear_value);
 				return *this;
 			}
-			Texture(const Texture& tex) noexcept { *this = tex; }
+			TextureBase(const TextureBase& tex) noexcept { *this = tex; }
+
+			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
+			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
+			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }
+			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept;
+			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES after) noexcept { return RB(m_resource_state, after); }
+			HRESULT CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension = D3D12_SRV_DIMENSION_TEXTURE2D) const noexcept;
+			HRESULT CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
+			HRESULT CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
+		};
+		class Texture : public TextureBase
+		{
+		public:
+			Texture() = default;
 			// 画像テクスチャ(CPUロード)
 			explicit Texture(ComPtrC<ID3D12Device> device,
 				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept
@@ -133,14 +147,30 @@ namespace KGL
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept;
 			
 			HRESULT Save(const std::filesystem::path& dir) const noexcept;
+		};
+		class TextureCube : public TextureBase
+		{
+		public:
+			TextureCube() = default;
 
-			const ComPtr<ID3D12Resource>& Data() const noexcept { return m_buffer; }
-			const std::filesystem::path& GetPath()  const noexcept { return m_path; }
-			const float* GetClearColor() const noexcept { return (float*)m_clear_value.get(); }
-			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) noexcept;
-			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES after) noexcept { return RB(m_resource_state, after); }
-			HRESULT CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension = D3D12_SRV_DIMENSION_TEXTURE2D) const noexcept;
-			HRESULT CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
+			explicit TextureCube(
+				ComPtrC<ID3D12Device> device,
+				DirectX::XMUINT2 size,
+				DXGI_FORMAT	format,
+				UINT16 mip_level = 1u,
+				TextureManager* mgr = nullptr
+			) noexcept
+			{
+				auto hr = Create(device, size, format, mip_level, mgr); AssertLoadResult(hr, m_path.string());
+				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+			}
+			HRESULT Create(
+				ComPtrC<ID3D12Device> device,
+				DirectX::XMUINT2 size,
+				DXGI_FORMAT	format,
+				UINT16 mip_level = 1u,
+				TextureManager* mgr = nullptr
+			) noexcept;
 		};
 		
 		namespace TEXTURE

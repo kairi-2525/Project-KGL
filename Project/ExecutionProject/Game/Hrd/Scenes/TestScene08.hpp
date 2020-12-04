@@ -14,6 +14,7 @@
 #include <Dx12/Compute.hpp>
 #include <Dx12/3D/Board.hpp>
 
+#include "Global.hpp"
 #include "../Obj3D.hpp"
 #include <Dx12/3D/StaticModelActor.hpp>
 
@@ -32,15 +33,6 @@ private:
 	{
 		DirectX::XMFLOAT4X4	view_mat[6];
 		DirectX::XMFLOAT4X4 proj;
-	};
-	struct FrameBuffer
-	{
-		DirectX::XMFLOAT4X4 view;
-		DirectX::XMFLOAT4X4 proj;
-		DirectX::XMFLOAT4X4 view_proj;
-		DirectX::XMFLOAT3	eye_pos; float pad;
-		DirectX::XMFLOAT3	light_vec;
-		float				light_radiance;
 	};
 private:
 	KGL::ComPtr<ID3D12CommandAllocator>					cmd_allocator;

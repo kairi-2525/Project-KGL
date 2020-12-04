@@ -6,5 +6,6 @@ cbuffer FrameBuffer : register(b0)
 	row_major matrix	view_proj;
 	float3				eye_pos;
 	float3				light_vec;
-	float				light_radiance;
+	float3				light_color;
+	float3				ambient_light_color;
 };
