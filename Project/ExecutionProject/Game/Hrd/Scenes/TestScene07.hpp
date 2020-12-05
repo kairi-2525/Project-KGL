@@ -24,6 +24,11 @@ private:
 		UINT32	block_step;
 		UINT32	sub_block_step;
 	};
+	struct AlocclatorList
+	{
+		KGL::ComPtr<ID3D12CommandAllocator> allocator;
+		KGL::ComPtr<ID3D12GraphicsCommandList> list;
+	};
 	using SpDpHandle = std::shared_ptr<KGL::DescriptorHandle>;
 private:
 	UINT32										lgn;
@@ -33,8 +38,7 @@ private:
 	std::shared_ptr<KGL::Resource<UINT32>>		frame_buff_rs;
 	std::shared_ptr<KGL::MultiResource<StepBuffer>>	step_buff_rs;
 
-	KGL::ComPtr<ID3D12CommandAllocator>			cpt_cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>		cpt_cmd_list;
+	std::vector<AlocclatorList>					cpt_cmds;
 	std::shared_ptr<KGL::CommandQueue>			cpt_cmd_queue;
 	std::shared_ptr<KGL::DescriptorManager>		cpt_descmgr;
 	SpDpHandle									value_uav_handle[2];

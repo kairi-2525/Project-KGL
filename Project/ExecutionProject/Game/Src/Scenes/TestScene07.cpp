@@ -22,8 +22,13 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 		step_max += i;
 	}
 
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cpt_cmd_allocator, &cpt_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
-	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
+	cpt_cmds.resize(SCAST<size_t>(step_max));
+	for (auto& cmd : cpt_cmds)
+	{
+		hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd.allocator, &cmd.list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
+	}
+
 	{
 		// コマンドキューの生成
 		D3D12_COMMAND_QUEUE_DESC cmd_queue_desc = {};
@@ -201,7 +206,6 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 	{
 		using namespace DirectX;
 		auto rb = CD3DX12_RESOURCE_BARRIER::UAV(value_rs[rs_idx]->Data().Get());
-		cpt_cmd_list->ResourceBarrier(1, &rb);
 
 		UINT32 count = 0u;
 		const auto value_size = SCAST<UINT32>(value_rs[rs_idx]->Size());
@@ -210,34 +214,43 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 
 			for (int step = block / 2; step >= 1; step /= 2)
 			{
-				cpt_pipeline->SetState(cpt_cmd_list);
+				auto& cmd_list = cpt_cmds[count].list;
+				cmd_list->ResourceBarrier(1, &rb);
+				cpt_pipeline->SetState(cmd_list);
 
-				cpt_cmd_list->SetDescriptorHeaps(1, cpt_descmgr->Heap().GetAddressOf());
-				cpt_cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
-				cpt_cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
-				cpt_cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
+				cmd_list->SetDescriptorHeaps(1, cpt_descmgr->Heap().GetAddressOf());
+				cmd_list->SetComputeRootDescriptorTable(0, frame_cbv_handle->Gpu());
+				cmd_list->SetComputeRootDescriptorTable(2, value_uav_handle[rs_idx]->Gpu());
+				cmd_list->SetComputeRootDescriptorTable(3, value_uav_handle[rs_idx == 0 ? 1 : 0]->Gpu());
 
-				cpt_cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[count++]->Gpu());
-				cpt_cmd_list->Dispatch((SCAST<UINT>(value_rs[rs_idx]->Size()) / 64u) + 1u, 1u, 1u);
+				cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[count]->Gpu());
+				cmd_list->Dispatch((SCAST<UINT>(value_rs[rs_idx]->Size()) / 64u) + 1u, 1u, 1u);
 			
-				cpt_cmd_list->Close();
-
-				//コマンドの実行
-				ID3D12CommandList* cmd_lists[] = {
-				   cpt_cmd_list.Get(),
-				};
-
-				cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-				cpt_cmd_queue->Signal();
-				cpt_cmd_queue->Wait();
-
-				cpt_cmd_allocator->Reset();
-				cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
+				cmd_list->Close();
+				count++;
 			}
 
 			//rs_idx++;
 			if (rs_idx >= 2) rs_idx = 0;
 		}
+
+		//コマンドの実行
+		std::vector<ID3D12CommandList*> cmd_lists(count);
+		for (UINT32 idx = 0u; idx < count; idx++)
+		{
+			cmd_lists[idx] = cpt_cmds[idx].list.Get();
+		}
+
+		cpt_cmd_queue->Data()->ExecuteCommandLists(count, cmd_lists.data());
+		cpt_cmd_queue->Signal();
+		cpt_cmd_queue->Wait();
+
+		for (UINT32 idx = 0u; idx < count; idx++)
+		{
+			cpt_cmds[idx].allocator->Reset();
+			cpt_cmds[idx].list->Reset(cpt_cmds[idx].allocator.Get(), nullptr);
+		}
+
 		OutputValue();
 	}
 

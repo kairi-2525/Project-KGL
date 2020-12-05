@@ -472,7 +472,6 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	fireworks->reserve(10000u);
 	player_fireworks->reserve(10000u);
 
-	
 	sky_mgr = std::make_shared<SkyManager>(device, desc.dxc, desc.imgui_heap_mgr, max_sample_desc);
 
 	{
@@ -564,6 +563,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
+	pl_shot_param = std::make_shared<PlayerShotParametor>();
+
 	{	// GUI managerが参照するクラスをセット
 		GUIManager::Desc gui_mgr_desc{};
 		gui_mgr_desc.fc_mgr = fc_mgr;
@@ -582,6 +583,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		gui_mgr_desc.player_fireworks = player_fireworks;
 
 		gui_mgr_desc.rt_resources = rt_resources;
+		gui_mgr_desc.pl_shot_param = pl_shot_param;
 
 		gui_mgr->SetDesc(gui_mgr_desc);
 	}
@@ -704,6 +706,10 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	// MSAAをのセレクターに最大値をセット
 	msaa_selector->SetScale(msaa_selector->GetMaxScale());
+
+	pl_shot_param->random_color = true;
+	pl_shot_param->use_mass = false;
+	pl_shot_param->mass = PlayerShotParametor::BLACK_HOLL_MASS;
 
 	return S_OK;
 }
@@ -1081,8 +1087,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				XMStoreFloat3(&desc->velocity, XMVector3Normalize(xm_xmfront) * desc->speed);
 				auto set_desc = *desc;
 				// ランダムカラーをセット
-				FS_Obj::SetRandomColor(&set_desc);
-				set_desc.mass = 5.9724e24f / 100000000;
+				if (pl_shot_param->random_color)
+					FS_Obj::SetRandomColor(&set_desc);
+				// 質量をセット
+				if (pl_shot_param->use_mass)
+					set_desc.mass = pl_shot_param->mass;
+
 				player_fireworks->emplace_back(set_desc);
 			}
 		}

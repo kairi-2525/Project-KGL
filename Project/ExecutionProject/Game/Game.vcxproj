@@ -401,6 +401,7 @@
     <ClInclude Include="Hrd\MSAA.hpp" />
     <ClInclude Include="Hrd\Obj3D.hpp" />
     <ClInclude Include="Hrd\ParticleManager.hpp" />
+    <ClInclude Include="Hrd\PlayerShotParameter.hpp" />
     <ClInclude Include="Hrd\RenderTarget.hpp" />
     <ClInclude Include="Hrd\Scene.hpp" />
     <ClInclude Include="Hrd\SceneGame.hpp" />

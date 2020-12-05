@@ -30,6 +30,7 @@
 #include "../FXAA.hpp"
 #include "../Scene.hpp"
 #include "../GUIManager.hpp"
+#include "../PlayerShotParameter.hpp"
 #include <unordered_map>
 
 class TestScene04 : public SceneBase
@@ -98,6 +99,7 @@ private:
 	KGL::ComPtr<ID3D12GraphicsCommandList>				cpt_cmd_list;
 	std::shared_ptr<KGL::CommandQueue>					cpt_cmd_queue;
 
+	std::shared_ptr<PlayerShotParametor>				pl_shot_param;
 	std::vector<KGL::DescriptorHandle>					ptc_tex_srv_gui_handles;
 	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;

@@ -550,25 +550,26 @@ HRESULT TextureBase::CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle)
 // DSVを作成
 HRESULT TextureBase::CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
 {
-	D3D12_CLEAR_VALUE depth_clear_value = {};
-	depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
-	depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;	// 32ビットfloat値としてクリア
-	auto dsv_rs_desc = desc.app->GetDsvBuffer()->GetDesc();
-	dsv_rs_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	dsv_rs_desc.SampleDesc = sample_desc;
-	dsv_rs_desc.MipLevels = 1;
-	D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
-	dsv_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
-	dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
-	dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
+	//D3D12_CLEAR_VALUE depth_clear_value = {};
+	//depth_clear_value.DepthStencil.Depth = 1.0f;		// 深さの最大値でクリア
+	//depth_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;	// 32ビットfloat値としてクリア
+	//auto dsv_rs_desc = desc.app->GetDsvBuffer()->GetDesc();
+	//dsv_rs_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	//dsv_rs_desc.SampleDesc = sample_desc;
+	//dsv_rs_desc.MipLevels = 1;
+	//D3D12_DEPTH_STENCIL_VIEW_DESC dsv_desc = {};
+	//dsv_desc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+	//dsv_desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+	//dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
 
-	rtrc.depth_stencil = std::make_shared<KGL::Texture>(device,
-		dsv_rs_desc,
-		depth_clear_value,
-		D3D12_RESOURCE_STATE_DEPTH_WRITE
-		);
+	//rtrc.depth_stencil = std::make_shared<KGL::Texture>(device,
+	//	dsv_rs_desc,
+	//	depth_clear_value,
+	//	D3D12_RESOURCE_STATE_DEPTH_WRITE
+	//	);
 
-	device->CreateDepthStencilView(rtrc.depth_stencil->Data().Get(), &dsv_desc, rtrc.dsv_handle.Cpu());
+	//device->CreateDepthStencilView(rtrc.depth_stencil->Data().Get(), &dsv_desc, rtrc.dsv_handle.Cpu());
+	return S_OK;
 }
 
 HRESULT TextureCube::Create(

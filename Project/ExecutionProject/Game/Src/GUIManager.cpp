@@ -8,6 +8,7 @@
 #include "../Hrd/FXAA.hpp"
 #include "../Hrd/Debug.hpp"
 #include "../Hrd/RenderTarget.hpp"
+#include "../Hrd/PlayerShotParameter.hpp"
 
 #include <Helper/Cast.hpp>
 #include <Base/Directory.hpp>
@@ -228,6 +229,18 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
+			if (ImGui::Button("Shot"))
+			{
+				if (HasSubWindow(SUB_WINDOW_TYPE::SHOT))
+				{
+					EraseSubWindow(SUB_WINDOW_TYPE::SHOT);
+				}
+				else
+				{
+					SetSubWindow(SUB_WINDOW_TYPE::SHOT, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
+				}
+			}
 			if (ImGui::Button("Render Targets"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::RT))
@@ -361,6 +374,14 @@ void GUIManager::Update(
 				if (BeginSubWindow(rt_resolution, sub_window_idx, use_flg))
 				{
 					desc.fs_mgr->UpdateGui(desc.fc_mgr->GetDescList(), debug_msg_mgr);
+				}
+				ImGui::End(); break;
+			}
+			case SUB_WINDOW_TYPE::SHOT:
+			{
+				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
+				{
+					UpdatePlShot();
 				}
 				ImGui::End(); break;
 			}
@@ -607,6 +628,25 @@ void GUIManager::UpdateRtOption()
 		}
 		ImGui::TreePop();
 	}
+}
+void GUIManager::UpdatePlShot()
+{
+	ImGui::Text(u8"[ショット]");
+	ImGui::Indent(16.0f);
+	ImGui::Checkbox(u8"ランダムカラー", &desc.pl_shot_param->random_color);
+	ImGui::Checkbox(u8"質量を設定する", &desc.pl_shot_param->use_mass);
+
+	if (desc.pl_shot_param->use_mass)
+	{
+		ImGui::InputFloat(u8"質量", &desc.pl_shot_param->mass);
+		if (ImGui::Button(u8"ブラックホール"))
+			desc.pl_shot_param->mass = PlayerShotParametor::BLACK_HOLL_MASS;
+		ImGui::SameLine();
+		if (ImGui::Button(u8"ホワイトホール"))
+			desc.pl_shot_param->mass = PlayerShotParametor::WHITE_HOLL_MASS;
+	}
+
+	ImGui::Unindent(16.0f);
 }
 
 // サブウィンドウを座標などをセットした状態でBeginする

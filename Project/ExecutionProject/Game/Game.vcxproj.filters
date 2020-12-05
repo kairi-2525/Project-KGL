@@ -215,6 +215,9 @@
     <ClInclude Include="Hrd\Scenes\Global.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Hrd\PlayerShotParameter.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="HLSL\3D\PMDVertexShader.hlsl" />

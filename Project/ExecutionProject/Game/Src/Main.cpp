@@ -29,7 +29,7 @@
 #define DEBUG_LAYER (false)
 #endif
 
-using StartScene = LoadScene00<TestScene09>;
+using StartScene = LoadScene00<TestScene04>;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -56,7 +56,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::FULLSCREEN_DESC);
 		// std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::HD_WINDOWED_ADJ_DESC);
 #else
-		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(KGL::Window::FULLSCREEN_DESC);
+		auto window_desc = KGL::Window::FULLSCREEN_DESC;
+		//window_desc.size = { 1920 * 2, 1080 * 2 };
+		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(window_desc);
 #endif
 		std::shared_ptr<KGL::Input> input = std::make_shared<KGL::Input>(window->GetHWND());
 

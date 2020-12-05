@@ -60,6 +60,24 @@ namespace KGL
 				}
 				return hr;
 			}
+
+			inline HRESULT CreateCommandAllocator(
+				ComPtrC<ID3D12Device> device,
+				ComPtr<ID3D12CommandAllocator>* p_allocator,
+				D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT)
+			{
+				HRESULT hr = S_OK;
+
+				if (p_allocator && !*p_allocator)
+				{
+					auto hr = device->CreateCommandAllocator(
+						type,
+						IID_PPV_ARGS(p_allocator->GetAddressOf())
+					);
+					RCHECK(FAILED(hr), "コマンドアロケーターの作成に失敗", hr);
+				}
+				return hr;
+			}
 		}
 	}
 }
