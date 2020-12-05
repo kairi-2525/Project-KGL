@@ -15,7 +15,9 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	lgn = 6u;
+	1u << lgn;
+
+	lgn = 10u;
 	step_max = 0u;
 	for (UINT32 i = 1u; i <= lgn; i++)
 	{

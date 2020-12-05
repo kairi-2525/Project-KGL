@@ -7,38 +7,72 @@
 #include <vector>
 #include <Dx12/CommandQueue.hpp>
 #include "Fireworks.hpp"
+#include <Dx12/Compute.hpp>
 
 class ParticleManager
 {
 private:
+	struct CommandAllocatorAndList
+	{
+		KGL::ComPtr<ID3D12CommandAllocator> allocator;
+		KGL::ComPtr<ID3D12GraphicsCommandList> list;
+	};
+	struct StepBuffer
+	{
+		UINT32	block_step;
+		UINT32	sub_block_step;
+	};
+private:
+	UINT32												step_size;
+	UINT32												capacity;
+	std::vector<CommandAllocatorAndList>				sort_cmds;
+	UINT32												cmd_count;
 
-	std::shared_ptr<KGL::Resource<ParticleParent>>	parent_res;
-	std::shared_ptr<KGL::Resource<AffectObjects>>	affect_obj_resource;
-	KGL::DescriptorHandle							parent_begin_handle;
-	KGL::DescriptorHandle							affect_obj_begin_handle;
+	std::shared_ptr<KGL::Resource<ParticleParent>>		parent_res;
+	std::shared_ptr<KGL::Resource<AffectObjects>>		affect_obj_resource;
+	std::shared_ptr<KGL::DescriptorHandle>				parent_begin_handle;
+	std::shared_ptr<KGL::DescriptorHandle>				affect_obj_begin_handle;
+	std::shared_ptr<KGL::DescriptorHandle>				lgn_cbv_handle;
+	std::vector<std::shared_ptr<KGL::DescriptorHandle>> step_cbv_handles;
 
-	std::shared_ptr<KGL::Resource<Particle>>		resource;
-	std::shared_ptr<KGL::Resource<UINT32>>			counter_res;
-	std::shared_ptr<KGL::DescriptorManager>			desc_mgr;
-	KGL::DescriptorHandle							begin_handle;
+	std::shared_ptr<KGL::Resource<Particle>>			resource;
+	std::shared_ptr<KGL::Resource<UINT32>>				counter_res;
+	std::shared_ptr<KGL::Resource<UINT32>>				lgn_resource;
+	std::shared_ptr<KGL::MultiResource<StepBuffer>>		step_resource;
+	std::shared_ptr<KGL::DescriptorManager>				desc_mgr;
+	KGL::DescriptorHandle								begin_handle;
 
-	UINT64											particle_total_num;
-	size_t											next_particle_offset;
+	UINT64												particle_total_num;
 public:
-	std::vector<Particle>							frame_particles;
+	std::vector<Particle>								frame_particles;
 public:
-	explicit ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept;
+	explicit ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capacity) noexcept;
 	void SetParent(const ParticleParent& particle_parent);
 	void SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
-	void Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList>);
+	void UpdateDispatch(KGL::ComPtrC<ID3D12GraphicsCommandList>);
+	void AddSortDispatchCommand(std::shared_ptr<KGL::ComputePipline> sort_pipline, std::vector<ID3D12CommandList*>* out_cmd_lists);
+	void ResetSortCommands();
 	void Update(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
-	void Sort();
+	void CPUSort();
 	void AddToFrameParticle();
 	void Clear();
 	UINT32 ResetCounter();
 	std::shared_ptr<KGL::Resource<Particle>> Resource() const noexcept { return resource; }
 	std::shared_ptr<KGL::Resource<ParticleParent>> ParentResource() const noexcept { return parent_res; }
 	UINT32 Size();
+	UINT32 Capacity() const noexcept { return capacity; }
+	std::vector<float> Get() const noexcept 
+	{
+		const UINT32 size = resource->Size();
+		std::vector<float> result(size);
+		Particle* p = resource->Map();
+		for (UINT32 i = 0u; i < size; i++)
+		{
+			result[i] = p[i].exist_time;
+		}
+		resource->Unmap();
+		return result;
+	}
 };
 
 

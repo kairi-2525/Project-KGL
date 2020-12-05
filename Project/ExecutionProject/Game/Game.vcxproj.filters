@@ -275,6 +275,7 @@
     <FxCompile Include="HLSL\2D\Brighten_ps.hlsl" />
     <FxCompile Include="HLSL\3D\StaticModel_gs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticModelDiffuse_ps.hlsl" />
+    <FxCompile Include="HLSL\CPT\ParticleBitnicSort_cs.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />

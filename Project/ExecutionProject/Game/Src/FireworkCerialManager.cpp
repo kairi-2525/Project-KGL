@@ -1237,7 +1237,7 @@ void FCManager::UpdateDemoGui()
 
 	if (demo_select_itr != demo_select_data.end())
 	{
-		ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, u8"[編集中] ##9999");
+		ImGui::TextColored({ 0.f, 1.f, 0.5f, 1.f }, u8"[編集中]");
 		ImGui::SameLine();
 		if (ImGui::Button(demo_select_itr->draw_flg ? u8"非表示##9999" : u8"表示##9999"))
 		{

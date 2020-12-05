@@ -4,47 +4,106 @@
 #include <Helper/Cast.hpp>
 #include <Dx12/Helper.hpp>
 
-ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT64 capacity) noexcept
+ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capacity) noexcept
 {
-	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 3u);
-	parent_res = std::make_shared<KGL::Resource<ParticleParent>>(device, 1u);
-	affect_obj_resource = std::make_shared<KGL::Resource<AffectObjects>>(device, 100u);
+	cmd_count = 0u;
 
+	// 2の何条かを求めて正規化する(何条かはGPUで使用するためリソースに記録)
+	lgn_resource = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
 	{
-		parent_begin_handle = desc_mgr->Alloc();
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-		cbv_desc.BufferLocation = parent_res->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = SCAST<UINT>(parent_res->SizeInBytes());
-		device->CreateConstantBufferView(&cbv_desc, parent_begin_handle.Cpu());
+		UINT32* mapped_lgn = lgn_resource->Map();
+		*mapped_lgn = SCAST<UINT32>(std::ceilf(std::log10f(capacity) / std::log10f(2.f)));
+		this->capacity = 1 << *mapped_lgn;
+
+		step_size = 0u;
+		for (UINT32 i = 1u; i <= *mapped_lgn; i++)
+		{
+			step_size += i;
+		}
+
+		lgn_resource->Unmap();
 	}
+
+	HRESULT hr = S_OK;
+	sort_cmds.resize(SCAST<size_t>(step_size));
+	for (auto& sort_cmd : sort_cmds)
 	{
-		affect_obj_begin_handle = desc_mgr->Alloc();
-		D3D12_CONSTANT_BUFFER_VIEW_DESC cbv_desc = {};
-		cbv_desc.BufferLocation = affect_obj_resource->Data()->GetGPUVirtualAddress();
-		cbv_desc.SizeInBytes = SCAST<UINT>(affect_obj_resource->SizeInBytes());
-		device->CreateConstantBufferView(&cbv_desc, affect_obj_begin_handle.Cpu());
+		hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(
+				device, &sort_cmd.allocator, &sort_cmd.list,
+				D3D12_COMMAND_LIST_TYPE_COMPUTE
+			);
+		RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗");
 	}
 
-	D3D12_HEAP_PROPERTIES prop = {};
-	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
-	prop.CreationNodeMask = 1;
-	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
-	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
-	prop.VisibleNodeMask = 1;
+	desc_mgr = std::make_shared<KGL::DescriptorManager>(device, 3u + 1u + step_size);
 
-	frame_particles.reserve(capacity);
-	resource = std::make_shared<KGL::Resource<Particle>>(device, capacity, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	// CBV を作成
+	{
+		// 2の何条か（lgn）のリソース
+		lgn_cbv_handle = std::make_shared<KGL::DescriptorHandle>(desc_mgr->Alloc());
+		lgn_resource->CreateCBV(lgn_cbv_handle);
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
-	uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-	uav_desc.Format = DXGI_FORMAT_UNKNOWN;
-	uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(resource->Size());
-	uav_desc.Buffer.StructureByteStride = sizeof(Particle);
-	uav_desc.Buffer.CounterOffsetInBytes = 0u;
+		// Block Step のリソース(複数)
+		step_resource = std::make_shared<KGL::MultiResource<StepBuffer>>(device, step_size);
+		step_cbv_handles.resize(step_size);
+		for (UINT32 i = 0u; i < step_size; i++)
+		{
+			step_cbv_handles[i] = std::make_shared<KGL::DescriptorHandle>(desc_mgr->Alloc());
+			step_resource->CreateCBV(step_cbv_handles[i], i);
+		}
 
-	begin_handle = desc_mgr->Alloc();
-	device->CreateUnorderedAccessView(resource->Data().Get(), counter_res->Data().Get(), &uav_desc, begin_handle.Cpu());
+		// Parentのリソース
+		parent_res = std::make_shared<KGL::Resource<ParticleParent>>(device, 1u);
+		parent_begin_handle = std::make_shared<KGL::DescriptorHandle>(desc_mgr->Alloc());
+		parent_res->CreateCBV(parent_begin_handle);
+
+		// 引力に影響するAffectのリソース
+		affect_obj_resource = std::make_shared<KGL::Resource<AffectObjects>>(device, 100u);
+		affect_obj_begin_handle = std::make_shared<KGL::DescriptorHandle>(desc_mgr->Alloc());
+		affect_obj_resource->CreateCBV(affect_obj_begin_handle);
+	}
+
+	// UAV を作成
+	{
+		D3D12_HEAP_PROPERTIES prop = {};
+		prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+		prop.CreationNodeMask = 1;
+		prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+		prop.Type = D3D12_HEAP_TYPE_CUSTOM;
+		prop.VisibleNodeMask = 1;
+
+		frame_particles.reserve(this->capacity);
+		resource = std::make_shared<KGL::Resource<Particle>>(device, this->capacity, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+		counter_res = std::make_shared<KGL::Resource<UINT32>>(device, 1u, &prop, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc{};
+		uav_desc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uav_desc.Format = DXGI_FORMAT_UNKNOWN;
+		uav_desc.Buffer.NumElements = KGL::SCAST<UINT>(resource->Size());
+		uav_desc.Buffer.StructureByteStride = sizeof(Particle);
+		uav_desc.Buffer.CounterOffsetInBytes = 0u;
+
+		begin_handle = desc_mgr->Alloc();
+		device->CreateUnorderedAccessView(resource->Data().Get(), counter_res->Data().Get(), &uav_desc, begin_handle.Cpu());
+	}
+
+	// step リソースを設定
+	{
+		StepBuffer* p = step_resource->Map();
+		std::vector<StepBuffer> sb;
+		for (UINT32 block = 2; block <= this->capacity; block *= 2)
+		{
+			for (UINT32 step = block / 2; step >= 1; step /= 2)
+			{
+				p->block_step = block;
+				p->sub_block_step = step;
+				p = step_resource->IncrementPtr(p);
+			}
+		}
+		step_resource->Unmap();
+	}
+
+	Clear();
 }
 
 void ParticleManager::SetParent(const ParticleParent& particle_parent)
@@ -56,9 +115,9 @@ void ParticleManager::SetParent(const ParticleParent& particle_parent)
 
 void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks)
 {
-	const UINT32 oj_size = SCAST<UINT32>(affect_objects.size());
-	const UINT32 fw_size = SCAST<UINT32>(affect_fireworks.size());
-	const UINT32 size = oj_size + fw_size;
+	const UINT32 max_size = SCAST<UINT32>(affect_obj_resource->Size());
+	const UINT32 oj_size = (std::min)(SCAST<UINT32>(affect_objects.size()), max_size);
+	const UINT32 size = (std::min)(oj_size + SCAST<UINT32>(affect_fireworks.size()), max_size);
 	{
 		auto* parent_data = parent_res->Map();
 		parent_data->affect_obj_count = size;
@@ -81,18 +140,18 @@ void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_
 	}
 }
 
-void ParticleManager::Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
+void ParticleManager::UpdateDispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 {
 	cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(counter_res->Data().Get()));
 
 	cmd_list->SetDescriptorHeaps(1, begin_handle.Heap().GetAddressOf());
 	cmd_list->SetComputeRootDescriptorTable(2, begin_handle.Gpu());
 
-	cmd_list->SetDescriptorHeaps(1, parent_begin_handle.Heap().GetAddressOf());
-	cmd_list->SetComputeRootDescriptorTable(0, parent_begin_handle.Gpu());
+	cmd_list->SetDescriptorHeaps(1, parent_begin_handle->Heap().GetAddressOf());
+	cmd_list->SetComputeRootDescriptorTable(0, parent_begin_handle->Gpu());
 
-	cmd_list->SetDescriptorHeaps(1, affect_obj_begin_handle.Heap().GetAddressOf());
-	cmd_list->SetComputeRootDescriptorTable(1, affect_obj_begin_handle.Gpu());
+	cmd_list->SetDescriptorHeaps(1, affect_obj_begin_handle->Heap().GetAddressOf());
+	cmd_list->SetComputeRootDescriptorTable(1, affect_obj_begin_handle->Gpu());
 
 	const UINT ptcl_size = std::min<UINT>(SCAST<UINT>(particle_total_num), SCAST<UINT>(resource->Size()));
 	DirectX::XMUINT3 patch = {};
@@ -103,6 +162,61 @@ void ParticleManager::Dispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 	patch.z = 1;
 
 	cmd_list->Dispatch(patch.x, patch.y, patch.z);
+}
+
+void ParticleManager::ResetSortCommands()
+{
+	for (UINT32 idx = 0u; idx < cmd_count; idx++)
+	{
+		sort_cmds[idx].allocator->Reset();
+		sort_cmds[idx].list->Reset(sort_cmds[idx].allocator.Get(), nullptr);
+	}
+}
+
+void ParticleManager::AddSortDispatchCommand(
+	std::shared_ptr<KGL::ComputePipline> sort_pipline, 
+	std::vector<ID3D12CommandList*>* out_cmd_lists)
+{
+	const UINT ptcl_size = std::min<UINT>(SCAST<UINT>(particle_total_num), SCAST<UINT>(resource->Size()));
+	UINT32 lgn = SCAST<UINT32>(std::ceilf(std::log10f(ptcl_size) / std::log10f(2.f)));
+
+	out_cmd_lists->reserve(out_cmd_lists->size() + step_size);
+	cmd_count = 0u;
+
+	// LGNリソースを設定
+	{
+		UINT32* mapped_lgn = lgn_resource->Map();
+		*mapped_lgn = lgn;
+		lgn_resource->Unmap();
+	}
+
+	const UINT32 ptc_value = 1 << lgn;
+	constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
+	const UINT x = (std::min)((std::max)(SCAST<UINT>(ptc_value) / 64u, 1u), patch_max);
+
+	for (int block = 2; block <= ptc_value; block *= 2)
+	{
+		for (int step = block / 2; step >= 1; step /= 2)
+		{
+			auto& cmd_list = sort_cmds[cmd_count].list;
+			//cmd_list->ResourceBarrier(1, &rb);
+			sort_pipline->SetState(cmd_list);
+
+			cmd_list->SetDescriptorHeaps(1, desc_mgr->Heap().GetAddressOf());
+			cmd_list->SetComputeRootDescriptorTable(0, lgn_cbv_handle->Gpu());
+			cmd_list->SetComputeRootDescriptorTable(2, begin_handle.Gpu());
+
+			cmd_list->SetComputeRootDescriptorTable(1, step_cbv_handles[cmd_count]->Gpu());
+
+			cmd_list->Dispatch(x, 1u, 1u);
+
+			cmd_list->Close();
+
+			out_cmd_lists->push_back(cmd_list.Get());
+
+			cmd_count++;
+		}
+	}
 }
 
 void ParticleManager::Update(
@@ -127,11 +241,11 @@ void ParticleManager::Update(
 	counter_res->Unmap();
 }
 
-void ParticleManager::Sort()
+void ParticleManager::CPUSort()
 {
 	if (particle_total_num > 0)
 	{
-		next_particle_offset = std::min<size_t>(particle_total_num, resource->Size()) * sizeof(Particle);
+		auto next_particle_offset = std::min<size_t>(particle_total_num, resource->Size()) * sizeof(Particle);
 		auto particles = resource->Map(0u, CD3DX12_RANGE(0, next_particle_offset));
 		const auto size = next_particle_offset / sizeof(Particle);
 		UINT64 alive_count = 0;
@@ -149,7 +263,6 @@ void ParticleManager::Sort()
 			}
 		}
 		resource->Unmap(0u, CD3DX12_RANGE(0, next_particle_offset));
-		next_particle_offset = sizeof(Particle) * alive_count;
 	}
 }
 
@@ -157,13 +270,20 @@ void ParticleManager::AddToFrameParticle()
 {
 	if (!frame_particles.empty())
 	{
+		auto* p_counter = counter_res->Map();
+		particle_total_num = *p_counter;
+
 		size_t frame_add_ptc_num = 0u;
 
 		D3D12_RANGE range;
-		range.Begin = next_particle_offset;
+
+		const size_t resource_size = resource->Size();
+
+		range.Begin = sizeof(Particle) * (std::min)(Size(), SCAST<UINT32>(resource_size));
+
 		range.End = range.Begin + sizeof(Particle) * (SCAST<SIZE_T>(frame_particles.size()));
 		const size_t offset_max = sizeof(Particle) * (resource->Size());
-		const size_t bi = range.Begin / sizeof(Particle);
+		const size_t bi = SCAST<size_t>(particle_total_num);
 		if (range.End > offset_max)
 			range.End = offset_max;
 		const auto check_count_max = (range.End - range.Begin) / sizeof(Particle);
@@ -179,12 +299,11 @@ void ParticleManager::AddToFrameParticle()
 			frame_add_ptc_num++;
 			if (frame_particles.empty()) break;
 		}
+		frame_particles.clear();
 		resource->Unmap(0u, range);
-		next_particle_offset = range.Begin + sizeof(Particle) * check_count++;
 
-		auto* p_counter = counter_res->Map();
-		*p_counter += SCAST<UINT32>(frame_add_ptc_num);
-		particle_total_num = *p_counter;
+		particle_total_num += SCAST<UINT32>(frame_add_ptc_num);
+		*p_counter = particle_total_num;
 		counter_res->Unmap();
 	}
 }
@@ -198,7 +317,7 @@ void ParticleManager::Clear()
 
 	ResetCounter();
 
-	next_particle_offset = 0u;
+	particle_total_num = 0u;
 
 	frame_particles.clear();
 }

@@ -1,3 +1,5 @@
+#include "../3D/ParticleStruct.hlsli"
+
 cbuffer FrameBuffer : register(b0)
 {
 	uint value_size;
@@ -9,10 +11,8 @@ cbuffer StepBuffer : register(b1)
 	uint step;
 }
 
-
 // 出力バッファ
-RWStructuredBuffer<int> in_values : register(u0);
-RWStructuredBuffer<int> out_values : register(u1);
+RWStructuredBuffer<Particle> particles : register(u0);
 
 [numthreads(64, 1, 1)]
 void CSMain(uint3 idx_tid : SV_DispatchThreadID)
@@ -26,23 +26,23 @@ void CSMain(uint3 idx_tid : SV_DispatchThreadID)
 
 	if (e > idx)
 	{
-		uint v1 = in_values[idx];
-		uint v2 = in_values[e];
+		Particle v1 = particles[idx];
+		Particle v2 = particles[e];
 
 		if ((idx & block) != 0)
 		{
-			if (v1 < v2)
+			if (v1.exist_time > v2.exist_time)
 			{
-				in_values[e] = v1;
-				in_values[idx] = v2;
+				particles[e] = v1;
+				particles[idx] = v2;
 			}
 		}
 		else
 		{
-			if (v1 > v2)
+			if (v1.exist_time < v2.exist_time)
 			{
-				in_values[e] = v1;
-				in_values[idx] = v2;
+				particles[e] = v1;
+				particles[idx] = v2;
 			}
 		}
 	}

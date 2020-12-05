@@ -157,7 +157,9 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &fast_cmd_allocator, &fast_cmd_list);
 	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cpt_cmd_allocator, &cpt_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &ptc_cmd_allocator, &ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
+	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &pl_ptc_cmd_allocator, &pl_ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	{	// コンピュート用
 		// コマンドキューの生成
@@ -167,7 +169,8 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		cmd_queue_desc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
 		cmd_queue_desc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
 
-		cpt_cmd_queue = std::make_shared<KGL::CommandQueue>(device, cmd_queue_desc);
+		ptc_cmd_queue = std::make_shared<KGL::CommandQueue>(device, cmd_queue_desc);
+		pl_ptc_cmd_queue = std::make_shared<KGL::CommandQueue>(device, cmd_queue_desc);
 		RCHECK(FAILED(hr), "コマンドキューの生成に失敗！", hr);
 	}
 
@@ -178,7 +181,12 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
 	pl_shot_ptc_mgr = std::make_shared<ParticleManager>(device, 1000000u);
 	// パーティクル更新用パイプライン
-	particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc);
+	{
+		auto pipeline_desc = KGL::ComputePipline::DEFAULT_DESC;
+		particle_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc, pipeline_desc);
+		pipeline_desc.cs_desc.hlsl = "./HLSL/CPT/ParticleBitnicSort_cs.hlsl";
+		particle_sort_pipeline = std::make_shared<KGL::ComputePipline>(device, desc.dxc, pipeline_desc);
+	}
 	// パーティクルビルボード用CSV　Descriptor
 	b_cbv_descmgr = std::make_shared<KGL::DescriptorManager>(device, 1u);
 
@@ -1001,6 +1009,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		pl_shot_ptc_mgr->Clear();
 		fireworks->clear();
 		player_fireworks->clear();
+		gui_mgr->debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルを削除", DebugMsgMgr::CL_SUCCESS, FCManager::TAG);
 	}
 	if (use_gui)
 	{
@@ -1020,58 +1029,121 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	using namespace DirectX;
-	auto particle_total_num = ptc_mgr->ResetCounter();
-	auto pl_shot_particle_total_num = pl_shot_ptc_mgr->ResetCounter();
+
+	UINT32 particle_total_num;
+	UINT32 pl_shot_particle_total_num;
 	{
-		XMFLOAT4X4 viewf;
-		XMStoreFloat4x4(&viewf, view);
-
+		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
 		{
-			auto* ptc_parent = ptc_mgr->ParentResource()->Map();
-			ptc_parent->elapsed_time = ptc_update_time;
-			ptc_mgr->ParentResource()->Unmap();
+			gui_mgr->spawn_fireworks = !gui_mgr->spawn_fireworks;
+			if (gui_mgr->spawn_fireworks)
+				gui_mgr->debug_msg_mgr->AddMessage(FSManager::TAG + " 花火の生成を開始", DebugMsgMgr::CL_SUCCESS, FSManager::TAG);
+			else
+				gui_mgr->debug_msg_mgr->AddMessage(FSManager::TAG + " 花火の生成を停止", DebugMsgMgr::CL_MSG, FSManager::TAG);
 		}
+		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
 		{
-			auto* ptc_parent = pl_shot_ptc_mgr->ParentResource()->Map();
-			ptc_parent->elapsed_time = ptc_update_time;
-			pl_shot_ptc_mgr->ParentResource()->Unmap();
+			gui_mgr->time_stop = !gui_mgr->time_stop;
+			if (gui_mgr->time_stop)
+				gui_mgr->debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルの時間を停止", DebugMsgMgr::CL_MSG, FCManager::TAG);
+			else
+				gui_mgr->debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルの時間を再生", DebugMsgMgr::CL_SUCCESS, FCManager::TAG);
 		}
-		ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
-		pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
-		if (gui_mgr->use_gpu)
+
+		if (!gui_mgr->time_stop)
 		{
-			particle_pipeline->SetState(cpt_cmd_list);
+			particle_total_num = ptc_mgr->ResetCounter();
+			pl_shot_particle_total_num = pl_shot_ptc_mgr->ResetCounter();
 
-			if (particle_total_num > 0)
-				ptc_mgr->Dispatch(cpt_cmd_list);
-			if (pl_shot_particle_total_num > 0)
-				pl_shot_ptc_mgr->Dispatch(cpt_cmd_list);
+			XMFLOAT4X4 viewf;
+			XMStoreFloat4x4(&viewf, view);
 
-			cpt_cmd_list->Close();
-			//コマンドの実行
-			ID3D12CommandList* cmd_lists[] = {
-			   cpt_cmd_list.Get(),
-			};
+			{
+				auto* ptc_parent = ptc_mgr->ParentResource()->Map();
+				ptc_parent->elapsed_time = ptc_update_time;
+				ptc_mgr->ParentResource()->Unmap();
+			}
+			{
+				auto* ptc_parent = pl_shot_ptc_mgr->ParentResource()->Map();
+				ptc_parent->elapsed_time = ptc_update_time;
+				pl_shot_ptc_mgr->ParentResource()->Unmap();
+			}
+			ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
+			pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
+			if (gui_mgr->use_gpu)
+			{
+				std::vector<ID3D12CommandList*> ptc_cmd_lists(1);
+				ptc_cmd_lists[0] = ptc_cmd_list.Get();
+				std::vector<ID3D12CommandList*> pl_ptc_cmd_lists(1);
+				pl_ptc_cmd_lists[0] = pl_ptc_cmd_list.Get();
 
-			cpt_cmd_queue->Data()->ExecuteCommandLists(1, cmd_lists);
-			cpt_cmd_queue->Signal();
+				particle_pipeline->SetState(ptc_cmd_list);
+				particle_pipeline->SetState(pl_ptc_cmd_list);
+
+				if (particle_total_num > 0)
+					ptc_mgr->UpdateDispatch(ptc_cmd_list);
+				if (pl_shot_particle_total_num > 0)
+					pl_shot_ptc_mgr->UpdateDispatch(pl_ptc_cmd_list);
+
+				ptc_cmd_list->Close();
+				pl_ptc_cmd_list->Close();
+
+				//更新コマンドの実行
+				ptc_cmd_queue->Data()->ExecuteCommandLists(SCAST<UINT>(ptc_cmd_lists.size()), ptc_cmd_lists.data());
+				pl_ptc_cmd_queue->Data()->ExecuteCommandLists(SCAST<UINT>(pl_ptc_cmd_lists.size()), pl_ptc_cmd_lists.data());
+				ptc_cmd_lists.clear();
+				pl_ptc_cmd_lists.clear();
+
+				if (gui_mgr->use_sort_gpu)
+				{
+					if (particle_total_num > 0)
+					{
+						ptc_mgr->AddSortDispatchCommand(particle_sort_pipeline, &ptc_cmd_lists);
+						//ソートコマンドの実行
+						ptc_cmd_queue->Data()->ExecuteCommandLists(SCAST<UINT>(ptc_cmd_lists.size()), ptc_cmd_lists.data());
+					}
+					if (pl_shot_particle_total_num > 0)
+					{
+						//pl_ptc_cmd_queue->Signal();
+						//pl_ptc_cmd_queue->Wait();
+						//auto before = pl_shot_ptc_mgr->Get();
+
+						pl_shot_ptc_mgr->AddSortDispatchCommand(particle_sort_pipeline, &pl_ptc_cmd_lists);
+						//ソートコマンドの実行
+						pl_ptc_cmd_queue->Data()->ExecuteCommandLists(SCAST<UINT>(pl_ptc_cmd_lists.size()), pl_ptc_cmd_lists.data());
+					
+						//pl_ptc_cmd_queue->Signal();
+						//pl_ptc_cmd_queue->Wait();
+
+						//auto after = pl_shot_ptc_mgr->Get();
+						//after.clear();
+					}
+				}
+
+				ptc_cmd_queue->Signal();
+				pl_ptc_cmd_queue->Signal();
+			}
+			else
+			{
+				gui_mgr->tm_ptc_update_cpu.Restart();
+				if (particle_total_num > 0)
+					ptc_mgr->Update(fc_mgr->affect_objects, *player_fireworks);
+				if (pl_shot_particle_total_num > 0)
+					pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
+				gui_mgr->tm_ptc_update_cpu.Count();
+			}
 		}
 		else
 		{
 			gui_mgr->tm_ptc_update_cpu.Restart();
-			if (particle_total_num > 0)
-				ptc_mgr->Update(fc_mgr->affect_objects, *player_fireworks);
-			if (pl_shot_particle_total_num > 0)
-				pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
 			gui_mgr->tm_ptc_update_cpu.Count();
+
+			particle_total_num = ptc_mgr->Size();
+			pl_shot_particle_total_num = pl_shot_ptc_mgr->Size();
 		}
 		
 		float key_spawn_late = 5.f;
 		const float key_spawn_time = 1.f / key_spawn_late;
-		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADPLUS))
-			gui_mgr->spawn_fireworks = !gui_mgr->spawn_fireworks;
-		if (input->IsKeyHold(KGL::KEYS::LCONTROL) && input->IsKeyPressed(KGL::KEYS::NUMPADMINUS))
-			gui_mgr->time_stop = !gui_mgr->time_stop;
 
 		// スポナーからFireworksを生成
 		if (gui_mgr->spawn_fireworks) fs_mgr->Update(ptc_update_time, fireworks.get());
@@ -1135,21 +1207,48 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 		}
 	}
 
-	if (gui_mgr->use_gpu)
+	if (!gui_mgr->time_stop)
 	{
 		gui_mgr->tm_ptc_update_gpu.Restart();
-		cpt_cmd_queue->Wait();
-		gui_mgr->tm_ptc_update_gpu.Count();
-		cpt_cmd_allocator->Reset();
-		cpt_cmd_list->Reset(cpt_cmd_allocator.Get(), nullptr);
-	}
+		if (gui_mgr->use_gpu)
+		{
+			// GPUと同期
+			ptc_cmd_queue->Wait();
+			pl_ptc_cmd_queue->Wait();
 
-	gui_mgr->tm_ptc_sort.Restart();
-	if (particle_total_num > 0)
-		ptc_mgr->Sort();
-	if (pl_shot_particle_total_num > 0)
-		pl_shot_ptc_mgr->Sort();
-	gui_mgr->tm_ptc_sort.Count();
+			ptc_cmd_allocator->Reset();
+			pl_ptc_cmd_allocator->Reset();
+			ptc_cmd_list->Reset(ptc_cmd_allocator.Get(), nullptr);
+			pl_ptc_cmd_list->Reset(pl_ptc_cmd_allocator.Get(), nullptr);
+
+			if (gui_mgr->use_sort_gpu)
+			{
+				if (particle_total_num > 0)
+					ptc_mgr->ResetSortCommands();
+				if (pl_shot_particle_total_num > 0)
+					pl_shot_ptc_mgr->ResetSortCommands();
+			}
+		}
+		gui_mgr->tm_ptc_update_gpu.Count();
+
+		// ソートをCPUで行う場合の処理
+		gui_mgr->tm_ptc_sort.Restart();
+		//if (!gui_mgr->use_gpu || (gui_mgr->use_gpu && !gui_mgr->use_sort_gpu))
+		{
+			if (particle_total_num > 0)
+				ptc_mgr->CPUSort();
+			if (pl_shot_particle_total_num > 0)
+				pl_shot_ptc_mgr->CPUSort();
+		}
+		gui_mgr->tm_ptc_sort.Count();
+	}
+	else
+	{
+		gui_mgr->tm_ptc_update_gpu.Restart();
+		gui_mgr->tm_ptc_update_gpu.Count();
+		gui_mgr->tm_ptc_sort.Restart();
+		gui_mgr->tm_ptc_sort.Count();
+	}
 
 	const auto frame_ptc_size = ptc_mgr->frame_particles.size() + pl_shot_ptc_mgr->frame_particles.size();
 	ptc_mgr->AddToFrameParticle();

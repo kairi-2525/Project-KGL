@@ -56,6 +56,7 @@ void GUIManager::Init()
 	time_stop = false;
 	spawn_fireworks = true;
 	use_gpu = true;
+	use_sort_gpu = false;
 	ptc_dof = false;
 	dof_flg = true;
 	ptc_wire = false;
@@ -125,6 +126,7 @@ void GUIManager::Update(
 			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, play_b_tint_col))
 			{
 				time_stop = false;
+				debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルの時間を再生", DebugMsgMgr::CL_SUCCESS, FCManager::TAG);
 			}
 		}
 		// Play Button
@@ -134,6 +136,7 @@ void GUIManager::Update(
 			if (ImGui::ImageButton(tex_id, play_b_size, FULL_UV, -1, play_b_bg_col, pause_b_tint_col))
 			{
 				time_stop = true;
+				debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルの時間を停止", DebugMsgMgr::CL_MSG, FCManager::TAG);
 			}
 		}
 		ImGui::SameLine();
@@ -156,7 +159,13 @@ void GUIManager::Update(
 
 		// Spawn Fireworks
 		ImGui::Text("Spawn"); ImGui::SameLine();
-		ImGui::Checkbox(("##" + std::to_string(idx++)).c_str(), &spawn_fireworks);
+		if (ImGui::Checkbox(("##" + std::to_string(idx++)).c_str(), &spawn_fireworks))
+		{
+			if (spawn_fireworks)
+				debug_msg_mgr->AddMessage(FSManager::TAG + " 花火の生成を開始", DebugMsgMgr::CL_SUCCESS, FSManager::TAG);
+			else
+				debug_msg_mgr->AddMessage(FSManager::TAG + " 花火の生成を停止", DebugMsgMgr::CL_MSG, FSManager::TAG);
+		}
 		ImGui::SameLine();
 
 		ImGui::Dummy(ImVec2(play_b_size.x / 2, play_b_size.y));
@@ -168,6 +177,7 @@ void GUIManager::Update(
 			desc.player_ptc_mgr->Clear();
 			desc.fireworks->clear();
 			desc.player_fireworks->clear();
+			debug_msg_mgr->AddMessage(FCManager::TAG + " パーティクルを削除", DebugMsgMgr::CL_SUCCESS, FCManager::TAG);
 		}
 		
 		const ImVec2 info_window_size = { window_size.x / 4, -1.f };
@@ -421,6 +431,7 @@ void GUIManager::UpdatePtcOption(const DirectX::XMUINT2& rt_resolution)
 	ImGui::Text(u8"[パーティクル]");
 	ImGui::Indent(16.0f);
 	ImGui::Checkbox(u8"GPU更新", &use_gpu);
+	ImGui::Checkbox(u8"GPUソート", &use_sort_gpu);
 
 	{
 		const auto& PTC_VT_TABLE = TestScene04::PTC_VT_TABLE;

@@ -76,7 +76,6 @@ private:
 	std::array<SUB_WINDOW_TYPE, 2u>				sub_windows;
 
 	float										time_scale;	// ŽžŠÔ”{‘¬
-	std::shared_ptr<DebugMsgMgr>				debug_msg_mgr;
 
 	std::string									search_text;
 	std::list<std::string>						search_tags;
@@ -86,9 +85,12 @@ public:
 	bool				ptc_dof;
 	bool				dof_flg;
 	bool				use_gpu;
+	bool				use_sort_gpu;
 	bool				time_stop;
 	bool				sky_draw;
 	UINT				ptc_vt_type;
+
+	std::shared_ptr<DebugMsgMgr>								debug_msg_mgr;
 
 
 	std::array<KGL::DescriptorHandle, BloomGenerator::RTV_MAX>	bl_c_imgui_handles;

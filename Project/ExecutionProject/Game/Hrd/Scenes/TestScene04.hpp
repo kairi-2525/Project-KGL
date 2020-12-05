@@ -95,9 +95,13 @@ private:
 	KGL::ComPtr<ID3D12CommandAllocator>					fast_cmd_allocator;
 	KGL::ComPtr<ID3D12GraphicsCommandList>				fast_cmd_list;
 
-	KGL::ComPtr<ID3D12CommandAllocator>					cpt_cmd_allocator;
-	KGL::ComPtr<ID3D12GraphicsCommandList>				cpt_cmd_list;
-	std::shared_ptr<KGL::CommandQueue>					cpt_cmd_queue;
+	KGL::ComPtr<ID3D12CommandAllocator>					ptc_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				ptc_cmd_list;
+	std::shared_ptr<KGL::CommandQueue>					ptc_cmd_queue;
+
+	KGL::ComPtr<ID3D12CommandAllocator>					pl_ptc_cmd_allocator;
+	KGL::ComPtr<ID3D12GraphicsCommandList>				pl_ptc_cmd_list;
+	std::shared_ptr<KGL::CommandQueue>					pl_ptc_cmd_queue;
 
 	std::shared_ptr<PlayerShotParametor>				pl_shot_param;
 	std::vector<KGL::DescriptorHandle>					ptc_tex_srv_gui_handles;
@@ -105,6 +109,7 @@ private:
 	std::shared_ptr<ParticleManager>					ptc_mgr;
 	std::shared_ptr<ParticleManager>					pl_shot_ptc_mgr;
 	std::shared_ptr<KGL::ComputePipline>				particle_pipeline;
+	std::shared_ptr<KGL::ComputePipline>				particle_sort_pipeline;
 	float												spawn_counter;
 
 	std::shared_ptr<std::vector<Fireworks>>				fireworks;
