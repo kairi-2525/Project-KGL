@@ -45,17 +45,19 @@ private:
 	UINT64												particle_total_num;
 public:
 	std::vector<Particle>								frame_particles;
+	std::vector<AffectObjects>							affect_objects;
 public:
 	explicit ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capacity) noexcept;
 	void SetParent(const ParticleParent& particle_parent);
-	void SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
+	void UpdateAffectObjects(const std::vector<Fireworks>& affect_fireworks = {});
 	void UpdateDispatch(KGL::ComPtrC<ID3D12GraphicsCommandList>);
 	void AddSortDispatchCommand(std::shared_ptr<KGL::ComputePipline> sort_pipline, std::vector<ID3D12CommandList*>* out_cmd_lists);
 	void ResetSortCommands();
-	void Update(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks);
+	void CPUUpdate(const std::vector<Fireworks>& affect_fireworks = {});
 	void CPUSort();
 	void AddToFrameParticle();
 	void Clear();
+	UINT UpdateGui(UINT idx = 0);
 	UINT32 ResetCounter();
 	std::shared_ptr<KGL::Resource<Particle>> Resource() const noexcept { return resource; }
 	std::shared_ptr<KGL::Resource<ParticleParent>> ParentResource() const noexcept { return parent_res; }

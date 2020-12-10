@@ -27,5 +27,6 @@ public:
 		const ParticleParent* p_parent,
 		std::vector<Fireworks>* p_fireworks,
 		const std::vector<AffectObjects>& affect_objects,
-		const std::vector<Fireworks>& affect_fireworks);
+		const std::vector<Fireworks>& affect_fireworks = {}
+	);
 };

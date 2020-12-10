@@ -24,9 +24,9 @@ FCManager::FCManager(const std::filesystem::path& directory, const std::vector<s
 	demo_mg_stop = false;
 
 	// 地球
-	affect_objects.resize(1u);
-	affect_objects[0].pos = { 0.f, -6378.1f * 1000.f, 0.f };
-	affect_objects[0].mass = 5.9724e24f;
+	// affect_objects.resize(1u);
+	// affect_objects[0].pos = { 0.f, -6378.1f * 1000.f, 0.f };
+	// affect_objects[0].mass = 5.9724e24f;
 
 	Load(directory);
 }
@@ -488,6 +488,7 @@ HRESULT FCManager::Update(float update_time) noexcept
 void FCManager::CreateSelectDemo(
 	KGL::ComPtrC<ID3D12Device> device,
 	const ParticleParent* p_parent,
+	const std::vector<AffectObjects>& affect_objects,
 	std::shared_ptr<DebugMsgMgr> debug_msg_mgr)
 {
 	demo_select_clear_mutex.lock();
@@ -514,6 +515,7 @@ void FCManager::CreateSelectDemo(
 HRESULT FCManager::ImGuiUpdate(
 	KGL::ComPtrC<ID3D12Device> device,
 	const ParticleParent* p_parent,
+	const std::vector<AffectObjects>& affect_objects,
 	const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept
 {
 	if (ImGui::Begin("Fireworks Editor", nullptr, ImGuiWindowFlags_MenuBar))
@@ -563,7 +565,7 @@ HRESULT FCManager::ImGuiUpdate(
 				{
 					bool edited = false;
 					// DescのGuiを更新
-					state = DescImGuiUpdate(device, &desc, p_parent, &edited, srv_gui_handles);
+					state = DescImGuiUpdate(device, &desc, p_parent, affect_objects, &edited, srv_gui_handles);
 					if (edited && desc.second == select_desc)
 					{
 						create_select_demo = true;
@@ -588,7 +590,7 @@ HRESULT FCManager::ImGuiUpdate(
 			// 選択中のDescが更新されたのでDemoを作成する
 			if (create_select_demo)
 			{
-				CreateSelectDemo(device, p_parent);
+				CreateSelectDemo(device, p_parent, affect_objects);
 			}
 
 			ImGui::TreePop();
@@ -611,7 +613,9 @@ HRESULT FCManager::ImGuiUpdate(
 
 FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
 	KGL::ComPtrC<ID3D12Device> device, Desc* desc,
-	const ParticleParent* p_parent, bool* edited,
+	const ParticleParent* p_parent,
+	const std::vector<AffectObjects>& affect_objects, 
+	bool* edited,
 	const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
 {
 	FWDESC_STATE result = FWDESC_STATE::NONE;
@@ -998,7 +1002,9 @@ size_t FCManager::Size() const
 
 FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 	KGL::ComPtrC<ID3D12Device> device, Desc* desc,
-	const ParticleParent* p_parent, bool* edited,
+	const ParticleParent* p_parent,
+	const std::vector<AffectObjects>& affect_objects, 
+	bool* edited,
 	const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
 	std::shared_ptr<DebugMsgMgr> debug_msg_mgr)
 {
@@ -1087,6 +1093,7 @@ FCManager::FWDESC_STATE FCManager::DescUpdateGui(
 // パーティクルセレクト
 void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
 	const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
+	const std::vector<AffectObjects>& affect_objects,
 	std::shared_ptr<DebugMsgMgr> debug_msg_mgr
 )
 {
@@ -1141,7 +1148,7 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 		{
 			bool edited = false;
 			// DescのGuiを更新
-			state = DescUpdateGui(device, &desc, p_parent, &edited, srv_gui_handles, debug_msg_mgr);
+			state = DescUpdateGui(device, &desc, p_parent, affect_objects , &edited, srv_gui_handles, debug_msg_mgr);
 			if (edited && desc.second == select_desc)
 			{
 				create_select_demo = true;
@@ -1167,7 +1174,7 @@ void FCManager::UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParen
 	if (create_select_demo)
 	{
 		debug_msg_mgr->AddMessage(TAG + " " + select_name + " のデモを作成します。", DebugMsgMgr::CL_MSG,TAG);
-		CreateSelectDemo(device, p_parent, debug_msg_mgr);
+		CreateSelectDemo(device, p_parent, affect_objects, debug_msg_mgr);
 	}
 }
 

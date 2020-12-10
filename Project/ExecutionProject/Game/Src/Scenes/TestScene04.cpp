@@ -610,7 +610,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	dof_generator->SetRtvNum(3u);
 
-	camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30000.f);
+	// camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30000.f);
+	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 200.f, -100.f));
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -653,10 +654,10 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	//ptc_parent.center_mass = 5.9724e24f;
 	ptc_parent.resistivity = 1.f;
 	ptc_mgr->SetParent(ptc_parent);
-	ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
+	ptc_mgr->UpdateAffectObjects(*player_fireworks);
 	pl_shot_ptc_mgr->SetParent(ptc_parent);
-	pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
-	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent);
+	pl_shot_ptc_mgr->UpdateAffectObjects();
+	fc_mgr->CreateSelectDemo(desc.app->GetDevice(), &ptc_parent, ptc_mgr->affect_objects);
 
 	spawn_counter = 0.f;
 
@@ -664,7 +665,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	sky_mgr->Init(view * proj_mat);
 
-	use_gui = true;
+	use_gui = false;
 
 	time_scale = 1.f;
 
@@ -683,7 +684,8 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 		debug_mgr->ClearStaticObjects();
 		std::vector<std::shared_ptr<DebugManager::Object>> objects;
 		std::shared_ptr<DebugManager::Cube> target_cube = std::make_shared<DebugManager::Cube>();
-		auto loop_pos = target_cube->pos = camera->center;
+		//auto loop_pos = target_cube->pos = camera->center;
+		auto loop_pos = target_cube->pos = XMFLOAT3(0.f, 200.f, 0.f);
 		target_cube->color = { 1.f, 1.f, 1.f, 1.f };
 		target_cube->scale = { 1.f, 1.f, 1.f };
 		target_cube->rotate = {};
@@ -1068,8 +1070,8 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 				ptc_parent->elapsed_time = ptc_update_time;
 				pl_shot_ptc_mgr->ParentResource()->Unmap();
 			}
-			ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, *player_fireworks);
-			pl_shot_ptc_mgr->SetAffectObjects(fc_mgr->affect_objects, {});
+			ptc_mgr->UpdateAffectObjects(*player_fireworks);
+			pl_shot_ptc_mgr->UpdateAffectObjects();
 			if (gui_mgr->use_gpu)
 			{
 				std::vector<ID3D12CommandList*> ptc_cmd_lists(1);
@@ -1127,9 +1129,9 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 			{
 				gui_mgr->tm_ptc_update_cpu.Restart();
 				if (particle_total_num > 0)
-					ptc_mgr->Update(fc_mgr->affect_objects, *player_fireworks);
+					ptc_mgr->CPUUpdate(*player_fireworks);
 				if (pl_shot_particle_total_num > 0)
-					pl_shot_ptc_mgr->Update(fc_mgr->affect_objects, {});
+					pl_shot_ptc_mgr->CPUUpdate();
 				gui_mgr->tm_ptc_update_cpu.Count();
 			}
 		}
@@ -1190,7 +1192,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	for (auto i = 0; i < fireworks->size(); i++)
 	{
-		if (!(*fireworks)[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, fireworks.get(), fc_mgr->affect_objects, *player_fireworks))
+		if (!(*fireworks)[i].Update(ptc_update_time, &ptc_mgr->frame_particles, &ptc_cb, fireworks.get(), ptc_mgr->affect_objects, *player_fireworks))
 		{
 			(*fireworks)[i] = fireworks->back();
 			fireworks->pop_back();
@@ -1199,8 +1201,12 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	for (auto i = 0; i < player_fireworks->size(); i++)
 	{
-		if (!(*player_fireworks)[i].Update(ptc_update_time, &pl_shot_ptc_mgr->frame_particles, &ptc_cb, player_fireworks.get(), fc_mgr->affect_objects, {}))
-		{
+		if (!(*player_fireworks)[i].Update(
+			ptc_update_time,
+			&pl_shot_ptc_mgr->frame_particles,
+			&ptc_cb, player_fireworks.get(),
+			pl_shot_ptc_mgr->affect_objects
+		)){
 			(*player_fireworks)[i] = player_fireworks->back();
 			player_fireworks->pop_back();
 			i--;

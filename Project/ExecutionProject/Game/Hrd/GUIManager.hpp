@@ -22,6 +22,7 @@ class Fireworks;
 class DebugManager;
 struct RenderTargetResource;
 struct PlayerShotParametor;
+struct AffectObjects;
 
 class GUIManager
 {
@@ -46,6 +47,9 @@ public:
 
 		std::shared_ptr<std::vector<RenderTargetResource>>	rt_resources;
 		std::shared_ptr<PlayerShotParametor>				pl_shot_param;
+
+		std::shared_ptr<std::vector<AffectObjects>>			affect_objects;
+		std::shared_ptr<std::vector<AffectObjects>>			pl_shot_affect_objects;
 	};
 	enum class SUB_WINDOW_TYPE : UINT
 	{
@@ -57,7 +61,7 @@ public:
 		RT,
 		OPTION,
 		DEBUG,
-		SHOT
+		PTC
 	};
 private:
 	static inline const std::string										NAME_PLAY_BUTTON = "T_6_continue_";
@@ -123,7 +127,7 @@ private:
 	// ウィンドウ更新
 	void UpdatePtcOption(const DirectX::XMUINT2& rt_resolution);
 	void UpdateRtOption();
-	void UpdatePlShot();
+	void UpdatePtc();
 public:
 	static void HelperZoomImage(ImTextureID image, ImVec2 tex_size);
 	static void HelperTimer(const std::string& title, const KGL::Timer& timer, KGL::Timer::SEC sec_type = KGL::Timer::SEC::MICRO);

@@ -54,6 +54,7 @@ private:
 	std::shared_ptr<KGL::StaticModelActor>				slime_actor;
 	std::shared_ptr<KGL::StaticModelActor>				sky_actor;
 	std::shared_ptr<KGL::StaticModelActor>				earth_actor;
+	std::shared_ptr<KGL::StaticModelActor>				bison_actor;
 	std::shared_ptr<KGL::BaseRenderer>					s_model_renderer;
 	std::shared_ptr<KGL::BaseRenderer>					sky_renderer;
 

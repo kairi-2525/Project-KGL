@@ -72,7 +72,7 @@ private:
 	DirectX::XMFLOAT4X4									proj;
 
 	SceneBufferDx12<SceneBuffers>						scene_buffer;
-	std::shared_ptr<DemoCamera>							camera;
+	std::shared_ptr<FPSCamera>							camera;
 	DirectX::XMFLOAT2									camera_angle;
 	bool												use_gui;
 
@@ -108,6 +108,7 @@ private:
 	std::shared_ptr<ParticleTextureManager>				ptc_tex_mgr;
 	std::shared_ptr<ParticleManager>					ptc_mgr;
 	std::shared_ptr<ParticleManager>					pl_shot_ptc_mgr;
+
 	std::shared_ptr<KGL::ComputePipline>				particle_pipeline;
 	std::shared_ptr<KGL::ComputePipline>				particle_sort_pipeline;
 	float												spawn_counter;

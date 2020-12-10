@@ -192,7 +192,7 @@ private:
 	std::unique_ptr<EffectDesc>									cpy_ef_desc;
 	std::vector<std::shared_ptr<KGL::Texture>>					textures;
 public:
-	std::vector<AffectObjects>									affect_objects;
+	// std::vector<AffectObjects>									affect_objects;
 private:
 	HRESULT ReloadDesc() noexcept;
 	bool ChangeName(std::string before, std::string after) noexcept;
@@ -216,13 +216,15 @@ private:
 public:
 	bool FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	FWDESC_STATE DescImGuiUpdate(
-		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited,
+		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent,
+		const std::vector<AffectObjects>& affect_objects, bool* edited,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles);
 	static HRESULT Export(const std::filesystem::path& path, std::string file_name, std::shared_ptr<FireworksDesc> desc) noexcept;
 	
 	void CreateSelectDemo(
 		KGL::ComPtrC<ID3D12Device> device,
 		const ParticleParent* p_parent,
+		const std::vector<AffectObjects>& affect_objects,
 		std::shared_ptr<DebugMsgMgr> debug_msg_mgr = nullptr
 	);
 	FCManager(const std::filesystem::path& directory, const std::vector<std::shared_ptr<KGL::Texture>>& textures);
@@ -230,16 +232,19 @@ public:
 	HRESULT Load(const std::filesystem::path& directory) noexcept;
 	HRESULT Load() noexcept { return Load(directory->GetPath()); }
 	HRESULT ImGuiUpdate(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
+		const std::vector<AffectObjects>& affect_objects,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles) noexcept;
 	HRESULT Update(float update_time) noexcept;
 
 	// äOïîëÄçÏóp
 	void UpdateGui(KGL::ComPtrC<ID3D12Device> device, const ParticleParent* p_parent,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
+		const std::vector<AffectObjects>& affect_objects,
 		std::shared_ptr<DebugMsgMgr> debug_msg_mgr
 		);
 	FWDESC_STATE DescUpdateGui(
-		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent, bool* edited,
+		KGL::ComPtrC<ID3D12Device> device, Desc* desc, const ParticleParent* p_parent,
+		const std::vector<AffectObjects>& affect_objects, bool* edited,
 		const std::vector<KGL::DescriptorHandle>& srv_gui_handles,
 		std::shared_ptr<DebugMsgMgr> debug_msg_mgr);
 	void UpdateDemoGui();

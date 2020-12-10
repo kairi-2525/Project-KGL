@@ -3,6 +3,9 @@
 #include <DirectXTex/d3dx12.h>
 #include <Helper/Cast.hpp>
 #include <Dx12/Helper.hpp>
+#include <imgui.h>
+#include <Math/Planets.hpp>
+#include <Helper/Convert.hpp>
 
 ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capacity) noexcept
 {
@@ -28,7 +31,7 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capac
 	sort_cmds.resize(SCAST<size_t>(step_size));
 	for (auto& sort_cmd : sort_cmds)
 	{
-		hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(
+		hr = KGL::DX12::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(
 				device, &sort_cmd.allocator, &sort_cmd.list,
 				D3D12_COMMAND_LIST_TYPE_COMPUTE
 			);
@@ -103,6 +106,14 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capac
 		step_resource->Unmap();
 	}
 
+	// 地球を追加
+	affect_objects.push_back(
+		{
+			DirectX::XMFLOAT3(0.f, -KGL::PLANET::EARTH.radius, 0.f),
+			KGL::PLANET::EARTH.mass
+		}
+	);
+
 	Clear();
 }
 
@@ -113,7 +124,7 @@ void ParticleManager::SetParent(const ParticleParent& particle_parent)
 	parent_res->Unmap();
 }
 
-void ParticleManager::SetAffectObjects(const std::vector<AffectObjects>& affect_objects, const std::vector<Fireworks>& affect_fireworks)
+void ParticleManager::UpdateAffectObjects(const std::vector<Fireworks>& affect_fireworks)
 {
 	const UINT32 max_size = SCAST<UINT32>(affect_obj_resource->Size());
 	const UINT32 oj_size = (std::min)(SCAST<UINT32>(affect_objects.size()), max_size);
@@ -219,8 +230,7 @@ void ParticleManager::AddSortDispatchCommand(
 	}
 }
 
-void ParticleManager::Update(
-	const std::vector<AffectObjects>& affect_objects,
+void ParticleManager::CPUUpdate(
 	const std::vector<Fireworks>& affect_fireworks
 )
 {
@@ -341,6 +351,145 @@ UINT32 ParticleManager::Size()
 	return result;
 }
 
+template <typename ... Args>
+static std::string Format(const std::string& fmt, Args ... args)
+{
+	size_t len = std::snprintf(nullptr, 0, fmt.c_str(), args ...);
+	std::vector<char> buf(len + 1);
+	std::snprintf(&buf[0], len + 1, fmt.c_str(), args ...);
+	return std::string(&buf[0], &buf[0] + len);
+}
+
+static std::string CheckGuiPlanetMass(float mass)
+{
+	if (mass == KGL::PLANET::SUN.mass)
+		return KGL::PLANET::SUN.name;
+	else if (mass == KGL::PLANET::MERCURY.mass)
+		return KGL::PLANET::MERCURY.name;
+	else if (mass == KGL::PLANET::VENUS.mass)
+		return KGL::PLANET::VENUS.name;
+	else if (mass == KGL::PLANET::EARTH.mass)
+		return KGL::PLANET::EARTH.name;
+	else if (mass == KGL::PLANET::MOON.mass)
+		return KGL::PLANET::MOON.name;
+	else if (mass == KGL::PLANET::MARS.mass)
+		return KGL::PLANET::MARS.name;
+	else if (mass == KGL::PLANET::JUPITER.mass)
+		return KGL::PLANET::JUPITER.name;
+	else if (mass == KGL::PLANET::SATURN.mass)
+		return KGL::PLANET::SATURN.name;
+	else if (mass == KGL::PLANET::URANUS.mass)
+		return KGL::PLANET::URANUS.name;
+	else if (mass == KGL::PLANET::NEPTUNE.mass)
+		return KGL::PLANET::NEPTUNE.name;
+	return {};
+}
+
+static std::string CheckGuiPlanetRadius(float radius)
+{
+	if (radius == KGL::PLANET::SUN.radius)
+		return KGL::PLANET::SUN.name;
+	else if (radius == KGL::PLANET::MERCURY.radius)
+		return KGL::PLANET::MERCURY.name;
+	else if (radius == KGL::PLANET::VENUS.radius)
+		return KGL::PLANET::VENUS.name;
+	else if (radius == KGL::PLANET::EARTH.radius)
+		return KGL::PLANET::EARTH.name;
+	else if (radius == KGL::PLANET::MOON.radius)
+		return KGL::PLANET::MOON.name;
+	else if (radius == KGL::PLANET::MARS.radius)
+		return KGL::PLANET::MARS.name;
+	else if (radius == KGL::PLANET::JUPITER.radius)
+		return KGL::PLANET::JUPITER.name;
+	else if (radius == KGL::PLANET::SATURN.radius)
+		return KGL::PLANET::SATURN.name;
+	else if (radius == KGL::PLANET::URANUS.radius)
+		return KGL::PLANET::URANUS.name;
+	else if (radius == KGL::PLANET::NEPTUNE.radius)
+		return KGL::PLANET::NEPTUNE.name;
+	return {};
+}
+
+UINT ParticleManager::UpdateGui(UINT idx)
+{
+	using namespace DirectX;
+	const auto ImGuiAddPlanetButton = [&](const KGL::NamePlanet& planet)
+	{
+		if (ImGui::Button(KGL::CONVERT::MultiToUtf8(planet.name).c_str()))
+			affect_objects.push_back({ XMFLOAT3(0.f, -planet.radius, 0.f), planet.mass });
+	};
+
+
+	if (ImGui::TreeNode((u8"影響オブジェクトを追加##" + std::to_string(idx)).c_str()))
+	{
+		if (ImGui::Button(u8"空"))
+			affect_objects.emplace_back();
+		ImGuiAddPlanetButton(KGL::PLANET::SUN);
+		ImGuiAddPlanetButton(KGL::PLANET::MERCURY);
+		ImGuiAddPlanetButton(KGL::PLANET::VENUS);
+		ImGuiAddPlanetButton(KGL::PLANET::EARTH);
+		ImGuiAddPlanetButton(KGL::PLANET::MOON);
+		ImGuiAddPlanetButton(KGL::PLANET::MARS);
+		ImGuiAddPlanetButton(KGL::PLANET::JUPITER);
+		ImGuiAddPlanetButton(KGL::PLANET::SATURN);
+		ImGuiAddPlanetButton(KGL::PLANET::URANUS);
+		ImGuiAddPlanetButton(KGL::PLANET::NEPTUNE);
+
+		ImGui::TreePop();
+	}
+
+	if (affect_objects.empty())
+	{
+		ImGui::Text(u8"影響オブジェクトが存在しません。");
+	}
+	else
+	{
+		ImGui::Text(u8"[影響オブジェクト一覧]");
+		ImGui::Indent(16.0f);
+		UINT i = 0u;
+		UINT text_idx = 0u;
+		for (auto itr = affect_objects.begin(); itr != affect_objects.end();)
+		{
+			if (ImGui::TreeNode((Format("[%03d]##", i++) + std::to_string(idx++)).c_str()))
+			{
+				if (ImGui::Button((u8"削除##" + std::to_string(i - 1)).c_str()))
+				{
+					itr = affect_objects.erase(itr);
+					ImGui::TreePop();
+					continue;
+				}
+				ImGui::Text(u8"質量"); ImGui::SameLine();
+				ImGui::InputFloat(("##" + std::to_string(text_idx++)).c_str(), &itr->mass);
+
+				if (itr->mass > 0.f)
+				{
+					auto planet_name = CheckGuiPlanetMass(itr->mass);
+					if (!planet_name.empty())
+					{
+						ImGui::TextColored({ 0.8f, 1.0f, 0.8f, 1.0f }, (u8"( " + KGL::CONVERT::MultiToUtf8(planet_name) + u8" と同じ質量 )").c_str());
+					}
+				}
+
+				ImGui::Text(u8"座標"); ImGui::SameLine();
+				ImGui::InputFloat3(("##" + std::to_string(text_idx++)).c_str(), &itr->pos.x);
+
+				if (itr->pos.y < 0.f)
+				{
+					auto planet_name = CheckGuiPlanetRadius(-itr->pos.y);
+					if (!planet_name.empty())
+					{
+						ImGui::TextColored({ 0.8f, 1.0f, 0.8f, 1.0f }, (u8"( " + KGL::CONVERT::MultiToUtf8(planet_name) + u8" と同じ位置 )").c_str());
+					}
+				}
+				ImGui::TreePop();
+			}
+			itr++;
+		}
+		ImGui::Unindent(16.0f);
+	}
+	return idx;
+}
+
 ParticleTextureManager::ParticleTextureManager(
 	KGL::ComPtrC<ID3D12Device> device,
 	const std::filesystem::path& dir,
@@ -363,7 +512,7 @@ ParticleTextureManager::ParticleTextureManager(
 	cmd_queue = std::make_unique<KGL::CommandQueue>(device, cmd_queue_desc);
 
 	HRESULT hr;
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	hr = KGL::DX12::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗");
 	cmd_list->Close();
 

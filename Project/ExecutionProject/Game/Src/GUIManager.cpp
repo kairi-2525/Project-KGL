@@ -204,7 +204,7 @@ void GUIManager::Update(
 		const ImVec2 param_window_size = { window_size.x / 10, -1.f };
 		if (ImGui::BeginChild("Param Window", param_window_size, true, ImGuiWindowFlags_NoTitleBar))
 		{
-			if (ImGui::Button("Sky"))
+			if (ImGui::Button(u8"スカイボックス"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::SKY))
 					EraseSubWindow(SUB_WINDOW_TYPE::SKY);
@@ -214,7 +214,7 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Particle"))
+			if (ImGui::Button(u8"花火エディター"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::FW_EDITOR))
 				{
@@ -227,7 +227,7 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Spawner"))
+			if (ImGui::Button(u8"花火スポナー"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::FW_SPAWNER))
 				{
@@ -239,19 +239,19 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Shot"))
+			if (ImGui::Button(u8"パーティクル"))
 			{
-				if (HasSubWindow(SUB_WINDOW_TYPE::SHOT))
+				if (HasSubWindow(SUB_WINDOW_TYPE::PTC))
 				{
-					EraseSubWindow(SUB_WINDOW_TYPE::SHOT);
+					EraseSubWindow(SUB_WINDOW_TYPE::PTC);
 				}
 				else
 				{
-					SetSubWindow(SUB_WINDOW_TYPE::SHOT, 0u);
+					SetSubWindow(SUB_WINDOW_TYPE::PTC, 0u);
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Render Targets"))
+			if (ImGui::Button(u8"レンダーターゲット"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::RT))
 				{
@@ -263,7 +263,7 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Options"))
+			if (ImGui::Button(u8"オプション"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::OPTION))
 				{
@@ -275,7 +275,7 @@ void GUIManager::Update(
 					SetSubWindow(SUB_WINDOW_TYPE::NONE, 1u);
 				}
 			}
-			if (ImGui::Button("Debug"))
+			if (ImGui::Button(u8"デバッグ"))
 			{
 				if (HasSubWindow(SUB_WINDOW_TYPE::DEBUG))
 				{
@@ -338,7 +338,13 @@ void GUIManager::Update(
 				use_flg |= ImGuiWindowFlags_::ImGuiWindowFlags_MenuBar;
 				if (BeginSubWindow(rt_resolution, sub_window_idx, use_flg))
 				{
-					desc.fc_mgr->UpdateGui(device, p_parent, srv_gui_handles, debug_msg_mgr);
+					desc.fc_mgr->UpdateGui(
+						device,
+						p_parent,
+						srv_gui_handles,
+						desc.main_ptc_mgr->affect_objects,
+						debug_msg_mgr
+					);
 
 					auto fc_select = desc.fc_mgr->GetSelectDesc();
 					if (fc_select)
@@ -369,7 +375,7 @@ void GUIManager::Update(
 					{
 						if (desc.fc_mgr->FWDescImGuiUpdate(fc_select.get(), srv_gui_handles))
 						{
-							desc.fc_mgr->CreateSelectDemo(device, p_parent);
+							desc.fc_mgr->CreateSelectDemo(device, p_parent, desc.main_ptc_mgr->affect_objects);
 						}
 					}
 					ImGui::End();
@@ -387,11 +393,11 @@ void GUIManager::Update(
 				}
 				ImGui::End(); break;
 			}
-			case SUB_WINDOW_TYPE::SHOT:
+			case SUB_WINDOW_TYPE::PTC:
 			{
 				if (BeginSubWindow(rt_resolution, sub_window_idx, main_window_flag))
 				{
-					UpdatePlShot();
+					UpdatePtc();
 				}
 				ImGui::End(); break;
 			}
@@ -431,7 +437,7 @@ void GUIManager::UpdatePtcOption(const DirectX::XMUINT2& rt_resolution)
 	ImGui::Text(u8"[パーティクル]");
 	ImGui::Indent(16.0f);
 	ImGui::Checkbox(u8"GPU更新", &use_gpu);
-	ImGui::Checkbox(u8"GPUソート", &use_sort_gpu);
+	// ImGui::Checkbox(u8"GPUソート", &use_sort_gpu);
 
 	{
 		const auto& PTC_VT_TABLE = TestScene04::PTC_VT_TABLE;
@@ -640,7 +646,7 @@ void GUIManager::UpdateRtOption()
 		ImGui::TreePop();
 	}
 }
-void GUIManager::UpdatePlShot()
+void GUIManager::UpdatePtc()
 {
 	ImGui::Text(u8"[ショット]");
 	ImGui::Indent(16.0f);
@@ -658,6 +664,17 @@ void GUIManager::UpdatePlShot()
 	}
 
 	ImGui::Unindent(16.0f);
+	UINT affect_gui_idx = 0u;
+	if (ImGui::TreeNode(u8"[影響オブジェクト]"))
+	{
+		affect_gui_idx = desc.main_ptc_mgr->UpdateGui(affect_gui_idx);
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode(u8"[ショット影響オブジェクト]"))
+	{
+		affect_gui_idx = desc.player_ptc_mgr->UpdateGui(affect_gui_idx);
+		ImGui::TreePop();
+	}
 }
 
 // サブウィンドウを座標などをセットした状態でBeginする

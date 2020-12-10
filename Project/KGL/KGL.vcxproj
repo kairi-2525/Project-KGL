@@ -76,6 +76,7 @@
     <ClInclude Include="Inc\Loader\Loader.hpp" />
     <ClInclude Include="Inc\Loader\PMDLoader.hpp" />
     <ClInclude Include="Inc\Loader\VMDLoader.hpp" />
+    <ClInclude Include="Inc\Math\Planets.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Base\DXC.cpp" />

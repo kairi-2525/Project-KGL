@@ -66,6 +66,14 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 			auto& actor = s_actors.emplace_back();
 			earth_actor = actor = std::make_shared<KGL::StaticModelActor>(device, earth_model);
 		}
+		{
+			auto bison_model = std::make_shared<KGL::StaticModel>(
+				device, std::make_shared<KGL::OBJ_Loader>(
+					"./Assets/Models/Bison/Bison.obj"
+					));
+			auto& actor = s_actors.emplace_back();
+			bison_actor = actor = std::make_shared<KGL::StaticModelActor>(device, bison_model);
+		}
 	}
 
 	// モデル用レンダラー
@@ -116,7 +124,7 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
-	{
+	/*{
 		cube_texture = std::make_shared<KGL::TextureCube>();
 		cube_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R8G8B8A8_UNORM);
 		cube_depth_texture = std::make_shared<KGL::TextureCube>();
@@ -125,7 +133,7 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 		std::vector<ComPtr<ID3D12Resource>> resources(1);
 		resources[0] = cube_texture->Data();
 		cube_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
-	}
+	}*/
 
 	return hr;
 }
@@ -179,6 +187,10 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 		earth_actor->position = { 0, 0, 0 };
 		earth_actor->scale = { 2.f, 2.f, 2.f };
 		earth_actor->rotate = { 0.0f, 0.0f, 0.0f };
+
+		bison_actor->position = { 0, 2, 0 };
+		bison_actor->scale = { 1.f, 1.f, 1.f };
+		bison_actor->rotate = { 0.0f, 0.0f, 0.0f };
 	}
 
 	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 0.f, -10.f));
@@ -374,6 +386,7 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		inc_actor->Render(cmd_list);
 		slime_actor->Render(cmd_list);
 		earth_actor->Render(cmd_list);
+		bison_actor->Render(cmd_list);
 
 		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, RT::WORLD));
 	}
