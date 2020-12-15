@@ -7,6 +7,9 @@ using namespace KGL;
 OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 	StaticModelLoader(path)
 {
+	// 独自形式ファイルが読み込まれたので読み込みをキャンセルする
+	if (IsLoaded()) return;
+
 	const auto& n_path = GetPath();
 	std::ifstream ifs(n_path);
 

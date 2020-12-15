@@ -37,24 +37,31 @@ namespace KGL
 		{
 		private:
 			std::filesystem::path m_path;
+			bool loaded;
 		protected:
-			static bool IsExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept;
-			static void CheckExtensiton(const std::filesystem::path& path, const std::string& extension) noexcept(false);
+			static bool IsExtension(const std::filesystem::path& path, const std::filesystem::path& extension) noexcept;
+			static void CheckExtension(const std::filesystem::path& path, const std::filesystem::path& extension) noexcept(false);
 		protected:
-			bool IsExtensiton(const std::string& extension) noexcept
+			bool IsExtensiton(const std::filesystem::path& extension) noexcept
 			{
-				return IsExtensiton(m_path, extension);
+				return IsExtension(m_path, extension);
 			}
-			void CheckExtensiton(const std::string& extension) noexcept(false)
+			bool IsLoaded() const noexcept
 			{
-				return CheckExtensiton(m_path, extension);
+				return loaded;
+			}
+			void CheckExtensiton(const std::filesystem::path& extension) noexcept(false)
+			{
+				return CheckExtension(m_path, extension);
 			}
 			explicit Loader(const std::filesystem::path& path) noexcept :
 				// ï∂éöóÒÇÕê≥ãKâªÇ∑ÇÈ
-				m_path(path.lexically_normal())
+				m_path(path.lexically_normal()), loaded(false)
 			{
 
 			}
+			void ReplaceExtension(const std::filesystem::path& extension) noexcept;
+			void Loaded() noexcept { loaded = true; }
 			virtual ~Loader() = default;
 		public:
 			const std::filesystem::path& GetPath() const noexcept { return m_path; }
@@ -62,16 +69,17 @@ namespace KGL
 
 		class StaticModelLoader : public Loader
 		{
+		public:
+			static inline const std::filesystem::path EXTENSION = ".smodel";
 		private:
 			std::shared_ptr<const S_MODEL::Materials> m_materials;
 		protected:
-			explicit StaticModelLoader(const std::filesystem::path& path) noexcept	:
-				Loader(path)
-			{
-			}
+			explicit StaticModelLoader(const std::filesystem::path& path) noexcept;
 			virtual ~StaticModelLoader() = default;
 			void SetMaterials(std::shared_ptr<const S_MODEL::Materials> materials) noexcept { m_materials = materials; }
+			bool
 		public:
+			bool Export(const std::filesystem::path& path);
 			std::shared_ptr<const S_MODEL::Materials> GetMaterials() const noexcept { return m_materials; }
 		};
 	}
