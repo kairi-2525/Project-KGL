@@ -80,7 +80,10 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 	using KGL::SCAST;
 
 	desc.app->SetRtvDsv(cmd_list);
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+	{
+		const auto& rb = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1, &rb);
+	}
 
 	desc.app->ClearRtvDsv(cmd_list, clear_color);
 
@@ -119,7 +122,10 @@ HRESULT SceneGame::Render(const SceneDesc& desc)
 		}
 	}
 
-	cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+	{
+		const auto& rb = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1, &rb);
+	}
 
 	cmd_list->Close();
 	ID3D12CommandList* cmd_lists[] = { cmd_list.Get() };

@@ -363,13 +363,15 @@ void Application::SetRtvDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const no
 {
 	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
 	auto dsv_handle = m_dsv_heap->GetCPUDescriptorHandleForHeapStart();
-	cmd_list->OMSetRenderTargets(1, &m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), true, &dsv_handle);
+	const auto& rtv_handle = m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu();
+	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, &dsv_handle);
 }
 
 void Application::SetRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
-	cmd_list->OMSetRenderTargets(1, &m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), true, nullptr);
+	const auto& rtv_handle = m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu();
+	cmd_list->OMSetRenderTargets(1, &rtv_handle, true, nullptr);
 }
 
 void Application::SetDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept
@@ -383,8 +385,8 @@ void Application::ClearRtv(ComPtr<ID3D12GraphicsCommandList> cmd_list,
 	const DirectX::XMFLOAT4& clear_color) const noexcept
 {
 	RCHECK(!cmd_list, "cmd_list ‚ª nullptr");
-
-	cmd_list->ClearRenderTargetView(m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu(), (float*)&clear_color, 0, nullptr);
+	const auto& rtv_handle = m_rtv_handles[m_swapchain->GetCurrentBackBufferIndex()].Cpu();
+	cmd_list->ClearRenderTargetView(rtv_handle, (float*)&clear_color, 0, nullptr);
 }
 
 void Application::ClearDsv(ComPtr<ID3D12GraphicsCommandList> cmd_list) const noexcept

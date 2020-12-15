@@ -8,10 +8,13 @@ Board::Board(const ComPtrC<ID3D12Device>& device) noexcept
 {
 	using namespace DirectX;
 
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertices));
+
 	auto hr = device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(sizeof(Vertices)),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_vert_buff.GetAddressOf())

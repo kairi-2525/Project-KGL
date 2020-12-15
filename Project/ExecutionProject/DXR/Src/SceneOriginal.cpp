@@ -116,7 +116,8 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 		dxr_cmd_list->RSSetScissorRects(1, &scissorrect);
 
 		desc.app->SetRtvDsv(dxr_cmd_list);
-		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		dxr_cmd_list->ResourceBarrier(1, &rbrt);
 		desc.app->ClearRtvDsv(dxr_cmd_list, DirectX::XMFLOAT4(0.0f, 0.2f, 0.4f, 1.f));
 
 		dxr_cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -124,7 +125,8 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 		dxr_cmd_list->IASetVertexBuffers(0, 1, &t_vert_view);
 		dxr_cmd_list->DrawInstanced(3, 1, 0, 0);
 
-		dxr_cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		dxr_cmd_list->ResourceBarrier(1, &rbpr);
 	}
 	else
 	{

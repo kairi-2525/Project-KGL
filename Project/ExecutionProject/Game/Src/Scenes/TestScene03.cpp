@@ -225,11 +225,14 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 	);
 
 	{
-		cmd_list->OMSetRenderTargets(0, nullptr, false, &light_dsv_handle.Cpu());
-		cmd_list->ClearDepthStencilView(light_dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		const auto& light_dsv_handle_cpu = light_dsv_handle.Cpu();
+		cmd_list->OMSetRenderTargets(0, nullptr, false, &light_dsv_handle_cpu);
+		cmd_list->ClearDepthStencilView(light_dsv_handle_cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-		cmd_list->RSSetViewports(1, &CD3DX12_VIEWPORT(0.f, 0.f, SCAST<FLOAT>(SHADOW_DIFINITION), SCAST<FLOAT>(SHADOW_DIFINITION)));
-		cmd_list->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, SHADOW_DIFINITION, SHADOW_DIFINITION));
+		const auto& light_viewport = CD3DX12_VIEWPORT(0.f, 0.f, SCAST<FLOAT>(SHADOW_DIFINITION), SCAST<FLOAT>(SHADOW_DIFINITION));
+		const auto& light_scissorrect = CD3DX12_RECT(0, 0, SHADOW_DIFINITION, SHADOW_DIFINITION);
+		cmd_list->RSSetViewports(1, &light_viewport);
+		cmd_list->RSSetScissorRects(1, &light_scissorrect);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -257,7 +260,8 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 		const auto& rbs_rt = rtvs->GetRtvResourceBarriers(true);
 		const size_t rtv_size = rbs_rt.size();
 		cmd_list->ResourceBarrier(KGL::SCAST<UINT>(rtv_size), rbs_rt.data());
-		rtvs->SetAll(cmd_list, &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart());
+		const auto& dsv_handle = desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		rtvs->SetAll(cmd_list, &dsv_handle);
 		DirectX::XMFLOAT4 clear_color = { 1.f, 1.f, 1.f, 1.f };
 		for (UINT i = 0u; i < rtv_size; i++) rtvs->Clear(cmd_list, clear_color, i);
 		desc.app->ClearDsv(cmd_list);
@@ -288,7 +292,8 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(KGL::SCAST<UINT>(rtv_size), rbs_sr.data());
 	}
 	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1, &rbrt);
 		desc.app->SetRtv(cmd_list);
 		desc.app->ClearRtv(cmd_list, clear_color);
 
@@ -351,7 +356,8 @@ HRESULT TestScene03::Render(const SceneDesc& desc)
 
 		sprite->Render(cmd_list);
 
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1, &rbpr);
 	}
 
 	cmd_list->Close();

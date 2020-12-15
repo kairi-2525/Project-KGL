@@ -50,10 +50,13 @@ HRESULT PMD_Model::CreateVertexBuffers(ComPtr<ID3D12Device> device, const std::v
 {
 	HRESULT hr = S_OK;
 
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer(vert.size() * PMD::VERTEX_SIZE);
+
 	hr = device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(vert.size() * PMD::VERTEX_SIZE),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_vert_buff.ReleaseAndGetAddressOf())
@@ -77,10 +80,13 @@ HRESULT PMD_Model::CreateIndexBuffers(ComPtr<ID3D12Device> device, const std::ve
 {
 	HRESULT hr = S_OK;
 
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer(idx.size() * sizeof(idx[0]));
+
 	hr = device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(idx.size() * sizeof(idx[0])),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_idx_buff.ReleaseAndGetAddressOf())
@@ -123,10 +129,13 @@ HRESULT PMD_Model::CreateMaterialBuffers(ComPtr<ID3D12Device> device, const std:
 		hlsl_materials[i].ambient = mtr.at(i).ambient;
 	}
 
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer(material_buffer_size * material_size);
+
 	hr = device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(material_buffer_size * material_size),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_mtr_buff.ReleaseAndGetAddressOf())

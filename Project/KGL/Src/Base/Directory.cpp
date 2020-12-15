@@ -50,14 +50,14 @@ Files Directory::GetFiles(
 )
 {
 	Files files;
-	std::transform(extension.begin(), extension.end(), extension.begin(), std::toupper);
+	std::transform(extension.begin(), extension.end(), extension.begin(), static_cast<int (*)(int)>(&std::toupper));
 
 	files.reserve(m_files.size());
 	for (const auto& file : m_files)
 	{
 		if (!file.has_extension()) continue;
 		std::string file_ext = file.extension().string();
-		std::transform(file_ext.begin(), file_ext.end(), file_ext.begin(), std::toupper);
+		std::transform(file_ext.begin(), file_ext.end(), file_ext.begin(), static_cast<int (*)(int)>(&std::toupper));
 		if (file_ext == extension)
 		{
 #if 1

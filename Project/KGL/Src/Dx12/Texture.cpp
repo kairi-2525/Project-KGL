@@ -243,10 +243,12 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 
 	// Uploadバッファーを作成
 	auto& upload_heap = upload_heaps->emplace_back();
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size);
 	device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(upload_buffer_size),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(upload_heap.GetAddressOf())
@@ -262,7 +264,8 @@ HRESULT Texture::Create(const ComPtr<ID3D12Device>& device,
 		subresources.data()
 	);
 
-	cmd_list->ResourceBarrier(1, &RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE));
+	const auto& rb = RB(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	cmd_list->ResourceBarrier(1, &rb);
 	cmd_list->DiscardResource(upload_heap.Get(), nullptr);
 
 	if (mgr)

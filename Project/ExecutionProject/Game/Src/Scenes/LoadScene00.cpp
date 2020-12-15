@@ -157,7 +157,9 @@ HRESULT LoadScene00Base::Render(const SceneDesc& desc)
 		cmd_list->RSSetScissorRects(1u, &scissorrect);
 
 		desc.app->SetRtvDsv(cmd_list);
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1, &rbrt);
 		desc.app->ClearRtvDsv(cmd_list, clear_color);
 
 		// ノイズ　テクスチャを描画
@@ -167,7 +169,8 @@ HRESULT LoadScene00Base::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0u, cbv_srv_descriptor->Heap()->GetGPUDescriptorHandleForHeapStart());
 		sprite->Render(cmd_list);
 
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1, &rbpr);
 	}
 
 	cmd_list->Close();

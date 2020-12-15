@@ -122,7 +122,8 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 
 	{	// モデルを描画したテクスチャをSwapchainのレンダーターゲットに描画(歪みNormal)
 		desc.app->SetRtvDsv(cmd_list);
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1, &rbrt);
 		desc.app->ClearRtvDsv(cmd_list, clear_color);
 
 		cmd_list->RSSetViewports(1, &viewport);
@@ -147,7 +148,8 @@ HRESULT TestScene01::Render(const SceneDesc& desc)
 			RCHECK(FAILED(hr), "pmd_model->Renderに失敗", hr);
 		}
 
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1, &rbpr);
 	}
 
 	cmd_list->Close();

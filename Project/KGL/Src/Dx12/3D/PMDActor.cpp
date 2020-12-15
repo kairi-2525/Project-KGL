@@ -79,10 +79,13 @@ PMD_Actor::PMD_Actor(
 	: m_map_buffers(nullptr), m_model_desc(model.GetDesc()), m_anim_counter(0.f)
 {
 	// 定数バッファの作成
+	const auto& heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+	const auto& res_desc = CD3DX12_RESOURCE_DESC::Buffer((sizeof(ConstantBuffers) + 0xff) & ~0xff);
+
 	auto hr = device->CreateCommittedResource(
-		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer((sizeof(ConstantBuffers) + 0xff) & ~0xff),
+		&res_desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		nullptr,
 		IID_PPV_ARGS(m_const_buff.ReleaseAndGetAddressOf())

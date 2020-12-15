@@ -213,11 +213,14 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 	);
 
 	{
-		cmd_list->OMSetRenderTargets(0, nullptr, false, &light_dsv_handle.Cpu());
-		cmd_list->ClearDepthStencilView(light_dsv_handle.Cpu(), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		const auto& light_dsv_handle_cpu = light_dsv_handle.Cpu();
+		cmd_list->OMSetRenderTargets(0, nullptr, false, &light_dsv_handle_cpu);
+		cmd_list->ClearDepthStencilView(light_dsv_handle_cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-		cmd_list->RSSetViewports(1, &CD3DX12_VIEWPORT(0.f, 0.f, SCAST<FLOAT>(SHADOW_DIFINITION), SCAST<FLOAT>(SHADOW_DIFINITION)));
-		cmd_list->RSSetScissorRects(1, &CD3DX12_RECT(0, 0, SHADOW_DIFINITION, SHADOW_DIFINITION));
+		const auto& light_viewport = CD3DX12_VIEWPORT(0.f, 0.f, SCAST<FLOAT>(SHADOW_DIFINITION), SCAST<FLOAT>(SHADOW_DIFINITION));
+		const auto& light_scissorrect = CD3DX12_RECT(0, 0, SHADOW_DIFINITION, SHADOW_DIFINITION);
+		cmd_list->RSSetViewports(1, &light_viewport);
+		cmd_list->RSSetScissorRects(1, &light_scissorrect);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -238,7 +241,8 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 		}
 	}
 	{
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(true));
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1, &rbrt);
 		desc.app->SetRtvDsv(cmd_list);
 		desc.app->ClearRtvDsv(cmd_list, clear_color);
 
@@ -281,7 +285,8 @@ HRESULT TestScene02::Render(const SceneDesc& desc)
 
 		sprite->Render(cmd_list);
 
-		cmd_list->ResourceBarrier(1, &desc.app->GetRtvResourceBarrier(false));
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1, &rbpr);
 	}
 
 	cmd_list->Close();

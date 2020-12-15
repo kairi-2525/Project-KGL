@@ -153,7 +153,8 @@ void ParticleManager::UpdateAffectObjects(const std::vector<Fireworks>& affect_f
 
 void ParticleManager::UpdateDispatch(KGL::ComPtrC<ID3D12GraphicsCommandList> cmd_list)
 {
-	cmd_list->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::UAV(counter_res->Data().Get()));
+	const auto& rb_uav = CD3DX12_RESOURCE_BARRIER::UAV(counter_res->Data().Get());
+	cmd_list->ResourceBarrier(1, &rb_uav);
 
 	cmd_list->SetDescriptorHeaps(1, begin_handle.Heap().GetAddressOf());
 	cmd_list->SetComputeRootDescriptorTable(2, begin_handle.Gpu());

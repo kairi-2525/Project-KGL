@@ -1401,16 +1401,18 @@ HRESULT TestScene04::FastRender(const SceneDesc& desc)
 
 	const auto& rtrc = rt_resources->at(msaa_scale);
 	const auto& rtrc_off = rt_resources->at(MSAASelector::MSAA_OFF);
-	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+	const auto& dsv_handle = msaa ? rtrc.dsv_handle.Cpu() : desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 
 	// Sky と Debug を RT::NON_BLOOM に描画
-	fast_cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
-	rtrc.rtvs->Set(fast_cmd_list, dsv_handle, RT::MAIN);
+	const auto& rbrt_main = rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN);
+	fast_cmd_list->ResourceBarrier(1u, &rbrt_main);
+	rtrc.rtvs->Set(fast_cmd_list, &dsv_handle, RT::MAIN);
 	rtrc.rtvs->Clear(fast_cmd_list, rtrc.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
-	fast_cmd_list->ClearDepthStencilView(*dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+	fast_cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	if (gui_mgr->sky_draw) sky_mgr->Render(fast_cmd_list, msaa_scale);
 	debug_mgr->Render(fast_cmd_list, msaa_scale);
-	fast_cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+	const auto& rbsr_main = rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN);
+	fast_cmd_list->ResourceBarrier(1u, &rbsr_main);
 
 	fast_cmd_list->Close();
 	ID3D12CommandList* cmd_lists[] = { fast_cmd_list.Get() };
@@ -1453,7 +1455,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	const auto& rtrc = rt_resources->at(msaa_scale);
 	const auto& rtrc_off = rt_resources->at(MSAASelector::MSAA_OFF);
-	const auto* dsv_handle = msaa ? &rtrc.dsv_handle.Cpu() : &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+	const auto& dsv_handle = msaa ? rtrc.dsv_handle.Cpu() : desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
 
 	const auto ptc_size = ptc_mgr->Size();
 	const auto pl_shot_ptc_size = pl_shot_ptc_mgr->Size();
@@ -1465,7 +1467,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		const auto& rtrbs = rtrc.rtvs->GetRtvResourceBarriers(true, RT::PTC_NON_BLOOM, rt_num);
 		auto& ptc_renderer = board_renderers[gui_mgr->ptc_vt_type][msaa_scale];
 		cmd_list->ResourceBarrier(SCAST<UINT>(rtrbs.size()), rtrbs.data());
-		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::PTC_NON_BLOOM, rt_num);
+		rtrc.rtvs->Set(cmd_list, &dsv_handle, RT::PTC_NON_BLOOM, rt_num);
 		rtrc.rtvs->Clear(cmd_list, rtrc.render_targets[RT::PTC_NON_BLOOM].tex->GetClearColor(), RT::PTC_NON_BLOOM, rt_num);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -1527,7 +1529,7 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 		// パーティクルをメインRTに描画（ブルームはまだ）
 		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
-		rtrc.rtvs->Set(cmd_list, dsv_handle, RT::MAIN);
+		rtrc.rtvs->Set(cmd_list, &dsv_handle, RT::MAIN);
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		// パーティクルは加算合成描画
 		add_sprite_renderers[msaa_scale]->SetState(cmd_list);
