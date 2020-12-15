@@ -1528,7 +1528,8 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		cmd_list->ResourceBarrier(SCAST<UINT>(prrbs.size()), prrbs.data());
 
 		// パーティクルをメインRTに描画（ブルームはまだ）
-		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		const auto& rbrt_main = rtrc.rtvs->GetRtvResourceBarrier(true, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbrt_main);
 		rtrc.rtvs->Set(cmd_list, &dsv_handle, RT::MAIN);
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 		// パーティクルは加算合成描画
@@ -1538,7 +1539,9 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 		sprite->Render(cmd_list);
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM));
 		sprite->Render(cmd_list);
-		cmd_list->ResourceBarrier(1u, &rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+
+		const auto& rbsr_main = rtrc.rtvs->GetRtvResourceBarrier(false, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbsr_main);
 	}
 
 	if (msaa)
@@ -1593,36 +1596,45 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 	{
 		bloom_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::PTC_BLOOM), full_viewport);
 		// ブルームはMSAAで行わない
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		const auto& rbrt_main = rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbrt_main);
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
 		bloom_generator->Render(cmd_list);
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+		const auto& rbsr_main = rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbsr_main);
 	}
 
 	// DOFの場合はGeneratorから描画させ、そうでない場合はSpriteで描画する
 	if (gui_mgr->dof_flg)
 	{
 		dof_generator->Generate(cmd_list, rtrc_off.rtvs->GetSRVHeap(), rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN), full_viewport);
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN));
+		const auto& rbrt_main = rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbrt_main);
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::MAIN);
 		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::MAIN].tex->GetClearColor(), RT::MAIN);
 		dof_generator->Render(cmd_list, rtrc_off.depth_srv_handle.Heap(), rtrc_off.depth_srv_handle.Gpu());
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN));
+		const auto& rbsr_main = rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::MAIN);
+		cmd_list->ResourceBarrier(1u, &rbsr_main);
 	}
 
-	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+	{
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1u, &rbrt);
+	}
 	
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	if (fxaa)
 	{
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::FXAA_GRAY));
+		const auto& rbrt_fxaa_gray = rtrc_off.rtvs->GetRtvResourceBarrier(true, RT::FXAA_GRAY);
+		cmd_list->ResourceBarrier(1u, &rbrt_fxaa_gray);
 		rtrc_off.rtvs->Set(cmd_list, nullptr, RT::FXAA_GRAY);
 		rtrc_off.rtvs->Clear(cmd_list, rtrc_off.render_targets[RT::FXAA_GRAY].tex->GetClearColor(), RT::FXAA_GRAY);
 		fxaa_mgr->SetGrayState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, rtrc_off.rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtrc_off.rtvs->GetSRVGPUHandle(RT::MAIN));
 		sprite->Render(cmd_list);
-		cmd_list->ResourceBarrier(1u, &rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::FXAA_GRAY));
+		const auto& rbsr_fxaa_gray = rtrc_off.rtvs->GetRtvResourceBarrier(false, RT::FXAA_GRAY);
+		cmd_list->ResourceBarrier(1u, &rbsr_fxaa_gray);
 		
 		cmd_list->RSSetViewports(1, &viewport);
 		cmd_list->RSSetScissorRects(1, &scissorrect);
@@ -1651,7 +1663,11 @@ HRESULT TestScene04::Render(const SceneDesc& desc)
 
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
-	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+
+	{
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1u, &rbpr);
+	}
 	
 	cmd_list->Close();
 

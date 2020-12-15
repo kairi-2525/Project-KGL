@@ -54,7 +54,7 @@ uint querySpecularTextureLevels()
 
 
 
-float3 fresnel_schlick(float NoL, float3 F0)
+vector fresnel_schlick(float NoL, vector F0)
 {
 	return F0 + (1.0 - F0) * pow(1.0 - NoL, 5.8);
 }

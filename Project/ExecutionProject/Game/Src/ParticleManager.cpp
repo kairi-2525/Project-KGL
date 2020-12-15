@@ -15,7 +15,7 @@ ParticleManager::ParticleManager(KGL::ComPtrC<ID3D12Device> device, UINT32 capac
 	lgn_resource = std::make_shared<KGL::Resource<UINT32>>(device, 1u);
 	{
 		UINT32* mapped_lgn = lgn_resource->Map();
-		*mapped_lgn = SCAST<UINT32>(std::ceilf(std::log10f(capacity) / std::log10f(2.f)));
+		*mapped_lgn = SCAST<UINT32>(std::ceilf(std::log10f(SCAST<float>(capacity)) / std::log10f(2.f)));
 		this->capacity = 1 << *mapped_lgn;
 
 		step_size = 0u;
@@ -190,7 +190,7 @@ void ParticleManager::AddSortDispatchCommand(
 	std::vector<ID3D12CommandList*>* out_cmd_lists)
 {
 	const UINT ptcl_size = std::min<UINT>(SCAST<UINT>(particle_total_num), SCAST<UINT>(resource->Size()));
-	UINT32 lgn = SCAST<UINT32>(std::ceilf(std::log10f(ptcl_size) / std::log10f(2.f)));
+	UINT32 lgn = SCAST<UINT32>(std::ceilf(std::log10f(SCAST<float>(ptcl_size)) / std::log10f(2.f)));
 
 	out_cmd_lists->reserve(out_cmd_lists->size() + step_size);
 	cmd_count = 0u;
@@ -206,9 +206,9 @@ void ParticleManager::AddSortDispatchCommand(
 	constexpr UINT patch_max = D3D12_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION;
 	const UINT x = (std::min)((std::max)(SCAST<UINT>(ptc_value) / 64u, 1u), patch_max);
 
-	for (int block = 2; block <= ptc_value; block *= 2)
+	for (UINT block = 2; block <= ptc_value; block *= 2)
 	{
-		for (int step = block / 2; step >= 1; step /= 2)
+		for (UINT step = block / 2; step >= 1; step /= 2)
 		{
 			auto& cmd_list = sort_cmds[cmd_count].list;
 			//cmd_list->ResourceBarrier(1, &rb);
@@ -314,7 +314,7 @@ void ParticleManager::AddToFrameParticle()
 		resource->Unmap(0u, range);
 
 		particle_total_num += SCAST<UINT32>(frame_add_ptc_num);
-		*p_counter = particle_total_num;
+		*p_counter = SCAST<UINT32>(particle_total_num);
 		counter_res->Unmap();
 	}
 }

@@ -65,7 +65,7 @@ public:
 	UINT32 Capacity() const noexcept { return capacity; }
 	std::vector<float> Get() const noexcept 
 	{
-		const UINT32 size = resource->Size();
+		const UINT32 size = SCAST<UINT32>(resource->Size());
 		std::vector<float> result(size);
 		Particle* p = resource->Map();
 		for (UINT32 i = 0u; i < size; i++)

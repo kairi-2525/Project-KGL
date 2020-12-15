@@ -15,7 +15,7 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	1u << lgn;
+	//1u << lgn;
 
 	lgn = 10u;
 	step_max = 0u;
@@ -211,10 +211,10 @@ HRESULT TestScene07::Update(const SceneDesc& desc, float elapsed_time)
 
 		UINT32 count = 0u;
 		const auto value_size = SCAST<UINT32>(value_rs[rs_idx]->Size());
-		for (int block = 2; block <= value_size; block *= 2)
+		for (UINT block = 2; block <= value_size; block *= 2)
 		{
 
-			for (int step = block / 2; step >= 1; step /= 2)
+			for (UINT step = block / 2; step >= 1; step /= 2)
 			{
 				auto& cmd_list = cpt_cmds[count].list;
 				cmd_list->ResourceBarrier(1, &rb);

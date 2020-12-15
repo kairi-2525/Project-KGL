@@ -362,7 +362,7 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 	D3D12_VIEWPORT full_viewport =
 		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
 	auto full_scissorrect =
-		CD3DX12_RECT(0, 0, resolutionf.x, resolutionf.y);
+		CD3DX12_RECT(0, 0, SCAST<LONG>(resolutionf.x), SCAST<LONG>(resolutionf.y));
 	D3D12_VIEWPORT viewport =
 		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
 	auto scissorrect =
@@ -371,10 +371,11 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 	cmd_list->RSSetScissorRects(1, &full_scissorrect);
 
 	{
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, RT::WORLD));
+		const auto& rbrt_world = rtvs->GetRtvResourceBarrier(true, RT::WORLD);
+		cmd_list->ResourceBarrier(1u, &rbrt_world);
 		desc.app->ClearDsv(cmd_list);
-		auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		rtvs->Set(cmd_list, dsv_handle, RT::WORLD);
+		const auto& dsv_handle = desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		rtvs->Set(cmd_list, &dsv_handle, RT::WORLD);
 		rtvs->Clear(cmd_list, rt_textures[RT::WORLD]->GetClearColor(), RT::WORLD);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -388,10 +389,12 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		earth_actor->Render(cmd_list);
 		bison_actor->Render(cmd_list);
 
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, RT::WORLD));
+		const auto& rbsr_world = rtvs->GetRtvResourceBarrier(false, RT::WORLD);
+		cmd_list->ResourceBarrier(1u, &rbsr_world);
 	}
 	{
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, RT::WORLD_BT));
+		const auto& rbrt_world_bt = rtvs->GetRtvResourceBarrier(true, RT::WORLD_BT);
+		cmd_list->ResourceBarrier(1u, &rbrt_world_bt);
 
 		rtvs->Set(cmd_list, nullptr, RT::WORLD_BT);
 		rtvs->Clear(cmd_list, rt_textures[RT::WORLD_BT]->GetClearColor(), RT::WORLD_BT);
@@ -401,8 +404,8 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(RT::WORLD));
 		sprite->Render(cmd_list);
 
-		auto* dsv_handle = &desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
-		rtvs->Set(cmd_list, dsv_handle, RT::WORLD_BT);
+		const auto& dsv_handle = desc.app->GetDsvHeap()->GetCPUDescriptorHandleForHeapStart();
+		rtvs->Set(cmd_list, &dsv_handle, RT::WORLD_BT);
 
 		// 空の描画
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -411,20 +414,26 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
 		sky_actor->Render(cmd_list);
 
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, RT::WORLD_BT));
+		const auto& rbsr_world_bt = rtvs->GetRtvResourceBarrier(false, RT::WORLD_BT);
+		cmd_list->ResourceBarrier(1u, &rbsr_world_bt);
 	}
 	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(true));
+	{
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		cmd_list->ResourceBarrier(1u, &rbrt);
+	}
 	if (fxaa)
 	{	// FXAA用のレンダーターゲットに切り替え
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(true, RT::FXAA));
+		const auto& rbrt_fxaa = rtvs->GetRtvResourceBarrier(true, RT::FXAA);
+		cmd_list->ResourceBarrier(1u, &rbrt_fxaa);
 		rtvs->Set(cmd_list, nullptr, RT::FXAA);
 		rtvs->Clear(cmd_list, rt_textures[RT::FXAA]->GetClearColor(), RT::FXAA);
 		fxaa_mgr->SetGrayState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, rtvs->GetSRVHeap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, rtvs->GetSRVGPUHandle(RT::WORLD_BT));
 		sprite->Render(cmd_list);
-		cmd_list->ResourceBarrier(1u, &rtvs->GetRtvResourceBarrier(false, RT::FXAA));
+		const auto& rbsr_fxaa = rtvs->GetRtvResourceBarrier(false, RT::FXAA);
+		cmd_list->ResourceBarrier(1u, &rbsr_fxaa);
 
 		// SCのレンダーターゲットに切り替え
 		desc.app->SetRtv(cmd_list);
@@ -445,7 +454,11 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 	// IMGUI
 	cmd_list->SetDescriptorHeaps(1, desc.imgui_handle.Heap().GetAddressOf());
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd_list.Get());
-	cmd_list->ResourceBarrier(1u, &desc.app->GetRtvResourceBarrier(false));
+	
+	{
+		const auto& rbpr = desc.app->GetRtvResourceBarrier(false);
+		cmd_list->ResourceBarrier(1u, &rbpr);
+	}
 
 	cmd_list->Close();
 

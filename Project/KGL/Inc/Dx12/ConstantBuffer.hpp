@@ -125,7 +125,7 @@ namespace KGL
 				RCHECK(begin + count > ResourcesBase::m_size, "begin + count ‚ª‘½‚«‚·‚¬‚Ü‚·", E_FAIL);
 				auto begin_address = ResourcesBase::m_buffer->GetGPUVirtualAddress();
 				begin_address += ResourcesBase::AlignmentStructSize<_Ty>(1u) * begin;
-				return ResourcesBase::CreateCBV(begin_address, ResourcesBase::AlignmentStructSize<_Ty>(1u) * count, p_handle);
+				return ResourcesBase::CreateCBV(begin_address, SCAST<UINT>(ResourcesBase::AlignmentStructSize<_Ty>(1u)) * count, p_handle);
 			}
 			HRESULT CreateCBV(std::shared_ptr<DescriptorHandle> p_handle) const noexcept
 			{

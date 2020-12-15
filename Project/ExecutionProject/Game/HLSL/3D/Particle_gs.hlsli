@@ -29,13 +29,13 @@ void GSMain(
 	float3 back_pos = pos + normalize(back_v) * max(min(min(length(back_v), input[0].move_length), input[0].scale_back_max) -scale_width, 0.001f);
 
 	// 0地点がカメラ位置なのでそのままベクトルとしてポジションを扱う
-	float4 view_front_pos = mul(float4(front_pos, 1.0), view);
+	float3 view_front_pos = mul(float4(front_pos, 1.0), view).xyz;
 	float3 view_front_v = normalize(view_front_pos);
-	float4 view_back_pos = mul(float4(back_pos, 1.0), view);
+	float3 view_back_pos = mul(float4(back_pos, 1.0), view).xyz;
 	float3 view_back_v = normalize(view_back_pos);
 
 	// back to front vector
-	float3 view_btfv = view_front_pos.xyz - view_back_pos.xyz;
+	float3 view_btfv = view_front_pos - view_back_pos.xyz;
 	float3 view_btfv_norm = normalize(view_btfv);
 
 	float3 view_front_axis = normalize(cross(view_btfv_norm, view_front_v));
