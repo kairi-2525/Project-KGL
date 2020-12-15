@@ -237,13 +237,17 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 {
 	using namespace DirectX;
+	auto input = desc.input;
+
+	// 終了キー
+	if (input->IsKeyPressed(KGL::KEYS::ESCAPE))
+		return E_FAIL;
 
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
 	// [←][→]キーでシーン移動
-	auto input = desc.input;
 	if (input->IsKeyPressed(KGL::KEYS::LEFT))
 		SetNextScene<LoadScene00<TestScene04>>(desc);
 	if (input->IsKeyPressed(KGL::KEYS::RIGHT))

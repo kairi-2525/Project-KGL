@@ -3,6 +3,67 @@
 
 using namespace KGL;
 
+static void SetUpDescFormat(
+	const D3D12_RESOURCE_DESC& resource_desc,
+	D3D12_RENDER_TARGET_VIEW_DESC* rtv_desc,
+	D3D12_SHADER_RESOURCE_VIEW_DESC* srv_desc
+) {
+	RCHECK(!rtv_desc, "rtv_desc が nullptr");
+	RCHECK(!rtv_desc, "srv_desc が nullptr");
+
+	rtv_desc->Format = resource_desc.Format;
+	srv_desc->Format = resource_desc.Format;
+
+	srv_desc->Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+	// テクスチャ配列の場合
+	if (resource_desc.DepthOrArraySize > 1u)
+	{
+		rtv_desc->Texture2DArray.ArraySize = resource_desc.DepthOrArraySize;
+
+		// 6はキューブとして扱う
+		const bool cube_flg = resource_desc.DepthOrArraySize == 6u;
+		if (cube_flg)
+		{
+			srv_desc->TextureCube.MipLevels = 1;
+			srv_desc->TextureCube.MostDetailedMip = 0;
+			srv_desc->ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		}
+
+		// マルチサンプリングの場合
+		if (resource_desc.SampleDesc.Count > 1)
+		{
+			rtv_desc->ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
+			if (!cube_flg)
+			{
+				srv_desc->Texture2DMSArray.ArraySize = resource_desc.DepthOrArraySize;
+			}
+		}
+		else
+		{
+			rtv_desc->ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+			if (!cube_flg)
+			{
+				srv_desc->Texture2DArray.MipLevels = 1;
+				srv_desc->Texture2DArray.ArraySize = resource_desc.DepthOrArraySize;
+			}
+		}
+	}
+	else
+	{
+		srv_desc->Texture2D.MipLevels = 1;
+
+		if (resource_desc.SampleDesc.Count > 1)
+		{
+			rtv_desc->ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+		}
+		else
+		{
+			rtv_desc->ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		}
+	}
+}
+
 RenderTargetView::RenderTargetView(
 	ComPtr<ID3D12Device> device,
 	const std::vector<ComPtr<ID3D12Resource>>& resources,
@@ -48,15 +109,6 @@ RenderTargetView::RenderTargetView(
 		RCHECK(FAILED(hr), "CreateDescriptorHeapに失敗");
 	}
 
-	// RTV用Desc
-	D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
-
-	// SRV用Desc
-	D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-	srv_desc.ViewDimension = srv_dimension;
-	srv_desc.Texture2D.MipLevels = 1;
-	srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
 	auto srv_handle = m_srv_heap->GetCPUDescriptorHandleForHeapStart();
 	const auto icmt_srv = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	if (m_rtv_mgr)
@@ -65,16 +117,20 @@ RenderTargetView::RenderTargetView(
 		{
 			if (!m_buffers[i]) continue;
 			m_rtv_handles[i] = m_rtv_mgr->Alloc();
-			//rtv_desc.Texture2DArray.ArraySize = m_buffers[i]->GetDesc().DepthOrArraySize;
-			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+			
+			const auto& buffer_desc = m_buffers[i]->GetDesc();
+			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+			D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+			srv_desc.ViewDimension = srv_dimension;
+			SetUpDescFormat(buffer_desc, &rtv_desc, &srv_desc);
+
+			// RTV作成
 			device->CreateRenderTargetView(
 				m_buffers[i].Get(),
 				&rtv_desc,
 				m_rtv_handles[i].Cpu()
 			);
-
-			srv_desc.Format = rtv_desc.Format = m_buffers[i]->GetDesc().Format;
-			//srv_desc.Texture2DArray.ArraySize = m_buffers[i]->GetDesc().DepthOrArraySize;
+			// SRV作成
 			device->CreateShaderResourceView(
 				m_buffers[i].Get(),
 				&srv_desc,
@@ -93,16 +149,19 @@ RenderTargetView::RenderTargetView(
 		{
 			if (!m_buffers[i]) continue;
 
-			//rtv_desc.Texture2DArray.ArraySize = m_buffers[i]->GetDesc().DepthOrArraySize;
-			rtv_desc.ViewDimension = m_buffers[i]->GetDesc().SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
+			const auto& buffer_desc = m_buffers[i]->GetDesc();
+			D3D12_RENDER_TARGET_VIEW_DESC rtv_desc = {};
+			D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
+			srv_desc.ViewDimension = srv_dimension;
+			SetUpDescFormat(buffer_desc, &rtv_desc, &srv_desc);
+
+			// RTV作成
 			device->CreateRenderTargetView(
 				m_buffers[i].Get(),
 				&rtv_desc,
 				rtv_handle
 			);
-
-			srv_desc.Format = rtv_desc.Format = m_buffers[i]->GetDesc().Format;
-			//srv_desc.Texture2DArray.ArraySize = m_buffers[i]->GetDesc().DepthOrArraySize;
+			// SRV作成
 			device->CreateShaderResourceView(
 				m_buffers[i].Get(),
 				&srv_desc,
