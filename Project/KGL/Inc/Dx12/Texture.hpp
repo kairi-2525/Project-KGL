@@ -158,10 +158,11 @@ namespace KGL
 				DirectX::XMUINT2 size,
 				DXGI_FORMAT	format,
 				UINT16 mip_level = 1u,
+				D3D12_RESOURCE_FLAGS resource_flgs = D3D12_RESOURCE_FLAG_NONE,
 				TextureManager* mgr = nullptr
 			) noexcept
 			{
-				auto hr = Create(device, size, format, mip_level, mgr); AssertLoadResult(hr, m_path.string());
+				auto hr = Create(device, size, format, mip_level, resource_flgs, mgr); AssertLoadResult(hr, m_path.string());
 				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
 			}
 			HRESULT Create(
@@ -169,6 +170,7 @@ namespace KGL
 				DirectX::XMUINT2 size,
 				DXGI_FORMAT	format,
 				UINT16 mip_level = 1u,
+				D3D12_RESOURCE_FLAGS resource_flgs = D3D12_RESOURCE_FLAG_NONE,
 				TextureManager* mgr = nullptr
 			) noexcept;
 		};

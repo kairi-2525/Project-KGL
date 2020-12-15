@@ -124,16 +124,16 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
-	/*{
+	{
 		cube_texture = std::make_shared<KGL::TextureCube>();
-		cube_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R8G8B8A8_UNORM);
+		cube_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R8G8B8A8_UNORM, 1u, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 		cube_depth_texture = std::make_shared<KGL::TextureCube>();
-		cube_depth_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R32G8X24_TYPELESS);
+		cube_depth_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R32G8X24_TYPELESS, 1u, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
 		std::vector<ComPtr<ID3D12Resource>> resources(1);
 		resources[0] = cube_texture->Data();
 		cube_rtv = std::make_shared<KGL::RenderTargetView>(device, resources);
-	}*/
+	}
 
 	return hr;
 }
@@ -277,6 +277,12 @@ HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 		if (ImGui::TreeNode("FrameBuffer"))
 		{
 			auto* mapped_fb = frame_buffer->Map();
+			if (ImGui::SliderFloat3("light_angle", (float*)&mapped_fb->light_vec, -1.f, 1.f))
+			{
+				XMVECTOR v = XMLoadFloat3(&mapped_fb->light_vec);
+				v = XMVector3Normalize(v);
+				XMStoreFloat3(&mapped_fb->light_vec, v);
+			}
 			ImGui::SliderFloat3("ambient_light", (float*)&mapped_fb->ambient_light_color, 0.f, 1.f);
 			ImGui::SliderFloat3("light_color", (float*)&mapped_fb->light_color, 0.f, 1.f);
 			

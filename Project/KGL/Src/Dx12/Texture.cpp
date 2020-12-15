@@ -586,6 +586,7 @@ HRESULT TextureCube::Create(
 	DirectX::XMUINT2 size,
 	DXGI_FORMAT	format,
 	UINT16 mip_level,
+	D3D12_RESOURCE_FLAGS resource_flgs,
 	TextureManager* mgr
 ) noexcept
 {
@@ -601,6 +602,7 @@ HRESULT TextureCube::Create(
 		6u, // キューブ
 		mip_level
 		);
+	res_desc.Flags = resource_flgs;
 
 	// バッファ作成
 	auto hr = device->CreateCommittedResource(
