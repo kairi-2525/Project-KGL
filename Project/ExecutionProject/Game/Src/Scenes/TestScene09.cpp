@@ -34,46 +34,24 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 
 	// モデルデータ読み込み
 	{
-		{
-			auto inc_model = std::make_shared<KGL::StaticModel>(
-				device, std::make_shared<KGL::OBJ_Loader>(
-					"./Assets/Models/Mr.Incredible/Mr.Incredible.obj"
-					));
-			auto& actor = s_actors.emplace_back();
-			inc_actor = actor = std::make_shared<KGL::StaticModelActor>(device, inc_model);
-		}
-		{
-			auto slime_model = std::make_shared<KGL::StaticModel>(
-				device, std::make_shared<KGL::OBJ_Loader>(
-					"./Assets/Models/Slime/Slime.obj"
-					));
-			auto& actor = s_actors.emplace_back();
-			slime_actor = actor = std::make_shared<KGL::StaticModelActor>(device, slime_model);
-		}
-		{
-			auto sky_model = std::make_shared<KGL::StaticModel>(
-				device, std::make_shared<KGL::OBJ_Loader>(
-					"./Assets/Models/Sky/sky.obj"
-					));
-			auto& actor = s_actors.emplace_back();
-			sky_actor = actor = std::make_shared<KGL::StaticModelActor>(device, sky_model);
-		}
-		{
-			auto earth_model = std::make_shared<KGL::StaticModel>(
-				device, std::make_shared<KGL::OBJ_Loader>(
-					"./Assets/Models/earth/earth.obj"
-					));
-			auto& actor = s_actors.emplace_back();
-			earth_actor = actor = std::make_shared<KGL::StaticModelActor>(device, earth_model);
-		}
-		{
-			auto bison_model = std::make_shared<KGL::StaticModel>(
-				device, std::make_shared<KGL::OBJ_Loader>(
-					"./Assets/Models/Bison/Bison.obj"
-					));
-			auto& actor = s_actors.emplace_back();
-			bison_actor = actor = std::make_shared<KGL::StaticModelActor>(device, bison_model);
-		}
+		constexpr auto ModelLoad = 
+			[](
+				ComPtrC<ID3D12Device> device,
+				const std::string& path
+				)->std::shared_ptr<KGL::StaticModelActor>
+			{
+				auto loader = std::make_shared<KGL::OBJ_Loader>(path, true);
+				if (!loader->IsFastLoad())
+					loader->Export(loader->GetPath());
+				auto model = std::make_shared<KGL::StaticModel>(device, loader);
+				return std::make_shared<KGL::StaticModelActor>(device, model);
+			};
+
+		//inc_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Mr.Incredible/Mr.Incredible.obj");
+		slime_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/Slime/Slime.obj");
+		//sky_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Sky/sky.obj");
+		//earth_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/earth/earth.obj");
+		//bison_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/Bison/Bison.obj");
 	}
 
 	// モデル用レンダラー
@@ -172,25 +150,25 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 
 	// 各種Actorの初期設定
 	{
-		inc_actor->position = { -2, 0, 0 };
+		/*inc_actor->position = { -2, 0, 0 };
 		inc_actor->scale = { 0.5f, 0.5f, 0.5f };
-		inc_actor->rotate = { 0.0f, XM_PI, 0.0f };
+		inc_actor->rotate = { 0.0f, XM_PI, 0.0f };*/
 
 		slime_actor->position = { 2, 0, 0 };
 		slime_actor->scale = { 0.5f, 0.5f, 0.5f };
 		slime_actor->rotate = { 0.0f, XM_PI, 0.0f };
 
-		sky_actor->position = { 0, 0, 0 };
+		/*sky_actor->position = { 0, 0, 0 };
 		sky_actor->scale = { 1.f, 1.f, 1.f };
-		sky_actor->rotate = { 0.0f, 0.0f, 0.0f };
+		sky_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
 
-		earth_actor->position = { 0, 0, 0 };
+		/*earth_actor->position = { 0, 0, 0 };
 		earth_actor->scale = { 2.f, 2.f, 2.f };
-		earth_actor->rotate = { 0.0f, 0.0f, 0.0f };
+		earth_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
 
-		bison_actor->position = { 0, 2, 0 };
+		/*bison_actor->position = { 0, 2, 0 };
 		bison_actor->scale = { 1.f, 1.f, 1.f };
-		bison_actor->rotate = { 0.0f, 0.0f, 0.0f };
+		bison_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
 	}
 
 	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 0.f, -10.f));
@@ -227,7 +205,7 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 			0.1f, 500.0f // near, far
 		);
 		XMStoreFloat4x4(&mapped_cube_buffer->proj, proj);
-		UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
+		//UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
 		cube_buffer->Unmap();
 	}
 
@@ -268,7 +246,7 @@ HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	{
 		auto* mapped_cube_buffer = cube_buffer->Map();
-		UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
+		//UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
 		cube_buffer->Unmap();
 	}
 
@@ -394,10 +372,10 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
 
 		// 各モデルの描画
-		inc_actor->Render(cmd_list);
+		//inc_actor->Render(cmd_list);
 		slime_actor->Render(cmd_list);
-		earth_actor->Render(cmd_list);
-		bison_actor->Render(cmd_list);
+		//earth_actor->Render(cmd_list);
+		//bison_actor->Render(cmd_list);
 
 		const auto& rbsr_world = rtvs->GetRtvResourceBarrier(false, RT::WORLD);
 		cmd_list->ResourceBarrier(1u, &rbsr_world);
@@ -422,7 +400,7 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		sky_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, descriptor->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
-		sky_actor->Render(cmd_list);
+		//sky_actor->Render(cmd_list);
 
 		const auto& rbsr_world_bt = rtvs->GetRtvResourceBarrier(false, RT::WORLD_BT);
 		cmd_list->ResourceBarrier(1u, &rbsr_world_bt);

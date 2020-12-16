@@ -192,6 +192,9 @@
     <ClInclude Include="Inc\Math\Planets.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Helper\Cereal\CerealHelper.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Dx12\Application.cpp">

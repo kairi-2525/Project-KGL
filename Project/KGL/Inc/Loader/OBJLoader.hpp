@@ -33,7 +33,7 @@ namespace KGL
 			// StaticModel用のマテリアルに変換
 			void ConvertMaterial() noexcept(false);
 		public:
-			explicit OBJ_Loader(const std::filesystem::path& path) noexcept;
+			explicit OBJ_Loader(const std::filesystem::path& path, bool fast_load = false) noexcept;
 		};
 	}
 }

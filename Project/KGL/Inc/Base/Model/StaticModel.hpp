@@ -46,10 +46,11 @@ namespace KGL
 					DirectX::XMFLOAT3			diffuse_color; float pad1;
 					DirectX::XMFLOAT3			specular_color;
 					float						specular_weight;
-					bool						specular_flg;
+					bool						specular_flg; __int8 pad2[3];
 					float						dissolve;	// ìßñæìx 1Ç»ÇÁìßñæ
 					float						refraction;	// ã¸ê‹ó¶
-					bool						smooth;
+					bool						smooth; __int8 pad3[3];
+					__bool32
 				};
 
 				Vertices	vertices;

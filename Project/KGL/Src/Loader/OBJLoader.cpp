@@ -4,8 +4,8 @@
 
 using namespace KGL;
 
-OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
-	StaticModelLoader(path)
+OBJ_Loader::OBJ_Loader(const std::filesystem::path& path, bool fast_load) noexcept :
+	StaticModelLoader(path, fast_load)
 {
 	// 独自形式ファイルが読み込まれたので読み込みをキャンセルする
 	if (IsLoaded()) return;
@@ -28,7 +28,7 @@ OBJ_Loader::OBJ_Loader(const std::filesystem::path& path) noexcept :
 		}
 
 		// 拡張子の存在確認
-		CheckExtensiton(".OBJ");
+		CheckExtension(".OBJ");
 
 		// テキストモードでファイルを開いたときに発生するずれを
 		// バッファリングを無効にすることで解決する
@@ -395,13 +395,13 @@ static void LoadMTL(
 			out_material->param.specular_weight /= 1000.f;
 		}
 
-		// 透明度
+		// 不透明度
 		else if (buff == "D")
 		{
 			// 0 ~ 1
 			ifs >> out_material->param.dissolve;
 		}
-		// Dの反転
+		// 透明度（Dの反転）
 		else if (buff == "TR")
 		{
 			// 0 ~ 1
@@ -538,7 +538,7 @@ void OBJ_Loader::LoadMTLFile(
 {
 	out_desc->mtl_path = out_desc->mtl_path.lexically_normal();
 	// 拡張子の存在確認
-	CheckExtensiton(out_desc->mtl_path, ".MTL");
+	CheckExtension(out_desc->mtl_path, ".MTL");
 
 	if (out_desc->mtl_path.is_relative())
 	{	// 相対パス

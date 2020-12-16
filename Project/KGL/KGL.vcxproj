@@ -55,6 +55,7 @@
     <ClInclude Include="Inc\Dx12\2D\Sprite.hpp" />
     <ClInclude Include="Inc\Dx12\Texture.hpp" />
     <ClInclude Include="Inc\Helper\Cast.hpp" />
+    <ClInclude Include="Inc\Helper\Cereal\CerealHelper.hpp" />
     <ClInclude Include="Inc\Helper\Color.hpp" />
     <ClInclude Include="Inc\Helper\ComPtr.hpp" />
     <ClInclude Include="Inc\Helper\Convert.hpp" />
