@@ -13,6 +13,9 @@
 #include <imgui_impl_win32.h>
 #include <imgui_impl_dx12.h>
 
+static constexpr UINT CUBE_MAP_SCALE = 128u;
+static constexpr DirectX::XMUINT2 CUBE_MAP_SIZE = { CUBE_MAP_SCALE, CUBE_MAP_SCALE };
+
 HRESULT TestScene09::Load(const SceneDesc& desc)
 {
 	using namespace DirectX;
@@ -47,11 +50,11 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 				return std::make_shared<KGL::StaticModelActor>(device, model);
 			};
 
-		//inc_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Mr.Incredible/Mr.Incredible.obj");
+		inc_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Mr.Incredible/Mr.Incredible.obj");
 		slime_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/Slime/Slime.obj");
-		//sky_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Sky/sky.obj");
-		//earth_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/earth/earth.obj");
-		//bison_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/Bison/Bison.obj");
+		sky_actor = s_actors.emplace_back()		= ModelLoad(device, "./Assets/Models/Sky/sky.obj");
+		earth_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/earth/earth.obj");
+		bison_actor = s_actors.emplace_back()	= ModelLoad(device, "./Assets/Models/Bison/Bison.obj");
 	}
 
 	// モデル用レンダラー
@@ -103,10 +106,21 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 	fxaa_mgr = std::make_shared<FXAAManager>(device, desc.dxc, desc.app->GetResolution());
 
 	{
+		DirectX::XMFLOAT4 clear_value = { 0.0f, 1.0f, 0.0f, 1.0f };
+		D3D12_CLEAR_VALUE rtv_clear_value = CD3DX12_CLEAR_VALUE(DXGI_FORMAT_R8G8B8A8_UNORM, (float*)&clear_value);
+		D3D12_CLEAR_VALUE dsv_clear_value;
+		dsv_clear_value.DepthStencil.Depth = 1.0f;
+		dsv_clear_value.DepthStencil.Stencil = 0.0f;
+		dsv_clear_value.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 		cube_texture = std::make_shared<KGL::TextureCube>();
-		cube_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R8G8B8A8_UNORM, 1u, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		cube_texture->Create(device, CUBE_MAP_SIZE, DXGI_FORMAT_R8G8B8A8_UNORM, rtv_clear_value, 1u, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		
+		cube_dsv_descriptor = std::make_shared<KGL::DescriptorManager>(
+			device, 1u, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE);
 		cube_depth_texture = std::make_shared<KGL::TextureCube>();
-		cube_depth_texture->Create(device, XMUINT2(128u, 128u), DXGI_FORMAT_R32G8X24_TYPELESS, 1u, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		cube_depth_texture->Create(device, CUBE_MAP_SIZE, DXGI_FORMAT_R32G8X24_TYPELESS, dsv_clear_value, 1u, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+		cube_dsv_handle = std::make_shared<KGL::DescriptorHandle>(cube_dsv_descriptor->Alloc());
+		cube_depth_texture->CreateDSVHandle(cube_dsv_handle);
 
 		std::vector<ComPtr<ID3D12Resource>> resources(1);
 		resources[0] = cube_texture->Data();
@@ -150,25 +164,25 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 
 	// 各種Actorの初期設定
 	{
-		/*inc_actor->position = { -2, 0, 0 };
+		inc_actor->position = { -2, 0, 0 };
 		inc_actor->scale = { 0.5f, 0.5f, 0.5f };
-		inc_actor->rotate = { 0.0f, XM_PI, 0.0f };*/
+		inc_actor->rotate = { 0.0f, XM_PI, 0.0f };
 
 		slime_actor->position = { 2, 0, 0 };
 		slime_actor->scale = { 0.5f, 0.5f, 0.5f };
 		slime_actor->rotate = { 0.0f, XM_PI, 0.0f };
 
-		/*sky_actor->position = { 0, 0, 0 };
+		sky_actor->position = { 0, 0, 0 };
 		sky_actor->scale = { 1.f, 1.f, 1.f };
-		sky_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
+		sky_actor->rotate = { 0.0f, 0.0f, 0.0f };
 
-		/*earth_actor->position = { 0, 0, 0 };
+		earth_actor->position = { 0, 0, 0 };
 		earth_actor->scale = { 2.f, 2.f, 2.f };
-		earth_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
+		earth_actor->rotate = { 0.0f, 0.0f, 0.0f };
 
-		/*bison_actor->position = { 0, 2, 0 };
+		bison_actor->position = { 0, 2, 0 };
 		bison_actor->scale = { 1.f, 1.f, 1.f };
-		bison_actor->rotate = { 0.0f, 0.0f, 0.0f };*/
+		bison_actor->rotate = { 0.0f, 0.0f, 0.0f };
 	}
 
 	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 0.f, -10.f));
@@ -205,7 +219,7 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 			0.1f, 500.0f // near, far
 		);
 		XMStoreFloat4x4(&mapped_cube_buffer->proj, proj);
-		//UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
+		UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
 		cube_buffer->Unmap();
 	}
 
@@ -246,7 +260,7 @@ HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 	}
 	{
 		auto* mapped_cube_buffer = cube_buffer->Map();
-		//UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
+		UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
 		cube_buffer->Unmap();
 	}
 
@@ -340,6 +354,21 @@ HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 	return Render(desc);
 }
 
+HRESULT TestScene09::RenderCubeMap(const SceneDesc& desc)
+{
+	const auto& dsv_handle = cube_dsv_handle->Cpu();
+	cube_texture->SetRB(cmd_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	cube_rtv->Set(cmd_list, &dsv_handle);
+	cube_rtv->Clear(cmd_list, cube_texture->GetClearColor());
+
+	const auto& dcv = cube_depth_texture->GetClearValue();
+	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, dcv.DepthStencil.Depth, dcv.DepthStencil.Stencil, 0, nullptr);
+
+	cube_texture->SetRB(cmd_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	return S_OK;
+}
+
 HRESULT TestScene09::Render(const SceneDesc& desc)
 {
 	const bool fxaa = fxaa_mgr->GetDesc().type == FXAAManager::TYPE::FXAA_ON;
@@ -358,6 +387,8 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 	cmd_list->RSSetViewports(1, &full_viewport);
 	cmd_list->RSSetScissorRects(1, &full_scissorrect);
 
+	RenderCubeMap(desc);
+
 	{
 		const auto& rbrt_world = rtvs->GetRtvResourceBarrier(true, RT::WORLD);
 		cmd_list->ResourceBarrier(1u, &rbrt_world);
@@ -372,10 +403,10 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
 
 		// 各モデルの描画
-		//inc_actor->Render(cmd_list);
+		inc_actor->Render(cmd_list);
 		slime_actor->Render(cmd_list);
-		//earth_actor->Render(cmd_list);
-		//bison_actor->Render(cmd_list);
+		earth_actor->Render(cmd_list);
+		bison_actor->Render(cmd_list);
 
 		const auto& rbsr_world = rtvs->GetRtvResourceBarrier(false, RT::WORLD);
 		cmd_list->ResourceBarrier(1u, &rbsr_world);
@@ -400,7 +431,7 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		sky_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, descriptor->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
-		//sky_actor->Render(cmd_list);
+		sky_actor->Render(cmd_list);
 
 		const auto& rbsr_world_bt = rtvs->GetRtvResourceBarrier(false, RT::WORLD_BT);
 		cmd_list->ResourceBarrier(1u, &rbsr_world_bt);

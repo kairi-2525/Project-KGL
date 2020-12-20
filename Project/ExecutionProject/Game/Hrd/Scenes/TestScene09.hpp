@@ -27,7 +27,6 @@ private:
 		WORLD_BT,	// WORLD‚ðBrighten‚µ‚Ä–¾‚é‚­‚µ‚½Œã‚ÌRT
 		FXAA,
 	};
-	using SpDpHandle = std::shared_ptr<KGL::DescriptorHandle>;
 public:
 	struct CubeMapBuffer
 	{
@@ -48,6 +47,8 @@ private:
 	std::shared_ptr<KGL::RenderTargetView>				cube_rtv;
 	std::shared_ptr<KGL::Resource<CubeMapBuffer>>		cube_buffer;
 	std::shared_ptr<KGL::DescriptorHandle>				cube_buffer_handle;
+	std::shared_ptr<KGL::DescriptorManager>				cube_dsv_descriptor;
+	std::shared_ptr<KGL::DescriptorHandle>				cube_dsv_handle;
 
 	std::vector<std::shared_ptr<KGL::StaticModelActor>>	s_actors;
 	std::shared_ptr<KGL::StaticModelActor>				inc_actor;
@@ -69,6 +70,7 @@ public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
 	HRESULT Update(const SceneDesc& desc, float elapsed_time) override;
+	HRESULT RenderCubeMap(const SceneDesc& desc);
 	HRESULT Render(const SceneDesc& desc);
 	HRESULT UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> next_scene) override;
 

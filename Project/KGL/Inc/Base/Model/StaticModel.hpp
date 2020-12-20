@@ -50,7 +50,6 @@ namespace KGL
 					float						dissolve;	// “§–¾“x 1‚È‚ç“§–¾
 					float						refraction;	// ‹üÜ—¦
 					bool						smooth; __int8 pad3[3];
-					__bool32
 				};
 
 				Vertices	vertices;
