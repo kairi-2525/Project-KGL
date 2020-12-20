@@ -1,3 +1,5 @@
+*.smodel
+
 /.vs
 /Project/.vs
 
