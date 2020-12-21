@@ -106,3 +106,16 @@ void BaseRenderer::SetName(const std::filesystem::path& name) const noexcept
 	DX12::SetName<ID3D12PipelineState>(m_pl_state, RCAST<INT_PTR>(this), name.wstring());
 	DX12::SetName<ID3D12RootSignature>(m_rootsig, RCAST<INT_PTR>(this), name.wstring());
 }
+
+D3D12_ROOT_PARAMETER DX12::CreateDescriptorTable(
+	const std::vector<D3D12_DESCRIPTOR_RANGE>& ranges,
+	D3D12_SHADER_VISIBILITY shader_visibility
+) noexcept
+{
+	D3D12_ROOT_PARAMETER param = {};
+	param.DescriptorTable.NumDescriptorRanges = SCAST<UINT>(ranges.size());
+	param.DescriptorTable.pDescriptorRanges = ranges.data();
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param.ShaderVisibility = shader_visibility;
+	return param;
+}

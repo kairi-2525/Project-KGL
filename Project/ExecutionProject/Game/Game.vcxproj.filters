@@ -276,6 +276,10 @@
     <FxCompile Include="HLSL\3D\StaticModel_gs.hlsl" />
     <FxCompile Include="HLSL\3D\StaticModelDiffuse_ps.hlsl" />
     <FxCompile Include="HLSL\CPT\ParticleBitnicSort_cs.hlsl" />
+    <FxCompile Include="HLSL\3D\CubeMap\MakeCubeMap_gs.hlsl" />
+    <FxCompile Include="HLSL\3D\CubeMap\MakeCubeMap_ps.hlsl" />
+    <FxCompile Include="HLSL\3D\CubeMap\MakeCubeMap_vs.hlsl" />
+    <FxCompile Include="HLSL\3D\CubeMap\CubeMap_ps.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\3D\PMDShaderHeader.hlsli" />
@@ -295,6 +299,8 @@
     <None Include="HLSL\3D\Particle_gs.hlsli" />
     <None Include="HLSL\3D\Global.hlsli" />
     <None Include="HLSL\3D\StaticModel.hlsli" />
+    <None Include="HLSL\3D\CubeMap\MakeCubeMap.hlsli" />
+    <None Include="HLSL\3D\CubeMap\CubeMap.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="KGL_ICON.rc">

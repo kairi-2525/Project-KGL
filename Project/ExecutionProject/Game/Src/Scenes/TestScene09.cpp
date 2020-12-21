@@ -70,10 +70,40 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 		renderer_desc.input_layouts = KGL::StaticModel::INPUT_LAYOUTS;
 		renderer_desc.root_params = KGL::StaticModel::ROOT_PARAMS;
 
+		// モデル描画用
 		s_model_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 
+		// 背景描画用
 		renderer_desc.ps_desc.hlsl = "./HLSL/3D/StaticModelDiffuse_ps.hlsl";
 		sky_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
+
+		// キューブマップ描画用
+		{
+			renderer_desc.root_params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			std::vector<D3D12_DESCRIPTOR_RANGE> ranges =
+			{
+				{ D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 8u, 0u, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND }
+			};
+			const auto& param = KGL::CreateDescriptorTable(ranges, D3D12_SHADER_VISIBILITY_PIXEL);
+			renderer_desc.root_params.push_back(param);
+			renderer_desc.ps_desc.hlsl = "./HLSL/3D/CubeMap/CubeMap_ps.hlsl";
+			cube_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.root_params.pop_back();
+		}
+
+		// キューブマップ用テクスチャ描画用
+		{
+			renderer_desc.root_params[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			std::vector<D3D12_DESCRIPTOR_RANGE> ranges =
+			{
+				{ D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1u, 3u, 0u, D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND }
+			};
+			renderer_desc.root_params.push_back(KGL::CreateDescriptorTable(ranges));
+			renderer_desc.gs_desc.hlsl = "./HLSL/3D/CubeMap/MakeCubeMap_gs.hlsl";
+			renderer_desc.ps_desc.hlsl = "./HLSL/3D/CubeMap/MakeCubeMap_ps.hlsl";
+			make_cube_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
+			renderer_desc.root_params.pop_back();
+		}
 	}
 	// レンダーターゲット
 	{
@@ -145,12 +175,13 @@ static void UpdateCubeBuffer(
 	camera.focus_vec = { -1.f, +0.f, +0.f };
 	XMStoreFloat4x4(&data->view_mat[1], KGL::CAMERA::GetView(camera));
 
+	camera.up = { 0.f, 0.f, -1.0f };
 	camera.focus_vec = { +0.f, +1.f, +0.f };
 	XMStoreFloat4x4(&data->view_mat[2], KGL::CAMERA::GetView(camera));
-
+	camera.up = { 0.f, 0.f, 1.0f };
 	camera.focus_vec = { +0.f, -1.f, +0.f };
 	XMStoreFloat4x4(&data->view_mat[3], KGL::CAMERA::GetView(camera));
-
+	camera.up = { 0.f, 1.f, 0.f };
 	camera.focus_vec = { +0.f, +0.f, +1.f };
 	XMStoreFloat4x4(&data->view_mat[4], KGL::CAMERA::GetView(camera));
 
@@ -215,8 +246,8 @@ HRESULT TestScene09::Init(const SceneDesc& desc)
 		auto* mapped_cube_buffer = cube_buffer->Map();
 		const XMMATRIX proj = XMMatrixPerspectiveFovLH(
 			XM_PI / 2,	// FOV
-			256.f / 256.f,	// アスペクト比
-			0.1f, 500.0f // near, far
+			1.f,	// アスペクト比
+			0.1f, 100.0f // near, far
 		);
 		XMStoreFloat4x4(&mapped_cube_buffer->proj, proj);
 		UpdateCubeBuffer(mapped_cube_buffer, earth_actor->position);
@@ -356,6 +387,19 @@ HRESULT TestScene09::Update(const SceneDesc& desc, float elapsed_time)
 
 HRESULT TestScene09::RenderCubeMap(const SceneDesc& desc)
 {
+	auto resolution = CUBE_MAP_SIZE;
+	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
+
+	// ビューとシザーをセット
+	D3D12_VIEWPORT full_viewport =
+		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
+	auto full_scissorrect =
+		CD3DX12_RECT(0, 0, SCAST<LONG>(resolutionf.x), SCAST<LONG>(resolutionf.y));
+	cmd_list->RSSetViewports(1, &full_viewport);
+	cmd_list->RSSetScissorRects(1, &full_scissorrect);
+
+	cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
 	const auto& dsv_handle = cube_dsv_handle->Cpu();
 	cube_texture->SetRB(cmd_list, D3D12_RESOURCE_STATE_RENDER_TARGET);
 	cube_rtv->Set(cmd_list, &dsv_handle);
@@ -363,6 +407,18 @@ HRESULT TestScene09::RenderCubeMap(const SceneDesc& desc)
 
 	const auto& dcv = cube_depth_texture->GetClearValue();
 	cmd_list->ClearDepthStencilView(dsv_handle, D3D12_CLEAR_FLAG_DEPTH, dcv.DepthStencil.Depth, dcv.DepthStencil.Stencil, 0, nullptr);
+
+	make_cube_renderer->SetState(cmd_list);
+
+	cmd_list->SetDescriptorHeaps(1, descriptor->Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
+	cmd_list->SetDescriptorHeaps(1, cube_buffer_handle->Heap().GetAddressOf());
+	cmd_list->SetGraphicsRootDescriptorTable(4, cube_buffer_handle->Gpu());
+	inc_actor->Render(cmd_list);
+	slime_actor->Render(cmd_list);
+	earth_actor->Render(cmd_list);
+	bison_actor->Render(cmd_list);
+	sky_actor->Render(cmd_list);
 
 	cube_texture->SetRB(cmd_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -375,19 +431,15 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 	auto resolution = desc.app->GetResolution();
 	const DirectX::XMFLOAT2 resolutionf = { SCAST<FLOAT>(resolution.x), SCAST<FLOAT>(resolution.y) };
 
+	RenderCubeMap(desc);
+
 	// ビューとシザーをセット
 	D3D12_VIEWPORT full_viewport =
 		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
 	auto full_scissorrect =
 		CD3DX12_RECT(0, 0, SCAST<LONG>(resolutionf.x), SCAST<LONG>(resolutionf.y));
-	D3D12_VIEWPORT viewport =
-		CD3DX12_VIEWPORT(0.f, 0.f, resolutionf.x, resolutionf.y);
-	auto scissorrect =
-		CD3DX12_RECT(0, 0, resolution.x, resolution.y);
 	cmd_list->RSSetViewports(1, &full_viewport);
 	cmd_list->RSSetScissorRects(1, &full_scissorrect);
-
-	RenderCubeMap(desc);
 
 	{
 		const auto& rbrt_world = rtvs->GetRtvResourceBarrier(true, RT::WORLD);
@@ -398,9 +450,12 @@ HRESULT TestScene09::Render(const SceneDesc& desc)
 		rtvs->Clear(cmd_list, rt_textures[RT::WORLD]->GetClearColor(), RT::WORLD);
 
 		cmd_list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		s_model_renderer->SetState(cmd_list);
+		cube_renderer->SetState(cmd_list);
 		cmd_list->SetDescriptorHeaps(1, descriptor->Heap().GetAddressOf());
 		cmd_list->SetGraphicsRootDescriptorTable(0, frame_buffer_handle->Gpu());
+		cube_texture->SetRB(cmd_list, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		cmd_list->SetDescriptorHeaps(1, cube_rtv->GetSRVHeap().GetAddressOf());
+		cmd_list->SetGraphicsRootDescriptorTable(4, cube_rtv->GetSRVGPUHandle());
 
 		// 各モデルの描画
 		inc_actor->Render(cmd_list);

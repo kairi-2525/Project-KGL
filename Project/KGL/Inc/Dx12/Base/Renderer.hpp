@@ -51,5 +51,10 @@ namespace KGL
 			void SetState(const ComPtr<ID3D12GraphicsCommandList>& cmd_list) const noexcept;
 			void SetName(const std::filesystem::path& name) const noexcept;
 		};
+
+		extern D3D12_ROOT_PARAMETER CreateDescriptorTable(
+			const std::vector<D3D12_DESCRIPTOR_RANGE>& ranges,
+			D3D12_SHADER_VISIBILITY shader_visibility = D3D12_SHADER_VISIBILITY_ALL
+		) noexcept;
 	}
 }

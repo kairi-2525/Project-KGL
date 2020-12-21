@@ -57,6 +57,8 @@ private:
 	std::shared_ptr<KGL::StaticModelActor>				earth_actor;
 	std::shared_ptr<KGL::StaticModelActor>				bison_actor;
 	std::shared_ptr<KGL::BaseRenderer>					s_model_renderer;
+	std::shared_ptr<KGL::BaseRenderer>					make_cube_renderer;
+	std::shared_ptr<KGL::BaseRenderer>					cube_renderer;
 	std::shared_ptr<KGL::BaseRenderer>					sky_renderer;
 
 	std::shared_ptr<KGL::TextureCube>					cube_texture;
