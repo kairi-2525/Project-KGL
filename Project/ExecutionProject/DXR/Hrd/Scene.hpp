@@ -9,6 +9,7 @@
 #include "../DXRHelper/nv_helpers_dx12/TopLevelASGenerator.h"
 #include "../DXRHelper/nv_helpers_dx12/ShaderBindingTableGenerator.h"
 #include <Base/DXC.hpp>
+#include <Dx12/DXR/StaticModel.hpp>
 
 struct SceneDesc
 {
@@ -81,7 +82,7 @@ public:
 	KGL::ComPtr<ID3D12RootSignature> CreateMissSignature();
 	KGL::ComPtr<ID3D12RootSignature> CreateHitSignature();
 
-	void CreateRaytracingPipeline();
+	void CreateRaytracingPipeline(std::shared_ptr<KGL::DXC> dxc);
 	void CreateRaytracingOutputBuffer(const DirectX::XMUINT2& screen_size);
 	void CreateShaderResourceHeap();
 	void CreateShaderBindingTable();
@@ -109,6 +110,8 @@ public:
 	std::shared_ptr<KGL::Resource<TriangleVertex>>		t_vert_res;
 	D3D12_VERTEX_BUFFER_VIEW							t_vert_view;
 	std::shared_ptr<KGL::BaseRenderer>					t_renderer;
+
+	std::shared_ptr<KGL::DXR::StaticModel>				smodel;
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

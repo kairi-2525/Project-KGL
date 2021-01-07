@@ -87,7 +87,7 @@ namespace KGL
 					DirectX::XMFLOAT4X4 wvp;
 				};
 				using MaterialBuffer = S_MODEL::Material::Parameter;
-			private:
+			protected:
 				enum REFLECTIONS_TYPE : UINT
 				{
 					SPHERE,
@@ -123,7 +123,7 @@ namespace KGL
 					HandleTexture											stencil_decal;
 					ReflectionsTexture										reflections;
 				};
-			private:
+			protected:
 				std::filesystem::path						m_path;
 				std::unordered_map<std::string, Material>	m_materials;
 				std::shared_ptr<TextureManager>				m_tex_mgr;
@@ -136,8 +136,9 @@ namespace KGL
 					std::shared_ptr<TextureManager> tex_mgr = nullptr,
 					std::shared_ptr<DescriptorManager> descriptor_mgr = nullptr
 				) noexcept;
+				virtual ~StaticModel() = default;
 
-				void Render(ComPtrC<ID3D12GraphicsCommandList> cmd_list) const noexcept;
+				virtual void Render(ComPtrC<ID3D12GraphicsCommandList> cmd_list) const noexcept;
 				const std::unordered_map<std::string, Material>& GetMaterials() const noexcept
 				{
 					return m_materials;

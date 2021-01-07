@@ -8,13 +8,13 @@
 #include <sstream>
 #include <string>
 #include <d3d12.h>
-#include <dxcapi.h>
+//#include <dxcapi.h>
 #ifdef _WIN64
-#pragma comment(lib, "dxcompiler")
-//#pragma comment(lib, "DLL/x64/dxcompiler")
+//#pragma comment(lib, "dxcompiler")
+//#pragma comment(lib, "./DLL/x64/dxcompiler.lib")
 #else
-#pragma comment(lib, "dxcompiler")
-//#pragma comment(lib, "DLL/x86/dxcompiler")
+//#pragma comment(lib, "dxcompiler")
+//#pragma comment(lib, "./DLL/x86/dxcompiler.lib")
 #endif
 
 #include <vector>
@@ -74,21 +74,10 @@ static const D3D12_HEAP_PROPERTIES kDefaultHeapProps = {
 //--------------------------------------------------------------------------------------------------
 // Compile a HLSL file into a DXIL library
 //
-IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
+IDxcBlob* CompileShaderLibrary(LPCWSTR fileName, std::shared_ptr<KGL::DXC> dxc)
 {
-  static IDxcCompiler* pCompiler = nullptr;
-  static IDxcLibrary* pLibrary = nullptr;
-  static IDxcIncludeHandler* dxcIncludeHandler;
-
   HRESULT hr;
 
-  // Initialize the DXC compiler and compiler helper
-  if (!pCompiler)
-  {
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcCompiler, __uuidof(IDxcCompiler), (void **)&pCompiler));
-    ThrowIfFailed(DxcCreateInstance(CLSID_DxcLibrary, __uuidof(IDxcLibrary), (void **)&pLibrary));
-    ThrowIfFailed(pLibrary->CreateIncludeHandler(&dxcIncludeHandler));
-  }
   // Open and read the file
   std::ifstream shaderFile(fileName);
   if (shaderFile.good() == false)
@@ -101,13 +90,14 @@ IDxcBlob* CompileShaderLibrary(LPCWSTR fileName)
 
   // Create blob from the string
   IDxcBlobEncoding* pTextBlob;
-  ThrowIfFailed(pLibrary->CreateBlobWithEncodingFromPinned(
+
+  ThrowIfFailed(dxc->GetLiblary()->CreateBlobWithEncodingFromPinned(
       (LPBYTE)sShader.c_str(), (uint32_t)sShader.size(), 0, &pTextBlob));
 
   // Compile
   IDxcOperationResult* pResult;
-  ThrowIfFailed(pCompiler->Compile(pTextBlob, fileName, L"", L"lib_6_3", nullptr, 0, nullptr, 0,
-                                   dxcIncludeHandler, &pResult));
+  ThrowIfFailed(dxc->GetCompiler()->Compile(pTextBlob, fileName, L"", L"lib_6_3", nullptr, 0, nullptr, 0,
+                dxc->GetDXIHeader().Get(), &pResult));
 
   // Verify the result
   HRESULT resultCode;

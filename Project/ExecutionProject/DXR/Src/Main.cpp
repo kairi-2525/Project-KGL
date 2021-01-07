@@ -95,7 +95,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				RCHECK(FAILED(hr), "ƒV[ƒ“‚Ì‰Šú‰»‚É¸”s", -1);
 
 				SceneDesc scene_desc = { window, app, dxc, input, imgui_heap, imgui_handle };
-				hr = scene_mgr.Init<SceneMain>(scene_desc);
+				hr = scene_mgr.Init<SceneOriginal>(scene_desc);
 
 				HRESULT scene_hr = S_OK;
 				while (window->Update())

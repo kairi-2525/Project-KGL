@@ -176,7 +176,7 @@ KGL::ComPtr<ID3D12RootSignature> SceneMain::CreateHitSignature()
 
 // レイトレーシングパイプラインは、シェーダーコード、ルートシグネチャ、パイプライン特性を、
 // DXRがシェーダーを呼び出し、レイトレーシング中に一時メモリを管理するために使用する単一の構造にバインドします。
-void SceneMain::CreateRaytracingPipeline()
+void SceneMain::CreateRaytracingPipeline(std::shared_ptr<KGL::DXC> dxc)
 {
 	nv_helpers_dx12::RayTracingPipelineGenerator pipeline(dxr_device.Get());
 
@@ -184,9 +184,9 @@ void SceneMain::CreateRaytracingPipeline()
 	// このセクションでは、HLSLコードを一連のDXILライブラリにコンパイルします。
 	// 明確にするために、いくつかのライブラリのコードをセマンティック
 	//（光線生成、ヒット、ミス）で分離することを選択しました。 任意のコードレイアウトを使用できます。
-	ray_gen_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/RayGen.hlsl"));
-	miss_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Miss.hlsl"));
-	hit_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Hit.hlsl"));
+	ray_gen_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/RayGen.hlsl", dxc));
+	miss_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Miss.hlsl", dxc));
+	hit_library.Attach(nv_helpers_dx12::CompileShaderLibrary(L"./HLSL/DXR/Hit.hlsl", dxc));
 
 	// DLLと同様に、各ライブラリはエクスポートされた多数のシンボルに関連付けられています。
 	// これは、以下の行で明示的に行う必要があります。 
@@ -432,7 +432,7 @@ HRESULT SceneMain::Load(const SceneDesc& desc)
 		// レイトレーシングパイプラインを作成し、
 		// シェーダーコードをシンボル名とそのルートシグネチャに関連付け、
 		// レイが運ぶメモリの量を定義します（レイペイロード）
-		CreateRaytracingPipeline();
+		CreateRaytracingPipeline(desc.dxc);
 
 		// レイトレーシング出力を格納するバッファを、ターゲットイメージと同じサイズで割り当てます
 		CreateRaytracingOutputBuffer(desc.window->GetClientSize());

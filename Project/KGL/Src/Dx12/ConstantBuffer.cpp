@@ -8,7 +8,8 @@ ResourcesBase::ResourcesBase(
 	ComPtrC<ID3D12Device> device,
 	size_t size, size_t struct_size,
 	const D3D12_HEAP_PROPERTIES* prop,
-	D3D12_RESOURCE_FLAGS flag
+	D3D12_RESOURCE_FLAGS flag,
+	D3D12_RESOURCE_STATES state
 ) noexcept :
 	m_size(size)
 {
@@ -32,7 +33,7 @@ ResourcesBase::ResourcesBase(
 			prop,
 			D3D12_HEAP_FLAG_NONE,
 			&res_desc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			state,
 			nullptr,
 			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 		);

@@ -36,7 +36,8 @@ namespace KGL
 				ComPtrC<ID3D12Device> device,
 				size_t size, size_t struct_size,
 				const D3D12_HEAP_PROPERTIES* prop,
-				D3D12_RESOURCE_FLAGS flag
+				D3D12_RESOURCE_FLAGS flag,
+				D3D12_RESOURCE_STATES state
 			) noexcept;
 			virtual ~ResourcesBase() = default;
 
@@ -60,9 +61,10 @@ namespace KGL
 				ComPtrC<ID3D12Device> device,
 				size_t size, size_t struct_size,
 				const D3D12_HEAP_PROPERTIES* prop,
-				D3D12_RESOURCE_FLAGS flag
+				D3D12_RESOURCE_FLAGS flag,
+				D3D12_RESOURCE_STATES state
 			) noexcept :
-				ResourcesBase(device, size, struct_size, prop, flag)
+				ResourcesBase(device, size, struct_size, prop, flag, state)
 			{
 			}
 		public:
@@ -86,9 +88,10 @@ namespace KGL
 		public:
 			Resource(ComPtrC<ID3D12Device> device, size_t size,
 				const D3D12_HEAP_PROPERTIES* prop = nullptr,
-				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
+				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_GENERIC_READ
 			) noexcept :
-				ResourceTyBase<_Ty>(device, size, sizeof(_Ty), prop, flag)
+				ResourceTyBase<_Ty>(device, size, sizeof(_Ty), prop, flag, state)
 			{
 			}
 
@@ -110,9 +113,10 @@ namespace KGL
 		public:
 			MultiResource(ComPtrC<ID3D12Device> device, size_t size,
 				const D3D12_HEAP_PROPERTIES* prop = nullptr,
-				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE
+				D3D12_RESOURCE_FLAGS flag = D3D12_RESOURCE_FLAG_NONE,
+				D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_GENERIC_READ
 			) noexcept :
-				ResourceTyBase<_Ty>(device, size, ResourcesBase::AlignmentStructSize<_Ty>(1u), prop, flag)
+				ResourceTyBase<_Ty>(device, size, ResourcesBase::AlignmentStructSize<_Ty>(1u), prop, flag, state)
 			{
 			}
 

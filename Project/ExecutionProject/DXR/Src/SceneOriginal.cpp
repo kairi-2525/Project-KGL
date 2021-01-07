@@ -1,6 +1,7 @@
 #include "../Hrd/Scene.hpp"
 #include <DirectXTex/d3dx12.h>
 #include <Dx12/Helper.hpp>
+#include <Loader/OBJLoader.hpp>
 
 HRESULT SceneOriginal::Load(const SceneDesc& desc)
 {
@@ -58,6 +59,12 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		renderer_desc.root_params.clear();
 		renderer_desc.static_samplers.clear();
 		t_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
+	}
+	{
+		auto loader = std::make_shared<KGL::OBJ_Loader>("./Assets/Models/Slime/Slime.obj", true);
+		if (!loader->IsFastLoad())
+			loader->Export(loader->GetPath());
+		auto model = std::make_shared<KGL::DXR::StaticModel>(dxr_device, loader);
 	}
 
 	return hr;
