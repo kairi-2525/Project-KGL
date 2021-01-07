@@ -51,7 +51,7 @@ ResourcesBase::ResourcesBase(
 			&propeties,
 			D3D12_HEAP_FLAG_NONE,
 			&res_desc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
+			state,
 			nullptr,
 			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 		);

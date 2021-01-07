@@ -64,7 +64,20 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		auto loader = std::make_shared<KGL::OBJ_Loader>("./Assets/Models/Slime/Slime.obj", true);
 		if (!loader->IsFastLoad())
 			loader->Export(loader->GetPath());
-		auto model = std::make_shared<KGL::DXR::StaticModel>(dxr_device, loader);
+		auto model = std::make_shared<KGL::DXR::StaticModel>(dxr_device, dxr_cmd_list, loader);
+		
+		std::vector<KGL::DXR::BLAS> instances;
+		instances.push_back(model->GetBLAS());
+		auto tlas = KGL::DXR::CreateTLAS(dxr_device, dxr_cmd_list, instances);
+
+		dxr_cmd_list->Close();
+		ID3D12CommandList* dxr_cmd_lists[] = { dxr_cmd_list.Get() };
+		desc.app->GetQueue()->Data()->ExecuteCommandLists(1, dxr_cmd_lists);
+		desc.app->GetQueue()->Signal();
+		desc.app->GetQueue()->Wait();
+
+		cmd_allocator->Reset();
+		dxr_cmd_list->Reset(cmd_allocator.Get(), nullptr);
 	}
 
 	return hr;
