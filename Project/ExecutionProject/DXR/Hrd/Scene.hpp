@@ -10,6 +10,7 @@
 #include "../DXRHelper/nv_helpers_dx12/ShaderBindingTableGenerator.h"
 #include <Base/DXC.hpp>
 #include <Dx12/DXR/StaticModel.hpp>
+#include <Dx12/DXR/Renderer.hpp>
 
 struct SceneDesc
 {
@@ -112,6 +113,9 @@ public:
 	std::shared_ptr<KGL::BaseRenderer>					t_renderer;
 
 	std::shared_ptr<KGL::DXR::StaticModel>				smodel;
+	std::shared_ptr<KGL::DXR::BaseRenderer>				dxr_renderer;
+private:
+	HRESULT CreatePSO(const SceneDesc& desc);
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;

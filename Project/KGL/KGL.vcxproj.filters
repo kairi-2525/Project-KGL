@@ -201,6 +201,12 @@
     <ClInclude Include="Inc\Dx12\DXR\AccelerationStructure.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Dx12\DXR\Renderer.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\Dx12\DXR\Signature.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Dx12\Application.cpp">
@@ -321,6 +327,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Src\Dx12\DXR\AccelerationStructure.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Dx12\DXR\Renderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Dx12\DXR\Signature.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

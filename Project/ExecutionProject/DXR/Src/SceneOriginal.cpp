@@ -3,6 +3,38 @@
 #include <Dx12/Helper.hpp>
 #include <Loader/OBJLoader.hpp>
 
+HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
+{
+	KGL::DXR::BaseRenderer::Desc renderer_desc = {};
+
+	auto& raygen_sig = renderer_desc.signatures["RayGen"];
+	auto& miss_sig = renderer_desc.signatures["Miss"];
+	auto& hit_sig = renderer_desc.signatures["Hit"];
+
+	raygen_sig.shader.entry_point =
+		miss_sig.shader.entry_point =
+			hit_sig.shader.entry_point = "";
+	raygen_sig.shader.version =
+		miss_sig.shader.version =
+			hit_sig.shader.version = "lib_6_3";
+
+	raygen_sig.shader.hlsl	= "./HLSL/DXR/RayGen.hlsl";
+	miss_sig.shader.hlsl	= "./HLSL/DXR/Miss.hlsl";
+	hit_sig.shader.hlsl		= "./HLSL/DXR/Hit.hlsl";
+
+	// 今回は raygen シェーダーのみリソースが必要
+	std::vector<D3D12_DESCRIPTOR_RANGE> raygen_ranges(2);
+	CD3DX12_DESCRIPTOR_RANGE::Init(raygen_ranges[0], D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1u, 0u);
+	CD3DX12_DESCRIPTOR_RANGE::Init(raygen_ranges[1], D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+	CD3DX12_ROOT_PARAMETER raygen_param;
+	raygen_param.InitAsDescriptorTable(SCAST<UINT>(raygen_ranges.size()), raygen_ranges.data());
+	raygen_sig.root_params.push_back(raygen_param);
+
+	dxr_renderer = std::make_shared<KGL::DXR::BaseRenderer>(dxr_device, desc.dxc, renderer_desc);
+
+	return S_OK;
+}
+
 HRESULT SceneOriginal::Load(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
@@ -26,6 +58,7 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 	hr = cmd_list->QueryInterface(IID_PPV_ARGS(dxr_cmd_list.GetAddressOf()));
 	RCHECK(FAILED(hr), "コマンドリスト4の作成に失敗", hr);
 
+	// 三角ポリゴン
 	{
 		t_vert_res = std::make_shared<KGL::Resource<TriangleVertex>>(device, 3);
 		std::vector<TriangleVertex> vertex(3);
@@ -60,6 +93,7 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		renderer_desc.static_samplers.clear();
 		t_renderer = std::make_shared<KGL::BaseRenderer>(device, desc.dxc, renderer_desc);
 	}
+
 	{
 		auto loader = std::make_shared<KGL::OBJ_Loader>("./Assets/Models/Slime/Slime.obj", true);
 		if (!loader->IsFastLoad())
@@ -74,6 +108,10 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		ID3D12CommandList* dxr_cmd_lists[] = { dxr_cmd_list.Get() };
 		desc.app->GetQueue()->Data()->ExecuteCommandLists(1, dxr_cmd_lists);
 		desc.app->GetQueue()->Signal();
+
+		// 処理中にPSOを作成
+		CreatePSO(desc);
+
 		desc.app->GetQueue()->Wait();
 
 		cmd_allocator->Reset();
