@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Signature.hpp"
+#include <functional>
 
 namespace KGL
 {
@@ -13,8 +14,12 @@ namespace KGL
 			public:
 				struct Desc
 				{
-					SignatureList signatures;
+					SignatureList						signatures;
+					std::map<std::string, std::string>	hit_groups;
+					D3D12_RAYTRACING_SHADER_CONFIG		shader_config;
 				};
+			private:
+				ComPtr<ID3D12StateObject> state_object;
 			protected:
 				BaseRenderer() = default;
 				HRESULT Create(

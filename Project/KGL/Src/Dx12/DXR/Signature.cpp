@@ -1,5 +1,6 @@
 #include <Dx12/DXR/Signature.hpp>
 #include <Loader/Loader.hpp>
+#include <Helper/Convert.hpp>
 
 using namespace KGL;
 
@@ -19,9 +20,22 @@ DXR::Signature::Signature(
 
 			// シェーダーをロード
 			const auto& shader = desc.shader;
-			hr = Load(dxc, shader, &data.shader);
+			// SHADER::Descに変換
+			SHADER::Desc shader_desc{};
+			shader_desc.entry_point = "";
+			shader_desc.hlsl = shader.hlsl;
+			shader_desc.version = shader.version;
+
+			// コンパイルを実行し、entry_pointsを保存
+			hr = Load(dxc, shader_desc, &data.shader);
 			RCHECK_STR(FAILED(hr), "[" + shader.hlsl.string() + "] の生成に失敗", "DXRシェーダーの生成に失敗");
-			
+			const size_t ep_size = shader.entry_points.size();
+			data.entry_points.resize(ep_size);
+			for (size_t i = 0u; i < ep_size; i++)
+			{
+				data.entry_points[i] = CONVERT::MultiToWide(shader.entry_points[i]);
+			}
+
 			// root signature を作成
 			D3D12_ROOT_SIGNATURE_DESC root_desc = {};
 			root_desc.NumParameters = SCAST<UINT>(desc.root_params.size());

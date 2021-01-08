@@ -10,9 +10,16 @@ namespace KGL
 	{
 		namespace DXR
 		{
+			struct ShaderDesc
+			{
+				std::filesystem::path	hlsl;
+				std::string				version;
+				std::vector<std::string> entry_points;
+			};
+
 			struct SignatureDesc
 			{
-				SHADER::Desc						shader;
+				ShaderDesc							shader;
 				std::vector<D3D12_ROOT_PARAMETER>	root_params;
 			};
 
@@ -24,6 +31,7 @@ namespace KGL
 				struct Data
 				{
 					ComPtr<ID3DBlob>			shader;
+					std::vector<std::wstring>	entry_points;
 					ComPtr<ID3D12RootSignature> rs;
 				};
 			private:

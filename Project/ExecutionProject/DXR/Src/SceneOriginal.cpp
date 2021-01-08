@@ -9,11 +9,8 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 
 	auto& raygen_sig = renderer_desc.signatures["RayGen"];
 	auto& miss_sig = renderer_desc.signatures["Miss"];
-	auto& hit_sig = renderer_desc.signatures["Hit"];
+	auto& hit_sig = renderer_desc.signatures["ClosestHit"];
 
-	raygen_sig.shader.entry_point =
-		miss_sig.shader.entry_point =
-			hit_sig.shader.entry_point = "";
 	raygen_sig.shader.version =
 		miss_sig.shader.version =
 			hit_sig.shader.version = "lib_6_3";
@@ -22,6 +19,11 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	miss_sig.shader.hlsl	= "./HLSL/DXR/Miss.hlsl";
 	hit_sig.shader.hlsl		= "./HLSL/DXR/Hit.hlsl";
 
+	// entry_points(?)
+	raygen_sig.shader.entry_points.push_back("RayGen");
+	miss_sig.shader.entry_points.push_back("Miss");
+	hit_sig.shader.entry_points.push_back("ClosestHit");
+
 	// 今回は raygen シェーダーのみリソースが必要
 	std::vector<D3D12_DESCRIPTOR_RANGE> raygen_ranges(2);
 	CD3DX12_DESCRIPTOR_RANGE::Init(raygen_ranges[0], D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1u, 0u);
@@ -29,6 +31,8 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	CD3DX12_ROOT_PARAMETER raygen_param;
 	raygen_param.InitAsDescriptorTable(SCAST<UINT>(raygen_ranges.size()), raygen_ranges.data());
 	raygen_sig.root_params.push_back(raygen_param);
+
+	renderer_desc.hit_groups["HitGroup"] = "ClosestHit";
 
 	dxr_renderer = std::make_shared<KGL::DXR::BaseRenderer>(dxr_device, desc.dxc, renderer_desc);
 
