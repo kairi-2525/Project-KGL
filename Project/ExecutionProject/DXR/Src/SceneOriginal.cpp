@@ -33,6 +33,7 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	raygen_sig.root_params.push_back(raygen_param);
 
 	renderer_desc.hit_groups["HitGroup"] = "ClosestHit";
+	renderer_desc.max_trace_recursion_depth = 1u;
 
 	dxr_renderer = std::make_shared<KGL::DXR::BaseRenderer>(dxr_device, desc.dxc, renderer_desc);
 

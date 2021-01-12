@@ -45,6 +45,18 @@ namespace KGL
 					const SignatureList& signatures
 				) noexcept;
 			};
+
+			class DummySignature
+			{
+			private:
+				ComPtr<ID3D12RootSignature> m_rs;
+			public:
+				explicit DummySignature(
+					ComPtrC<ID3D12Device> device,
+					D3D12_ROOT_SIGNATURE_FLAGS flags = D3D12_ROOT_SIGNATURE_FLAG_NONE
+					) noexcept;
+				ComPtrC<ID3D12RootSignature> Data() const noexcept { return m_rs; }
+			};
 		}
 	}
 }

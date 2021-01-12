@@ -14,6 +14,8 @@ HRESULT DXR::BaseRenderer::Create(
 	HRESULT hr = S_OK;
 
 	DXR::Signature signature(device, dxc, desc.signatures);
+	DXR::DummySignature global_signature(device);
+	DXR::DummySignature local_signature(device, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
 
 	const auto& sigs = signature.GetData();
 	const size_t sig_size = sigs.size();
@@ -55,7 +57,7 @@ HRESULT DXR::BaseRenderer::Create(
 			export_desc_list[current_index][i].ExportToRename = nullptr;
 			export_desc_list[current_index][i].Flags = D3D12_EXPORT_FLAG_NONE;
 
-			RCHECK(exports.find(ep_list[i]) != exports.end(), "DXILライブラリが同名で複数定義されています。")
+			RCHECK(exports.find(ep_list[i]) != exports.end(), "DXILライブラリが同名で複数定義されています。", E_FAIL)
 
 			exports.insert(ep_list[i]);
 		}
@@ -104,7 +106,7 @@ HRESULT DXR::BaseRenderer::Create(
 	{
 		for (const auto& hit_group : w_group_ch_symbols)
 		{
-			RCHECK(exports.find(hit_group) == exports.end(), "存在しないシェーダーを参照");
+			RCHECK(exports.find(hit_group) == exports.end(), "存在しないシェーダーを参照", E_FAIL);
 		}
 	}
 #endif
@@ -159,9 +161,46 @@ HRESULT DXR::BaseRenderer::Create(
 			association.NumExports = SCAST<UINT>(w_shader_name_pointers.size());
 			association.pExports = w_shader_name_pointers.data();
 			association.pSubobjectToAssociate = &subobjects[(current_index - 1)];
+
+			D3D12_STATE_SUBOBJECT root_sig_association_object = {};
+			root_sig_association_object.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+			root_sig_association_object.pDesc = &association;
+			subobjects[current_index++] = root_sig_association_object;
+
 			index++;
 		}
 	}
+
+	// パイプラインの構築には、常に空のグローバルルートシグネチャが必要
+	D3D12_STATE_SUBOBJECT global_root_sig;
+	global_root_sig.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
+	global_root_sig.pDesc = global_signature.Data().GetAddressOf();
+	subobjects[current_index++] = global_root_sig;
+
+	// パイプラインの構築には、常に空のローカルルートシグネチャが必要
+	D3D12_STATE_SUBOBJECT local_root_sig;
+	local_root_sig.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+	local_root_sig.pDesc = local_signature.Data().GetAddressOf();
+	subobjects[current_index++] = local_root_sig;
+
+	// レイトレーシングパイプライン構成のサブオブジェクトを追加します
+	D3D12_RAYTRACING_PIPELINE_CONFIG pipeline_config = {};
+	pipeline_config.MaxTraceRecursionDepth = desc.max_trace_recursion_depth;
+
+	D3D12_STATE_SUBOBJECT pipeline_config_pbject = {};
+	pipeline_config_pbject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
+	pipeline_config_pbject.pDesc = &pipeline_config;
+	subobjects[current_index++] = pipeline_config_pbject;
+
+	// レイトレーシングパイプラインステートオブジェクトを記述します
+	D3D12_STATE_OBJECT_DESC pipeline_desc = {};
+	pipeline_desc.Type = D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE;
+	pipeline_desc.NumSubobjects = SCAST<UINT>(subobject_count);
+	pipeline_desc.pSubobjects = subobjects.data();
+
+	// ステートオブジェクトを作成
+	hr = device->CreateStateObject(&pipeline_desc, IID_PPV_ARGS(m_state_object.ReleaseAndGetAddressOf()));
+	RCHECK_HR(hr, "ステートオブジェクトの作成に失敗");
 
 	return hr;
 }

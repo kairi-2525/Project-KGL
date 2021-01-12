@@ -60,3 +60,28 @@ DXR::Signature::Signature(
 		RuntimeErrorStop(exception);
 	}
 }
+
+DXR::DummySignature::DummySignature(
+	ComPtrC<ID3D12Device> device,
+	D3D12_ROOT_SIGNATURE_FLAGS flags) noexcept
+{
+	HRESULT hr = S_OK;
+
+	D3D12_ROOT_SIGNATURE_DESC root_desc = {};
+	root_desc.NumParameters = 0;
+	root_desc.pParameters = nullptr;
+	root_desc.Flags = flags;
+
+	ComPtr<ID3DBlob> sig_blob, error_blob;
+
+	hr = D3D12SerializeRootSignature(
+		&root_desc, D3D_ROOT_SIGNATURE_VERSION_1,
+		sig_blob.GetAddressOf(),
+		error_blob.GetAddressOf());
+	RCHECK_STR(FAILED(hr), "[DummySignature] ÇÃRootSignatureSerializeÇ…é∏îs", "DXRópRootSignatureÇÃSerializeÇ…é∏îs");
+
+	hr = device->CreateRootSignature(
+		0, sig_blob->GetBufferPointer(), sig_blob->GetBufferSize(),
+		IID_PPV_ARGS(m_rs.ReleaseAndGetAddressOf()));
+	RCHECK_STR(FAILED(hr), "[DummySignature] ÇÃRootSignatureê∂ê¨Ç…é∏îs", "DXRópRootSignatureÇÃê∂ê¨Ç…é∏îs");
+}
