@@ -35,6 +35,12 @@ DXR::Signature::Signature(
 			{
 				data.entry_points[i] = CONVERT::MultiToWide(shader.entry_points[i]);
 			}
+			const size_t symbol_size = shader.symbols.size();
+			data.symbols.resize(symbol_size);
+			for (size_t i = 0u; i < symbol_size; i++)
+			{
+				data.symbols[i] = CONVERT::MultiToWide(shader.symbols[i]);
+			}
 
 			// root signature ‚ðì¬
 			D3D12_ROOT_SIGNATURE_DESC root_desc = {};
@@ -53,6 +59,10 @@ DXR::Signature::Signature(
 				0, sig_blob->GetBufferPointer(), sig_blob->GetBufferSize(),
 				IID_PPV_ARGS(data.rs.ReleaseAndGetAddressOf()));
 			RCHECK_STR(FAILED(hr), "[" + it.first + "] ‚ÌRootSignature¶¬‚ÉŽ¸”s", "DXR—pRootSignature‚Ì¶¬‚ÉŽ¸”s");
+		
+#ifdef _DEBUG
+			data.rs->SetName(CONVERT::MultiToWide(it.first + "'s RootSignature").c_str());
+#endif
 		}
 	}
 	catch (std::runtime_error& exception)

@@ -24,7 +24,11 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	miss_sig.shader.entry_points.push_back("Miss");
 	hit_sig.shader.entry_points.push_back("ClosestHit");
 
-	// 今回は raygen シェーダーのみリソースが必要
+	raygen_sig.shader.symbols.push_back("RayGen");
+	miss_sig.shader.symbols.push_back("Miss");
+	hit_sig.shader.symbols.push_back("HitGroup");
+
+	// raygen シェーダー用リソース
 	std::vector<D3D12_DESCRIPTOR_RANGE> raygen_ranges(2);
 	CD3DX12_DESCRIPTOR_RANGE::Init(raygen_ranges[0], D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1u, 0u);
 	CD3DX12_DESCRIPTOR_RANGE::Init(raygen_ranges[1], D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
@@ -32,8 +36,18 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	raygen_param.InitAsDescriptorTable(SCAST<UINT>(raygen_ranges.size()), raygen_ranges.data());
 	raygen_sig.root_params.push_back(raygen_param);
 
+	// hit シェーダー用リソース
+	std::vector<D3D12_DESCRIPTOR_RANGE> hit_ranges(1);
+	CD3DX12_DESCRIPTOR_RANGE::Init(hit_ranges[0], D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1u, 0u);
+	CD3DX12_ROOT_PARAMETER hit_param;
+	hit_param.InitAsDescriptorTable(SCAST<UINT>(hit_ranges.size()), hit_ranges.data());
+	hit_sig.root_params.push_back(hit_param);
+
+
 	renderer_desc.hit_groups["HitGroup"] = "ClosestHit";
 	renderer_desc.max_trace_recursion_depth = 1u;
+	renderer_desc.shader_config.MaxPayloadSizeInBytes = 4 * sizeof(float); // RGB + distance
+	renderer_desc.shader_config.MaxAttributeSizeInBytes = 2 * sizeof(float); // 重心座標
 
 	dxr_renderer = std::make_shared<KGL::DXR::BaseRenderer>(dxr_device, desc.dxc, renderer_desc);
 

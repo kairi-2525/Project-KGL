@@ -2,6 +2,7 @@
 #include <Helper/Convert.hpp>
 #include <Helper/ThrowAssert.hpp>
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace KGL;
 
@@ -16,13 +17,17 @@ HRESULT DXR::BaseRenderer::Create(
 	DXR::Signature signature(device, dxc, desc.signatures);
 	DXR::DummySignature global_signature(device);
 	DXR::DummySignature local_signature(device, D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE);
+#ifdef _DEBUG
+	global_signature.Data()->SetName(L"Global RootSignature");
+	local_signature.Data()->SetName(L"Local RootSignature");
+#endif
 
 	const auto& sigs = signature.GetData();
 	const size_t sig_size = sigs.size();
 
 	const UINT64 subobject_count =
 		3 * sigs.size() + // シェーダー+ルートシグネチャ宣言+関連付け
-		3 * desc.hit_groups.size() +
+		desc.hit_groups.size() +
 		1 + // シェーダー構成
 		1 + // シェーダーペイロード
 		2 + // 空のグローバルおよびローカルルートシグネチャ
@@ -32,18 +37,20 @@ HRESULT DXR::BaseRenderer::Create(
 	std::vector<D3D12_DXIL_LIBRARY_DESC> libraries(sig_size);
 	std::vector<std::vector<D3D12_EXPORT_DESC>> export_desc_list(sig_size);
 	std::unordered_set<std::wstring> exports;
-	std::vector<std::wstring> w_shader_names;
-	std::vector<LPCWSTR> w_shader_name_pointers;
-	w_shader_names.reserve(sig_size);
-	w_shader_name_pointers.reserve(sig_size);
+	std::unordered_map<std::string, std::vector<LPCWSTR>> w_symbol_pointers;
 
 	UINT current_index = 0;
 	for (const auto& sig : sigs)
 	{
 		// shader名をポインターで保存
-		w_shader_name_pointers.emplace_back(
-			w_shader_names.emplace_back(CONVERT::MultiToWide(sig.first)).c_str()
-		);
+		auto& wsnp = w_symbol_pointers[sig.first];
+
+		const size_t symbol_size = sig.second.symbols.size();
+		wsnp.resize(symbol_size);
+		for (size_t i = 0u; i < symbol_size; i++)
+		{
+			wsnp[i] = sig.second.symbols[i].c_str();
+		}
 
 		const auto& shader = sig.second.shader;
 		const auto& ep_list = sig.second.entry_points;
@@ -111,6 +118,8 @@ HRESULT DXR::BaseRenderer::Create(
 	}
 #endif
 
+
+
 	// シェーダーペイロード構成のサブオブジェクトを追加します
 	D3D12_STATE_SUBOBJECT shader_config_object = {};
 	shader_config_object.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
@@ -146,29 +155,24 @@ HRESULT DXR::BaseRenderer::Create(
 	// もう1つはそのルートシグネチャをシンボルのセットに関連付けるためのものです。
 	std::vector<D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION> associations;
 	associations.reserve(sig_size);
+	for (const auto& sig : sigs)
 	{
-		size_t index = 0u;
-		for (const auto& sig : sigs)
-		{
-			// ルートシグネチャを宣言するサブオブジェクトを追加します
-			D3D12_STATE_SUBOBJECT root_sig_object = {};
-			root_sig_object.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-			root_sig_object.pDesc = sig.second.rs.GetAddressOf();
-			subobjects[current_index++] = root_sig_object;
+		// ルートシグネチャを宣言するサブオブジェクトを追加します
+		D3D12_STATE_SUBOBJECT root_sig_object = {};
+		root_sig_object.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+		root_sig_object.pDesc = sig.second.rs.GetAddressOf();
+		subobjects[current_index++] = root_sig_object;
 
-			// エクスポートされたシェーダシンボルとルートシグネチャの関連付けのためのサブオブジェクトを追加します。
-			auto& association = associations.emplace_back();
-			association.NumExports = SCAST<UINT>(w_shader_name_pointers.size());
-			association.pExports = w_shader_name_pointers.data();
-			association.pSubobjectToAssociate = &subobjects[(current_index - 1)];
+		// エクスポートされたシェーダシンボルとルートシグネチャの関連付けのためのサブオブジェクトを追加します。
+		auto& association = associations.emplace_back();
+		association.NumExports = SCAST<UINT>(w_symbol_pointers.at(sig.first).size());
+		association.pExports = w_symbol_pointers.at(sig.first).data();
+		association.pSubobjectToAssociate = &subobjects[(current_index - 1)];
 
-			D3D12_STATE_SUBOBJECT root_sig_association_object = {};
-			root_sig_association_object.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-			root_sig_association_object.pDesc = &association;
-			subobjects[current_index++] = root_sig_association_object;
-
-			index++;
-		}
+		D3D12_STATE_SUBOBJECT root_sig_association_object = {};
+		root_sig_association_object.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+		root_sig_association_object.pDesc = &association;
+		subobjects[current_index++] = root_sig_association_object;
 	}
 
 	// パイプラインの構築には、常に空のグローバルルートシグネチャが必要

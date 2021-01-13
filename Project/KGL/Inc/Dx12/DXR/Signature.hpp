@@ -15,6 +15,7 @@ namespace KGL
 				std::filesystem::path	hlsl;
 				std::string				version;
 				std::vector<std::string> entry_points;
+				std::vector<std::string> symbols;
 			};
 
 			struct SignatureDesc
@@ -32,6 +33,7 @@ namespace KGL
 				{
 					ComPtr<ID3DBlob>			shader;
 					std::vector<std::wstring>	entry_points;
+					std::vector<std::wstring>	symbols;
 					ComPtr<ID3D12RootSignature> rs;
 				};
 			private:

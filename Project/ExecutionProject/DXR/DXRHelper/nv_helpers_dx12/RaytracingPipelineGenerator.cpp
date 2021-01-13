@@ -183,7 +183,6 @@ ID3D12StateObject* RayTracingPipelineGenerator::Generate()
   D3D12_STATE_SUBOBJECT shaderConfigObject = {};
   shaderConfigObject.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG;
   shaderConfigObject.pDesc = &shaderDesc;
-
   subobjects[currentIndex++] = shaderConfigObject;
 
   // Build a list of all the symbols for ray generation, miss and hit groups
