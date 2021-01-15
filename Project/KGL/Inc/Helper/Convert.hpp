@@ -30,6 +30,14 @@ namespace KGL
 			extern std::string StrToUpper(std::string const& src) noexcept;
 			// 小文字に変換
 			extern std::string StrToLower(std::string const& src) noexcept;
+
+			// サイズをアライメントする
+			template<class _Ty0 = UINT, class _Ty1 = UINT>
+			extern inline constexpr _Ty0 RoundUp(_Ty0 val, _Ty1 alignment_size) noexcept
+			{
+				alignment_size--;
+				return (val + alignment_size) & ~alignment_size;
+			}
 		}
 	}
 }

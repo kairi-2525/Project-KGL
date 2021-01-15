@@ -45,6 +45,7 @@
     <ClInclude Include="Inc\Dx12\DescriptorHeap.hpp" />
     <ClInclude Include="Inc\Dx12\DXR\AccelerationStructure.hpp" />
     <ClInclude Include="Inc\Dx12\DXR\Renderer.hpp" />
+    <ClInclude Include="Inc\Dx12\DXR\ShaderBindingTable.hpp" />
     <ClInclude Include="Inc\Dx12\DXR\Signature.hpp" />
     <ClInclude Include="Inc\Dx12\DXR\StaticModel.hpp" />
     <ClInclude Include="Inc\Dx12\Helper.hpp" />
@@ -93,6 +94,7 @@
     <ClCompile Include="Src\Dx12\ConstantBuffer.cpp" />
     <ClCompile Include="Src\Dx12\DXR\AccelerationStructure.cpp" />
     <ClCompile Include="Src\Dx12\DXR\Renderer.cpp" />
+    <ClCompile Include="Src\Dx12\DXR\ShaderBindingTable.cpp" />
     <ClCompile Include="Src\Dx12\DXR\Signature.cpp" />
     <ClCompile Include="Src\Dx12\DXR\StaticModel.cpp" />
     <ClCompile Include="Src\Helper\JIS_X_0208.cpp" />

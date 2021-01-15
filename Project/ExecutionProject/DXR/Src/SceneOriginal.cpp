@@ -54,6 +54,30 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 	return S_OK;
 }
 
+HRESULT SceneOriginal::CreateShaderResource(const SceneDesc& desc)
+{
+	sr_discriptor = std::make_shared<KGL::DescriptorManager>(dxr_device, 2u);
+	sr_handle = std::make_shared<KGL::DescriptorHandle>(sr_discriptor->Alloc());
+}
+
+HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
+{
+	KGL::DXR::SBT::Desc sbt_desc = {};
+
+	auto sbt_raygen = sbt_desc.raygen_table.emplace_back("RayGen");
+	sbt_raygen.input_data.push_back(RCAST<UINT64*>(sr_handle->Gpu().ptr));
+
+	// ミスシェーダーとヒットシェーダーは外部リソースにアクセスせず、
+	// 代わりにレイペイロードを通じて結果を伝達します。
+	sbt_desc.miss_table.emplace_back("Miss");	// カメラレイ用とシャドウレイ用のミスシェーダーがあるため
+	sbt_desc.miss_table.emplace_back("Miss");
+
+	auto& sbt_hit_group = sbt_desc.hit_group_table.emplace_back("HitGroup");
+	sbt_hit_group.input_data.push_back(); // TODO 頂点リソースを割り当てる (SceneMain Line 350)
+
+	dxr_sbt = std::make_shared<KGL::DXR::SBT>(sbt_desc);
+}
+
 HRESULT SceneOriginal::Load(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
@@ -128,8 +152,11 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		desc.app->GetQueue()->Data()->ExecuteCommandLists(1, dxr_cmd_lists);
 		desc.app->GetQueue()->Signal();
 
-		// 処理中にPSOを作成
+		// 処理中にその他準備物を作成
 		CreatePSO(desc);
+		CreateShaderResource(desc);
+		CreateSBT(desc);
+
 
 		desc.app->GetQueue()->Wait();
 

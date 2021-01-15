@@ -11,6 +11,7 @@
 #include <Base/DXC.hpp>
 #include <Dx12/DXR/StaticModel.hpp>
 #include <Dx12/DXR/Renderer.hpp>
+#include <Dx12/DXR/ShaderBindingTable.hpp>
 
 struct SceneDesc
 {
@@ -114,8 +115,13 @@ public:
 
 	std::shared_ptr<KGL::DXR::StaticModel>				smodel;
 	std::shared_ptr<KGL::DXR::BaseRenderer>				dxr_renderer;
+	std::shared_ptr<KGL::DXR::SBT>						dxr_sbt;
+	std::shared_ptr<KGL::DescriptorManager>				sr_discriptor;
+	std::shared_ptr<KGL::DescriptorHandle>				sr_handle;
 private:
 	HRESULT CreatePSO(const SceneDesc& desc);
+	HRESULT CreateShaderResource(const SceneDesc& desc);
+	HRESULT CreateSBT(const SceneDesc& desc);
 public:
 	HRESULT Load(const SceneDesc& desc) override;
 	HRESULT Init(const SceneDesc& desc) override;
