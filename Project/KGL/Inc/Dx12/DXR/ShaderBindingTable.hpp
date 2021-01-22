@@ -7,7 +7,7 @@
 #include <vector>
 #include <string>
 
-#include <d3d12.h>
+#include "../ConstantBuffer.hpp"
 
 namespace KGL
 {
@@ -53,10 +53,14 @@ namespace KGL
 				};
 			private:
 				PrivateDesc m_desc;
+				std::shared_ptr<KGL::ResourcesBase> m_storage_resource;
 			private:
 				void ConvertDesc(const Desc& desc) noexcept;
 			public:
-				explicit ShaderBindingTable(const Desc& desc) noexcept;
+				explicit ShaderBindingTable(
+					ComPtrC<ID3D12Device> device,
+					const Desc& desc
+				) noexcept;
 				D3D12_DISPATCH_RAYS_DESC GenerateRayDesc(
 					D3D12_GPU_VIRTUAL_ADDRESS start_addres
 				) const noexcept {
@@ -64,10 +68,21 @@ namespace KGL
 					GenerateRayDesc(&ray_desc, start_addres);
 					return ray_desc;
 				}
+				D3D12_DISPATCH_RAYS_DESC GenerateRayDesc()
+				{
+					return GenerateRayDesc(m_storage_resource->Data()->GetGPUVirtualAddress());
+				}
 				void GenerateRayDesc(
 					D3D12_DISPATCH_RAYS_DESC* out_desc,
 					D3D12_GPU_VIRTUAL_ADDRESS start_addres
 				) const noexcept;
+				void GenerateRayDesc(
+					D3D12_DISPATCH_RAYS_DESC* out_desc
+				) const noexcept
+				{
+					return GenerateRayDesc(out_desc, m_storage_resource->Data()->GetGPUVirtualAddress());
+				}
+				UINT64 StorageSize() const noexcept;
 			};
 			using SBT = ShaderBindingTable;
 		}

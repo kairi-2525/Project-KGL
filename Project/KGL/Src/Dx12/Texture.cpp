@@ -440,14 +440,15 @@ HRESULT Texture::Create(
 
 	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 
-	m_clear_value = std::make_unique<D3D12_CLEAR_VALUE>(clear_value);
+	if (clear_value.Format != DXGI_FORMAT::DXGI_FORMAT_UNKNOWN)
+		m_clear_value = std::make_unique<D3D12_CLEAR_VALUE>(clear_value);
 	// バッファ作成
 	auto hr = device->CreateCommittedResource(
 		&heap_prop,
 		D3D12_HEAP_FLAG_NONE,
 		&res_desc,	
 		res_state,
-		&clear_value,
+		m_clear_value.get(),
 		IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
 	);
 	RCHECK(FAILED(hr), "CreateCommittedResourceに失敗", hr);
@@ -501,7 +502,7 @@ bool TextureBase::SetRB(ComPtrC<ID3D12GraphicsCommandList> cmd_list, D3D12_RESOU
 }
 
 // SRVを作成
-HRESULT TextureBase::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension) const noexcept
+HRESULT TextureBase::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION dimension) const noexcept
 {
 	HRESULT hr = S_OK;
 	if (p_handle)
@@ -510,7 +511,7 @@ HRESULT TextureBase::CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle,
 
 		// SRV用Desc
 		D3D12_SHADER_RESOURCE_VIEW_DESC srv_desc = {};
-		srv_desc.ViewDimension = srv_dimension;
+		srv_desc.ViewDimension = dimension;
 		srv_desc.Texture2D.MipLevels = desc.MipLevels;
 		srv_desc.Format = desc.Format;
 		srv_desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -619,6 +620,34 @@ HRESULT TextureBase::CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle)
 		dsv_desc.Flags = D3D12_DSV_FLAG_NONE;	// フラグ無し
 
 		device->CreateDepthStencilView(m_buffer.Get(), &dsv_desc, p_handle->Cpu());
+	}
+	else
+	{
+		hr = E_FAIL;
+	}
+	return hr;
+}
+// UAVを作成
+HRESULT TextureBase::CreateUAVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_UAV_DIMENSION dimension) const noexcept
+{
+	HRESULT hr = S_OK;
+	if (p_handle)
+	{
+		const auto& desc = m_buffer->GetDesc();
+
+		// SRV用Desc
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uav_desc = {};
+		uav_desc.ViewDimension = dimension;
+
+		ComPtr<ID3D12Device> device;
+		hr = m_buffer->GetDevice(IID_PPV_ARGS(device.GetAddressOf()));
+		RCHECK_HR(hr, "m_buffer->GetDeviceに失敗");
+		device->CreateUnorderedAccessView(
+			m_buffer.Get(),
+			nullptr,
+			&uav_desc,
+			p_handle->Cpu()
+		);
 	}
 	else
 	{

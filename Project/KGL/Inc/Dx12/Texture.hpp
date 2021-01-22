@@ -59,9 +59,10 @@ namespace KGL
 			D3D12_RESOURCE_BARRIER RB(D3D12_RESOURCE_STATES after) noexcept { return RB(m_resource_state, after); }
 			bool SetRB(ComPtrC<ID3D12GraphicsCommandList> cmd_list, D3D12_RESOURCE_STATES after) noexcept;
 			D3D12_RESOURCE_STATES GetState() const noexcept { return m_resource_state; }
-			HRESULT CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION srv_dimension = D3D12_SRV_DIMENSION_TEXTURE2D) const noexcept;
+			HRESULT CreateSRVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_SRV_DIMENSION dimension = D3D12_SRV_DIMENSION_TEXTURE2D) const noexcept;
 			HRESULT CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
 			HRESULT CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
+			HRESULT CreateUAVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_UAV_DIMENSION dimension = D3D12_UAV_DIMENSION_TEXTURE2D) const noexcept;
 		};
 		class Texture : public TextureBase
 		{
@@ -101,7 +102,7 @@ namespace KGL
 			// フォーマット指定空テクスチャ
 			explicit Texture(
 				ComPtr<ID3D12Device> device,
-				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value,
+				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value = {},
 				D3D12_RESOURCE_STATES res_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) noexcept
 			{
 				auto hr = Create(device, res_desc, clear_value, res_state); AssertLoadResult(hr, m_path.string());
@@ -138,7 +139,7 @@ namespace KGL
 				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 256, TextureManager* mgr = nullptr) noexcept;
 			// フォーマット指定空テクスチャ
 			HRESULT Create(ComPtr<ID3D12Device> device,
-				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value,
+				const D3D12_RESOURCE_DESC& res_desc, const D3D12_CLEAR_VALUE& clear_value = {},
 				D3D12_RESOURCE_STATES res_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) noexcept;
 			// 作成済みのテクスチャをもとに作成
 			HRESULT Create(ComPtrC<ID3D12Device> device,

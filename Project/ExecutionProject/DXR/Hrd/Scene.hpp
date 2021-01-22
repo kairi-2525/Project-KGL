@@ -116,8 +116,10 @@ public:
 	std::shared_ptr<KGL::DXR::StaticModel>				smodel;
 	std::shared_ptr<KGL::DXR::BaseRenderer>				dxr_renderer;
 	std::shared_ptr<KGL::DXR::SBT>						dxr_sbt;
-	std::shared_ptr<KGL::DescriptorManager>				sr_discriptor;
-	std::shared_ptr<KGL::DescriptorHandle>				sr_handle;
+	std::shared_ptr<KGL::DescriptorManager>				srv_uav_discriptor;
+	std::shared_ptr<KGL::DescriptorHandle>				output_uav_handle;
+	std::shared_ptr<KGL::DXR::StaticModel>				dxr_model;
+	std::shared_ptr<KGL::Texture>						dxr_output_tex;
 private:
 	HRESULT CreatePSO(const SceneDesc& desc);
 	HRESULT CreateShaderResource(const SceneDesc& desc);

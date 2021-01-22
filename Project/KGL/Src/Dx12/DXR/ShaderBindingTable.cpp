@@ -45,9 +45,22 @@ void DXR::ShaderBindingTable::ConvertDesc(const Desc& desc) noexcept
 	m_desc.hit_group_entry_size = ConvertTable(&m_desc.hit_group_table, desc.hit_group_table);
 }
 
-DXR::ShaderBindingTable::ShaderBindingTable(const Desc& desc) noexcept
+DXR::ShaderBindingTable::ShaderBindingTable(
+	ComPtrC<ID3D12Device> device,
+	const Desc& desc
+) noexcept
 {
 	ConvertDesc(desc);
+
+	const D3D12_HEAP_PROPERTIES upload_heap_props = {
+		D3D12_HEAP_TYPE_UPLOAD, D3D12_CPU_PAGE_PROPERTY_UNKNOWN, D3D12_MEMORY_POOL_UNKNOWN, 0, 0 
+	};
+
+	m_storage_resource = std::make_shared<KGL::ResourcesBase>(
+		device, StorageSize(), &upload_heap_props,
+		D3D12_RESOURCE_FLAG_NONE,
+		D3D12_RESOURCE_STATE_GENERIC_READ
+		);
 }
 
 void DXR::ShaderBindingTable::GenerateRayDesc(
@@ -73,4 +86,14 @@ void DXR::ShaderBindingTable::GenerateRayDesc(
 	hit_group_desc.StartAddress = miss_desc.StartAddress + miss_desc.SizeInBytes;
 	hit_group_desc.SizeInBytes = m_desc.hit_group_entry_size * SCAST<UINT64>(m_desc.hit_group_table.size());
 	hit_group_desc.StrideInBytes = m_desc.hit_group_entry_size;
+}
+
+UINT64 DXR::ShaderBindingTable::StorageSize() const noexcept
+{
+	return CONVERT::RoundUp(
+		m_desc.raygen_entry_size * m_desc.raygen_table.size() +
+		m_desc.miss_entry_size * m_desc.miss_table.size() +
+		m_desc.hit_group_entry_size * m_desc.hit_group_table.size(),
+		256 // 256 byte ÉAÉâÉCÉÅÉìÉg
+	);
 }

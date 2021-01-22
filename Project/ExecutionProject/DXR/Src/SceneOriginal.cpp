@@ -56,8 +56,25 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 
 HRESULT SceneOriginal::CreateShaderResource(const SceneDesc& desc)
 {
-	sr_discriptor = std::make_shared<KGL::DescriptorManager>(dxr_device, 2u);
-	sr_handle = std::make_shared<KGL::DescriptorHandle>(sr_discriptor->Alloc());
+	const auto& resolution = desc.app->GetResolution();
+
+	srv_uav_discriptor = std::make_shared<KGL::DescriptorManager>(dxr_device, 2u);
+	output_uav_handle = std::make_shared<KGL::DescriptorHandle>(srv_uav_discriptor->Alloc());
+
+	D3D12_RESOURCE_DESC res_desc = {};
+	res_desc.DepthOrArraySize = 1;
+	res_desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	res_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	res_desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	res_desc.Width = resolution.x;
+	res_desc.Height = resolution.y;
+	res_desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	res_desc.MipLevels = 1;
+	res_desc.SampleDesc.Count = 1;
+
+	dxr_output_tex = std::make_shared<KGL::Texture>(dxr_device, res_desc, D3D12_CLEAR_VALUE(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+	dxr_output_tex->CreateUAVHandle(output_uav_handle);
+	return S_OK;
 }
 
 HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
@@ -65,7 +82,7 @@ HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
 	KGL::DXR::SBT::Desc sbt_desc = {};
 
 	auto sbt_raygen = sbt_desc.raygen_table.emplace_back("RayGen");
-	sbt_raygen.input_data.push_back(RCAST<UINT64*>(sr_handle->Gpu().ptr));
+	sbt_raygen.input_data.push_back(RCAST<UINT64*>(output_uav_handle->Gpu().ptr));
 
 	// ミスシェーダーとヒットシェーダーは外部リソースにアクセスせず、
 	// 代わりにレイペイロードを通じて結果を伝達します。
@@ -73,9 +90,12 @@ HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
 	sbt_desc.miss_table.emplace_back("Miss");
 
 	auto& sbt_hit_group = sbt_desc.hit_group_table.emplace_back("HitGroup");
-	sbt_hit_group.input_data.push_back(); // TODO 頂点リソースを割り当てる (SceneMain Line 350)
+	const auto& vertices_data = dxr_model->GetMaterials().begin()->second.rs_vertices->Data();
+	sbt_hit_group.input_data.push_back((void*)(vertices_data->GetGPUVirtualAddress()));
 
 	dxr_sbt = std::make_shared<KGL::DXR::SBT>(sbt_desc);
+
+	return S_OK;
 }
 
 HRESULT SceneOriginal::Load(const SceneDesc& desc)
@@ -141,10 +161,10 @@ HRESULT SceneOriginal::Load(const SceneDesc& desc)
 		auto loader = std::make_shared<KGL::OBJ_Loader>("./Assets/Models/Slime/Slime.obj", true);
 		if (!loader->IsFastLoad())
 			loader->Export(loader->GetPath());
-		auto model = std::make_shared<KGL::DXR::StaticModel>(dxr_device, dxr_cmd_list, loader);
+		dxr_model = std::make_shared<KGL::DXR::StaticModel>(dxr_device, dxr_cmd_list, loader);
 		
 		std::vector<KGL::DXR::BLAS> instances;
-		instances.push_back(model->GetBLAS());
+		instances.push_back(dxr_model->GetBLAS());
 		auto tlas = KGL::DXR::CreateTLAS(dxr_device, dxr_cmd_list, instances);
 
 		dxr_cmd_list->Close();
@@ -199,11 +219,11 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 
 	using KGL::SCAST;
-	auto window_size = desc.window->GetClientSize();
+	auto resolution = desc.app->GetResolution();
 
 	D3D12_VIEWPORT viewport = {};
-	viewport.Width = SCAST<FLOAT>(window_size.x);
-	viewport.Height = SCAST<FLOAT>(window_size.y);
+	viewport.Width = SCAST<FLOAT>(resolution.x);
+	viewport.Height = SCAST<FLOAT>(resolution.y);
 	viewport.TopLeftX = 0;//出力先の左上座標X
 	viewport.TopLeftY = 0;//出力先の左上座標Y
 	viewport.MaxDepth = 1.0f;//深度最大値
@@ -211,7 +231,7 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 
 	auto scissorrect = CD3DX12_RECT(
 		0, 0,
-		window_size.x, window_size.y
+		resolution.x, resolution.y
 	);
 
 	if (raster)
@@ -234,6 +254,24 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 	}
 	else
 	{
+		const auto& rbrt = desc.app->GetRtvResourceBarrier(true);
+		dxr_cmd_list->ResourceBarrier(1, &rbrt);
+
+		std::vector<ID3D12DescriptorHeap*> heaps = { srv_uav_discriptor->Heap().Get() };
+		dxr_cmd_list->SetDescriptorHeaps(SCAST<UINT>(heaps.size()), heaps.data());
+
+		// OutputテクスチャをUAV用リソースに切り替え
+		const auto& transition = dxr_output_tex->RB(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
+
+		{
+			D3D12_DISPATCH_RAYS_DESC ray_desc = {};
+			dxr_sbt->GenerateRayDesc(&ray_desc);
+
+			ray_desc.Width = resolution.x;
+			ray_desc.Height = resolution.y;
+			ray_desc.Depth = 1;
+		}
 	}
 
 	dxr_cmd_list->Close();

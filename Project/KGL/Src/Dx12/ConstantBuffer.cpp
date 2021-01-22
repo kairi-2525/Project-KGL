@@ -59,6 +59,59 @@ ResourcesBase::ResourcesBase(
 	}
 }
 
+ResourcesBase::ResourcesBase(
+	ComPtrC<ID3D12Device> device,
+	UINT64 size_in_bytes,
+	const D3D12_HEAP_PROPERTIES* prop,
+	D3D12_RESOURCE_FLAGS flag,
+	D3D12_RESOURCE_STATES state
+) noexcept :
+	m_size_in_bytes(size_in_bytes), m_size(0u)
+{
+	D3D12_RESOURCE_DESC res_desc = {};
+	res_desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	res_desc.Alignment = 0u;
+	res_desc.Width = m_size_in_bytes;
+	res_desc.Height = 1u;
+	res_desc.DepthOrArraySize = 1u;
+	res_desc.MipLevels = 1u;
+	res_desc.Format = DXGI_FORMAT_UNKNOWN;
+	res_desc.SampleDesc.Count = 1;
+	res_desc.SampleDesc.Quality = 0;
+	res_desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	res_desc.Flags = flag;
+	if (prop)
+	{
+		auto hr = device->CreateCommittedResource(
+			prop,
+			D3D12_HEAP_FLAG_NONE,
+			&res_desc,
+			state,
+			nullptr,
+			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s");
+	}
+	else
+	{
+		D3D12_HEAP_PROPERTIES propeties = {};
+		propeties.Type = D3D12_HEAP_TYPE_UPLOAD;
+		propeties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		propeties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		propeties.CreationNodeMask = 1;
+		propeties.VisibleNodeMask = 1;
+		auto hr = device->CreateCommittedResource(
+			&propeties,
+			D3D12_HEAP_FLAG_NONE,
+			&res_desc,
+			state,
+			nullptr,
+			IID_PPV_ARGS(m_buffer.ReleaseAndGetAddressOf())
+		);
+		RCHECK(FAILED(hr), "CreateCommittedResource‚ÉŽ¸”s");
+	}
+}
+
 HRESULT ResourcesBase::CreateCBV(
 	D3D12_GPU_VIRTUAL_ADDRESS address,
 	UINT size,

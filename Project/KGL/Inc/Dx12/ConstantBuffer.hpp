@@ -39,6 +39,13 @@ namespace KGL
 				D3D12_RESOURCE_FLAGS flag,
 				D3D12_RESOURCE_STATES state
 			) noexcept;
+			ResourcesBase(
+				ComPtrC<ID3D12Device> device,
+				UINT64 size_in_bytes,
+				const D3D12_HEAP_PROPERTIES* prop,
+				D3D12_RESOURCE_FLAGS flag,
+				D3D12_RESOURCE_STATES state
+			) noexcept;
 			virtual ~ResourcesBase() = default;
 
 			ComPtrC<ID3D12Resource> Data() const noexcept { return m_buffer; }
