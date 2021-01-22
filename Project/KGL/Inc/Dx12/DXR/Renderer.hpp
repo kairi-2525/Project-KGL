@@ -38,6 +38,7 @@ namespace KGL
 				{
 					Create(device, dxc, desc);
 				}
+				void Set(ComPtrC<ID3D12GraphicsCommandList4> cmd_list) const noexcept;
 			};
 		}
 	}

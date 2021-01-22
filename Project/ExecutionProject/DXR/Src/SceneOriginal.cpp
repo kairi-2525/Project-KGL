@@ -81,7 +81,7 @@ HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
 {
 	KGL::DXR::SBT::Desc sbt_desc = {};
 
-	auto sbt_raygen = sbt_desc.raygen_table.emplace_back("RayGen");
+	auto& sbt_raygen = sbt_desc.raygen_table.emplace_back("RayGen");
 	sbt_raygen.input_data.push_back(RCAST<UINT64*>(output_uav_handle->Gpu().ptr));
 
 	// ミスシェーダーとヒットシェーダーは外部リソースにアクセスせず、
@@ -93,7 +93,7 @@ HRESULT SceneOriginal::CreateSBT(const SceneDesc& desc)
 	const auto& vertices_data = dxr_model->GetMaterials().begin()->second.rs_vertices->Data();
 	sbt_hit_group.input_data.push_back((void*)(vertices_data->GetGPUVirtualAddress()));
 
-	dxr_sbt = std::make_shared<KGL::DXR::SBT>(sbt_desc);
+	dxr_sbt = std::make_shared<KGL::DXR::SBT>(dxr_device, sbt_desc);
 
 	return S_OK;
 }
@@ -191,7 +191,7 @@ HRESULT SceneOriginal::Init(const SceneDesc& desc)
 {
 	HRESULT hr = S_OK;
 
-	raster = true;
+	raster = false;
 
 	return hr;
 }
@@ -261,7 +261,7 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 		dxr_cmd_list->SetDescriptorHeaps(SCAST<UINT>(heaps.size()), heaps.data());
 
 		// OutputテクスチャをUAV用リソースに切り替え
-		const auto& transition = dxr_output_tex->RB(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		auto transition = dxr_output_tex->RB(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 		dxr_cmd_list->ResourceBarrier(1, &transition);
 
 		{
@@ -271,7 +271,32 @@ HRESULT SceneOriginal::Render(const SceneDesc& desc)
 			ray_desc.Width = resolution.x;
 			ray_desc.Height = resolution.y;
 			ray_desc.Depth = 1;
+
+			dxr_renderer->Set(dxr_cmd_list);
+			// 光線をディスパッチし、光線追跡出力に書き込みます
+			dxr_cmd_list->DispatchRays(&ray_desc);
 		}
+
+		// Outputテクスチャへ書きこみが完了したのでコピーリソースに切り替え、レンダーターゲットへコピーする
+		transition = dxr_output_tex->RB(D3D12_RESOURCE_STATE_COPY_SOURCE);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
+
+		const auto& back_buffer = desc.app->GetRtvBuffers().at(desc.app->GetSwapchain()->GetCurrentBackBufferIndex());
+		transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			back_buffer.Get(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET,
+			D3D12_RESOURCE_STATE_COPY_DEST
+		);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
+
+		dxr_cmd_list->CopyResource(back_buffer.Get(), dxr_output_tex->Data().Get());
+
+		transition = CD3DX12_RESOURCE_BARRIER::Transition(
+			back_buffer.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_PRESENT
+		);
+		dxr_cmd_list->ResourceBarrier(1, &transition);
 	}
 
 	dxr_cmd_list->Close();

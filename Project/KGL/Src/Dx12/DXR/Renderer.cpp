@@ -208,3 +208,8 @@ HRESULT DXR::BaseRenderer::Create(
 
 	return hr;
 }
+
+void DXR::BaseRenderer::Set(ComPtrC<ID3D12GraphicsCommandList4> cmd_list) const noexcept
+{
+	cmd_list->SetPipelineState1(m_state_object.Get());
+}
