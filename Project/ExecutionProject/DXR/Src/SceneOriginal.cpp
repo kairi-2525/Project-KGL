@@ -15,9 +15,9 @@ HRESULT SceneOriginal::CreatePSO(const SceneDesc& desc)
 		miss_sig.shader.version =
 			hit_sig.shader.version = "lib_6_3";
 
-	raygen_sig.shader.hlsl	= "./HLSL/DXR/RayGen.hlsl";
-	miss_sig.shader.hlsl	= "./HLSL/DXR/Miss.hlsl";
-	hit_sig.shader.hlsl		= "./HLSL/DXR/Hit.hlsl";
+	raygen_sig.shader.hlsl	= "./HLSL/DXR/StaticModel/RayGen.hlsl";
+	miss_sig.shader.hlsl	= "./HLSL/DXR/StaticModel/Miss.hlsl";
+	hit_sig.shader.hlsl		= "./HLSL/DXR/StaticModel/Hit.hlsl";
 
 	// entry_points(?)
 	raygen_sig.shader.entry_points.push_back("RayGen");

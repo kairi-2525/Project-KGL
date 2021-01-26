@@ -70,6 +70,9 @@
     <FxCompile Include="HLSL\DXR\Hit.hlsl" />
     <FxCompile Include="HLSL\DXR\Miss.hlsl" />
     <FxCompile Include="HLSL\DXR\RayGen.hlsl" />
+    <FxCompile Include="HLSL\DXR\StaticModel\Hit.hlsl" />
+    <FxCompile Include="HLSL\DXR\StaticModel\Miss.hlsl" />
+    <FxCompile Include="HLSL\DXR\StaticModel\RayGen.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HLSL\2D\Triangle.hlsli" />

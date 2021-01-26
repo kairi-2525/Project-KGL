@@ -25,6 +25,8 @@
 #define DEBUG_LAYER (false)
 #endif
 
+using StartScene = SceneMain;
+
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, KGL::Window* window)
@@ -95,7 +97,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
 				SceneDesc scene_desc = { window, app, dxc, input, imgui_heap, imgui_handle };
-				hr = scene_mgr.Init<SceneOriginal>(scene_desc);
+				hr = scene_mgr.Init<StartScene>(scene_desc);
 
 				HRESULT scene_hr = S_OK;
 				while (window->Update())
