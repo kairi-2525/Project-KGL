@@ -73,6 +73,7 @@ HRESULT SceneOriginal::CreateShaderResource(const SceneDesc& desc)
 	res_desc.SampleDesc.Count = 1;
 
 	dxr_output_tex = std::make_shared<KGL::Texture>(dxr_device, res_desc, D3D12_CLEAR_VALUE(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+	dxr_output_tex->SetName("DXR Output Texture");
 	dxr_output_tex->CreateUAVHandle(output_uav_handle);
 	return S_OK;
 }

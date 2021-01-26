@@ -8,6 +8,7 @@
 
 #include "../Helper/ComPtr.hpp"
 #include "../Helper/ThrowAssert.hpp"
+#include "../Helper/Convert.hpp"
 #include "../Loader/Loader.hpp"
 #include "DescriptorHeap.hpp"
 #include "SetName.hpp"
@@ -63,6 +64,8 @@ namespace KGL
 			HRESULT CreateRTVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
 			HRESULT CreateDSVHandle(std::shared_ptr<DescriptorHandle> p_handle) const noexcept;
 			HRESULT CreateUAVHandle(std::shared_ptr<DescriptorHandle> p_handle, D3D12_UAV_DIMENSION dimension = D3D12_UAV_DIMENSION_TEXTURE2D) const noexcept;
+		
+			HRESULT SetName(const std::string& name) noexcept;
 		};
 		class Texture : public TextureBase
 		{
@@ -73,7 +76,7 @@ namespace KGL
 				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, path, mip_level, mgr); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			// 画像テクスチャ(GPUロード : ※コマンドリストを実行完了して初めてロードされる)
 			explicit Texture(ComPtrC<ID3D12Device> device,
@@ -82,14 +85,14 @@ namespace KGL
 				const std::filesystem::path& path, UINT16 mip_level = 1u, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, cmd_list, upload_resources, path, mip_level, mgr); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			// 単色テクスチャ
 			explicit Texture(ComPtrC<ID3D12Device> device,
 				UCHAR r = 0xff, UCHAR g = 0xff, UCHAR b = 0xff, UCHAR a = 0xff, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, r, g, b, a, mgr); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			// グラデーションテクスチャ
 			explicit Texture(ComPtrC<ID3D12Device> device,
@@ -97,7 +100,7 @@ namespace KGL
 				UCHAR br, UCHAR bg, UCHAR bb, UCHAR ba, UINT16 height = 256, TextureManager* mgr = nullptr) noexcept
 			{
 				auto hr = Create(device, tr, tg, tb, ta, br, bg, bb, ba, height, mgr); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			// フォーマット指定空テクスチャ
 			explicit Texture(
@@ -106,20 +109,20 @@ namespace KGL
 				D3D12_RESOURCE_STATES res_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE) noexcept
 			{
 				auto hr = Create(device, res_desc, clear_value, res_state); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			// 作成済みのテクスチャをもとに作成
 			explicit Texture(ComPtrC<ID3D12Device> device,
 				const Texture& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 			{
 				auto hr = Create(device, resource, clear_value); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			explicit Texture(ComPtrC<ID3D12Device> device,
 				const ComPtr<ID3D12Resource>& resource, const DirectX::XMFLOAT4& clear_value) noexcept
 			{
 				auto hr = Create(device, resource, clear_value); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			
 			// 画像テクスチャ(CPUロード)
@@ -168,7 +171,7 @@ namespace KGL
 			) noexcept
 			{
 				auto hr = Create(device, size, format, clear_value, mip_level, resource_flgs, mgr); AssertLoadResult(hr, m_path.string());
-				SetName(m_buffer, RCAST<intptr_t>(m_buffer.Get()), m_path.wstring());
+				SetName(m_path.string());
 			}
 			HRESULT Create(
 				ComPtrC<ID3D12Device> device,

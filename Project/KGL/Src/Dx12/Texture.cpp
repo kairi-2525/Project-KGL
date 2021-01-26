@@ -435,7 +435,7 @@ HRESULT Texture::Create(
 	D3D12_RESOURCE_STATES res_state
 ) noexcept
 {
-	m_resource_state = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	m_resource_state = res_state;
 	if (m_path.empty()) m_path = "noname";
 
 	auto heap_prop = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
@@ -654,6 +654,15 @@ HRESULT TextureBase::CreateUAVHandle(std::shared_ptr<DescriptorHandle> p_handle,
 		hr = E_FAIL;
 	}
 	return hr;
+}
+
+HRESULT TextureBase::SetName(const std::string& name) noexcept
+{
+	return HELPER::SetName(
+		m_buffer,
+		RCAST<intptr_t>(m_buffer.Get()),
+		CONVERT::MultiToWide(name)
+	);
 }
 
 HRESULT TextureCube::Create(

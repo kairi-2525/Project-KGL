@@ -25,7 +25,7 @@
 #define DEBUG_LAYER (false)
 #endif
 
-using StartScene = SceneMain;
+using StartScene = SceneOriginal;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
