@@ -23,7 +23,7 @@ HRESULT TestScene09::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 
 	descriptor = std::make_shared<KGL::DescriptorManager>(device, 2u);

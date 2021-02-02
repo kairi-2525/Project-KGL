@@ -153,13 +153,13 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 	msaa_selector = std::make_shared<MSAASelector>(desc.app->GetMaxSampleCount());
 	const UINT msaa_type_count = SCAST<UINT>(msaa_selector->GetMaxScale()) + 1u;
 	// コンピュート用・描画用のコマンドアロケーター・コマンドリストを初期化
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &fast_cmd_allocator, &fast_cmd_list);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &fast_cmd_allocator, &fast_cmd_list);
 	RCHECK(FAILED(hr), "コマンドリストの作成に失敗", hr);
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &ptc_cmd_allocator, &ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &ptc_cmd_allocator, &ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &pl_ptc_cmd_allocator, &pl_ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &pl_ptc_cmd_allocator, &pl_ptc_cmd_list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	{	// コンピュート用
 		// コマンドキューの生成

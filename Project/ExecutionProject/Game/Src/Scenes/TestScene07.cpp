@@ -27,7 +27,7 @@ HRESULT TestScene07::Load(const SceneDesc& desc)
 	cpt_cmds.resize(SCAST<size_t>(step_max));
 	for (auto& cmd : cpt_cmds)
 	{
-		hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd.allocator, &cmd.list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
+		hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd.allocator, &cmd.list, D3D12_COMMAND_LIST_TYPE_COMPUTE);
 		RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
 	}
 

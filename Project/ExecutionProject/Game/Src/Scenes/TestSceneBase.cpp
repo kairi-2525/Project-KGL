@@ -14,7 +14,7 @@ HRESULT TestSceneBase::Load(const SceneDesc& desc)
 	HRESULT hr = S_OK;
 	const auto& device = desc.app->GetDevice();
 
-	hr = KGL::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
+	hr = KGL::DX12::HELPER::CreateCommandAllocatorAndList<ID3D12GraphicsCommandList>(device, &cmd_allocator, &cmd_list);
 	cmd_allocator->SetName(L"Main CA");
 	cmd_list->SetName(L"Main CL");
 	RCHECK(FAILED(hr), "コマンドアロケーター/リストの作成に失敗", hr);
