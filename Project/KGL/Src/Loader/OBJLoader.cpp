@@ -707,7 +707,7 @@ bool OBJ_Loader::LoadMaterials(
 
 		// 戻すための座標を保管
 		auto old_pos = ifs.tellg();
-
+		std::streampos vertex_old_pos;
 		ifs >> buff;
 
 		// コメントアウトをスキップ
@@ -732,27 +732,55 @@ bool OBJ_Loader::LoadMaterials(
 		// 頂点データ番号
 		else if (buff == "F")
 		{
+			old_pos;
 			// 3頂点分
 			for (UINT i = 0; i < 3; i++)
 			{
 				OBJ::Vertex vertex;
-				ifs >> vertex.position;
+				vertex_old_pos = ifs.tellg();
 				if (SCAST<char>(ifs.get()) != '/')
 				{
-					throw std::runtime_error(
-						"[ " + n_path.string() + " ] の読み込みに失敗\n"
-						+ "[フォーマットエラー]"
-					);
+					ifs.seekg(vertex_old_pos);
+					ifs >> vertex.position;
+					if (SCAST<char>(ifs.get()) != '/')
+					{
+						throw std::runtime_error(
+							"[ " + n_path.string() + " ] の読み込みに失敗\n"
+							+ "[フォーマットエラー]"
+						);
+					}
 				}
-				ifs >> vertex.uv;
+				else
+				{
+					vertex.position = 1u;
+				}
+				vertex_old_pos = ifs.tellg();
 				if (SCAST<char>(ifs.get()) != '/')
 				{
-					throw std::runtime_error(
-						"[ " + n_path.string() + " ] の読み込みに失敗\n"
-						+ "[フォーマットエラー]"
-					);
+					ifs.seekg(vertex_old_pos);
+					ifs >> vertex.uv;
+					if (SCAST<char>(ifs.get()) != '/')
+					{
+						throw std::runtime_error(
+							"[ " + n_path.string() + " ] の読み込みに失敗\n"
+							+ "[フォーマットエラー]"
+						);
+					}
 				}
-				ifs >> vertex.normal;
+				else
+				{
+					vertex.uv = 1u;
+				}
+				vertex_old_pos = ifs.tellg();
+				if (SCAST<char>(ifs.get()) != ' ')
+				{
+					ifs.seekg(vertex_old_pos);
+					ifs >> vertex.normal;
+				}
+				else
+				{
+					vertex.normal = 1u;
+				}
 
 				out_material->vertices.push_back(vertex);
 			}
