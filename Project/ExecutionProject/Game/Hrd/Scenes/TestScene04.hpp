@@ -32,6 +32,7 @@
 #include "../GUIManager.hpp"
 #include "../PlayerShotParameter.hpp"
 #include <unordered_map>
+#include <Base/Audio.hpp>
 
 class TestScene04 : public SceneBase
 {
@@ -149,6 +150,9 @@ private:
 	std::shared_ptr<FXAAManager>						fxaa_mgr;
 	std::shared_ptr<FSManager>							fs_mgr;
 	std::shared_ptr<GUIManager>							gui_mgr;
+
+	std::shared_ptr<KGL::AUDIO::Wave>					wave;
+	std::shared_ptr<KGL::AUDIO::Sound>					sound;
 private:
 	// レンダーターゲットとデプスステンシルを作成します。
 	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);

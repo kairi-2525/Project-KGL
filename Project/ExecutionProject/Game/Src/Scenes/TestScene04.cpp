@@ -596,6 +596,14 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		gui_mgr->SetDesc(gui_mgr_desc);
 	}
 
+	// サウンドの読み込み
+	{
+		wave = std::make_unique<KGL::AUDIO::Wave>(desc.audio, "./Assets/Sounds/ホイッスルループ.wav");
+		auto sound_desc = KGL::AUDIO::Sound::DEFAULT_DESC;
+		sound_desc.infinity_loop = true;
+		sound = wave->Generate(sound_desc);
+	}
+
 	ptc_tex_mgr->LoadWait();
 
 	return hr;
@@ -720,6 +728,9 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	pl_shot_param->random_color = true;
 	pl_shot_param->use_mass = false;
 	pl_shot_param->mass = PlayerShotParametor::BLACK_HOLL_MASS;
+
+	// 再生開始
+	sound->Play(0.f);
 
 	return S_OK;
 }

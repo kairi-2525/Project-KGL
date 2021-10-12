@@ -29,7 +29,7 @@
 #define DEBUG_LAYER (false)
 #endif
 
-using StartScene = LoadScene00<TestScene09>;
+using StartScene = LoadScene00<TestScene04>;
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
@@ -61,6 +61,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		std::shared_ptr<KGL::Window> window = std::make_shared<KGL::Window>(window_desc);
 #endif
 		std::shared_ptr<KGL::Input> input = std::make_shared<KGL::Input>(window->GetHWND());
+		std::shared_ptr<KGL::Audio> audio = std::make_shared<KGL::Audio>();
 
 		KGL::RefreshRate fps_counter;
 		window->Show();
@@ -114,7 +115,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				RCHECK(FAILED(hr), "ÉVÅ[ÉìÇÃèâä˙âªÇ…é∏îs", -1);
 
-				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle, dxc };
+				SceneDesc scene_desc = { app, window, input, imgui_heap, imgui_handle, dxc, audio };
 				hr = scene_mgr.Init<StartScene>(scene_desc);
 
 				DirectX::XMFLOAT4 clear_color = { 0.f, 0.f, 0.f, 1.f };
