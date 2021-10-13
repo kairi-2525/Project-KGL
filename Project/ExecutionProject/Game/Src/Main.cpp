@@ -126,7 +126,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					input->Update(!io.WantCaptureKeyboard, !io.WantCaptureMouse);
 					fps_counter.Update();
 					window->SetTitle("FPS : [" + std::to_string(fps_counter.GetRefreshRate()) + "]");
-					scene_hr = scene_mgr.Update(scene_desc, fps_counter.GetElpasedTime());
+					
+					auto elapsed_time = fps_counter.GetElpasedTime();
+					//audio->Update(elapsed_time);
+					scene_hr = scene_mgr.Update(scene_desc, elapsed_time);
 
 					if (FAILED(scene_hr))
 						break;

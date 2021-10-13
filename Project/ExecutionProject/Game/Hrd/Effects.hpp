@@ -26,6 +26,16 @@ class Fireworks;
 struct AffectObjects;
 struct EffectDesc;
 
+struct FireworksSound
+{
+	std::string name;
+	bool loop;
+	float start_pitch;
+	float end_pitch;
+	float start_volme;
+	float end_volme;
+};
+
 struct FireworksDesc
 {
 	DirectX::XMFLOAT3	pos;

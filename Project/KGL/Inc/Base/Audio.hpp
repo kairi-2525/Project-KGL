@@ -5,6 +5,7 @@
 #include <xaudio2.h>
 #include <filesystem>
 #include <memory>
+#include <list>
 #include <DirectXTKAudio/WAVFileReader.h>
 
 namespace DirectX
@@ -20,6 +21,7 @@ namespace KGL
 		{
 			using FILTER_TYPE = XAUDIO2_FILTER_TYPE;
 			class Wave;
+			class Sound;
 		}
 
 		class Audio
@@ -28,6 +30,8 @@ namespace KGL
 			IXAudio2* m_x_audio2;
 			IXAudio2MasteringVoice* m_mastering_voice;
 			XAUDIO2_VOICE_DETAILS m_mastering_details{};
+
+			std::list<std::shared_ptr<AUDIO::Sound>> m_sounds;
 		private:
 			HRESULT Init() noexcept;
 			void Clear() noexcept;
@@ -36,6 +40,8 @@ namespace KGL
 			~Audio();
 			IXAudio2* GetXAudio2() const noexcept;
 			HRESULT Reset() noexcept;
+			void AddSound(const std::shared_ptr<AUDIO::Sound>& sound);
+			void Update(float elapsed_time);
 			bool IsActive() const noexcept;
 			const XAUDIO2_VOICE_DETAILS& GetMasteringDatails() const noexcept;
 		};
@@ -45,18 +51,20 @@ namespace KGL
 			class Sound
 			{
 			private:
-				IXAudio2SourceVoice* voice;
+				std::shared_ptr<Wave> m_wave;
+				IXAudio2SourceVoice* m_voice;
 
-				bool exist;
-				bool feed_stop;
-				bool start;
-				bool filter;
-				float feed_time;
-				float feed_start_volume;
-				float feed_target_volume;
-				std::unique_ptr<float[]> balance;
-				
-				float volume;
+				bool m_exist;
+				bool m_feed_stop;
+				bool m_start;
+				bool m_filter;
+				bool m_db;
+				float m_feed_time;
+				float m_feed_start_volume;
+				float m_feed_target_volume;
+				float m_volume;
+				std::unique_ptr<float[]> m_balance;
+
 			public:
 				struct Desc
 				{
@@ -81,11 +89,23 @@ namespace KGL
 					false,
 					1.f
 				};
+			private:
+				void Clear() noexcept;
 			public:
-				Sound(const Wave& wave, const Desc& desc = DEFAULT_DESC) noexcept;
+				Sound(const std::shared_ptr<Wave>& wave, const Desc& desc = DEFAULT_DESC) noexcept;
 				~Sound();
 				void Update(float elpased_time);
-				void Play(float feed_in_time = 0.01f, bool db = false);
+				void Play(float feed_time = 0.01f);
+				void Stop(float feed_time = 0.01f);
+				void Pause(float feed_time = 0.01f);
+				void SetVolume(float volume, bool db = false);
+				float GetVolume(bool db = false);
+				void SetVolume2ch(float left_vol, float right_vol, bool db = false);
+				void SetPitch(float pitch);
+				float GetPitch();
+
+				bool IsAlive() const noexcept;
+				bool IsPlay() const noexcept;
 			};
 
 			class Wave
@@ -94,13 +114,14 @@ namespace KGL
 				std::shared_ptr<Audio> m_master;
 				std::shared_ptr<std::unique_ptr<uint8_t[]>> m_wave_file;
 				DirectX::WAVData m_wave_data;
+				std::string m_name;
 			public:
 				Wave(std::shared_ptr<Audio> audio, std::filesystem::path file);
-				std::shared_ptr<Sound> Generate(const Sound::Desc& desc = Sound::DEFAULT_DESC) noexcept;
 
 				std::shared_ptr<Audio> GetMaster() const noexcept;
 				const uint8_t* GetFile() const noexcept;
 				const DirectX::WAVData& GetData() const noexcept;
+				const std::string& GetName() const noexcept;
 			};
 		}
 	}
@@ -122,6 +143,15 @@ namespace KGL
 
 		namespace AUDIO
 		{
+			inline bool Sound::IsAlive() const noexcept
+			{
+				return m_voice;
+			}
+			inline bool Sound::IsPlay() const noexcept
+			{
+				return m_start;
+			}
+
 			inline std::shared_ptr<Audio> Wave::GetMaster() const noexcept
 			{
 				return m_master;
@@ -133,6 +163,10 @@ namespace KGL
 			inline const DirectX::WAVData& Wave::GetData() const noexcept
 			{
 				return m_wave_data;
+			}
+			inline const std::string& Wave::GetName() const noexcept
+			{
+				return m_name;
 			}
 		}
 	}

@@ -32,7 +32,7 @@
 #include "../GUIManager.hpp"
 #include "../PlayerShotParameter.hpp"
 #include <unordered_map>
-#include <Base/Audio.hpp>
+#include <Base/3DAudio.hpp>
 
 class TestScene04 : public SceneBase
 {
@@ -153,6 +153,7 @@ private:
 
 	std::shared_ptr<KGL::AUDIO::Wave>					wave;
 	std::shared_ptr<KGL::AUDIO::Sound>					sound;
+	std::shared_ptr<KGL::AUDIO::Manager3D>				sound_mgr;
 private:
 	// レンダーターゲットとデプスステンシルを作成します。
 	HRESULT PrepareRTAndDS(const SceneDesc& desc, DXGI_SAMPLE_DESC sample_desc);

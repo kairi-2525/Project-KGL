@@ -70,5 +70,24 @@ namespace KGL
 		{
 			return Circumferencelength(radius) * (radian / DirectX::XM_2PI);
 		}
+
+		// 2“_ŠÔ‚Ì‹——£
+		inline float Distance(DirectX::CXMVECTOR a, DirectX::CXMVECTOR b)
+		{
+			using namespace DirectX;
+			XMVECTOR vsub = XMVectorSubtract(a, b);
+			XMVECTOR length = XMVector3Length(vsub);
+
+			float distance = 0.0f;
+			XMStoreFloat(&distance, length);
+			return distance;
+		}
+		inline float Distance(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
+		{
+			using namespace DirectX;
+			XMVECTOR va = XMLoadFloat3(&a);
+			XMVECTOR vb = XMLoadFloat3(&b);
+			return Distance(va, vb);
+		}
 	}
 }

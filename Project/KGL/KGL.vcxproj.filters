@@ -213,6 +213,9 @@
     <ClInclude Include="Inc\Base\Audio.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Base\3DAudio.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\Dx12\Application.cpp">
@@ -345,6 +348,9 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="Src\Base\Audio.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Base\3DAudio.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

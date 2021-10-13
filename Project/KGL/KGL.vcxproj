@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Inc\Base\3DAudio.hpp" />
     <ClInclude Include="Inc\Base\Camera.hpp" />
     <ClInclude Include="Inc\Base\DXC.hpp" />
     <ClInclude Include="Inc\Base\FBX.hpp" />
@@ -86,6 +87,7 @@
     <ClInclude Include="Inc\Math\Planets.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Src\Base\3DAudio.cpp" />
     <ClCompile Include="Src\Base\DXC.cpp" />
     <ClCompile Include="Src\Base\Directory.cpp" />
     <ClCompile Include="Src\Base\Input.cpp" />

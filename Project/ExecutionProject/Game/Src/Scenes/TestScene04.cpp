@@ -601,7 +601,10 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		wave = std::make_unique<KGL::AUDIO::Wave>(desc.audio, "./Assets/Sounds/ホイッスルループ.wav");
 		auto sound_desc = KGL::AUDIO::Sound::DEFAULT_DESC;
 		sound_desc.infinity_loop = true;
-		sound = wave->Generate(sound_desc);
+		sound = std::make_unique<KGL::AUDIO::Sound>(wave, sound_desc);
+		desc.audio->AddSound(sound);
+
+		sound_mgr = std::make_unique<KGL::AUDIO::Manager3D>();
 	}
 
 	ptc_tex_mgr->LoadWait();
@@ -619,7 +622,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	dof_generator->SetRtvNum(3u);
 
 	// camera = std::make_shared<DemoCamera>(XMFLOAT3(0.f, 200.f, 0.f), XMFLOAT3(0.f, 200.f, -100.f), 30000.f);
-	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 200.f, -100.f));
+	camera = std::make_shared<FPSCamera>(XMFLOAT3(0.f, 000.f, -1.f));
 
 	//XMStoreFloat3(&scene_buffer.mapped_data->light_vector, XMVector3Normalize(XMVectorSet(+0.2f, -0.7f, 0.5f, 0.f)));
 
@@ -731,6 +734,7 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 
 	// 再生開始
 	sound->Play(0.f);
+	sound_mgr->AddSound(sound);
 
 	return S_OK;
 }
@@ -1382,6 +1386,23 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	scene_buffer.mapped_data->zero_texture = gui_mgr->ptc_wire;
 
 	gui_mgr->tm_update.Count();
+	sound_mgr->Update(elapsed_time, camera_pos);
+
+	if (ImGui::Begin("Sound Debug"))
+	{
+		float pitch = sound->GetPitch();
+		if (ImGui::SliderFloat("pitch", &pitch, 0.5f, 1.f))
+		{
+			sound->SetPitch(pitch);
+			sound->SetVolume((pitch - 0.5f) * 2);
+		}
+		float volume = sound->GetVolume();
+		if (ImGui::InputFloat("volume", &volume))
+		{
+			sound->SetVolume(pitch);
+		}
+	}
+	ImGui::End();
 
 	ImGui::Render();
 	return Render(desc);
