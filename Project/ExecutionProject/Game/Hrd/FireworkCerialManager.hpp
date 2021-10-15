@@ -61,12 +61,48 @@
 #define EV_2_EFDC_ARCHIVE \
 	EV_1_EFDC_ARCHIVE, \
 	KGL_NVP("texture_name", m.texture_name)
+#define EV_3_EFDC_ARCHIVE \
+	EV_2_EFDC_ARCHIVE, \
+	KGL_NVP("start_sound", m.start_sound), \
+	KGL_NVP("end_sound", m.end_sound)
 
 #define EV_0_FWDC_ARCHIVE \
 	KGL_NVP("mass", m.mass), \
 	KGL_NVP("resistivity", m.resistivity), \
 	KGL_NVP("speed", m.speed), \
 	KGL_NVP("effects", m.effects)
+
+#define EV_0_FWDC_ARCHIVE \
+	KGL_NVP("mass", m.mass), \
+	KGL_NVP("resistivity", m.resistivity), \
+	KGL_NVP("speed", m.speed), \
+	KGL_NVP("effects", m.effects)
+
+#define FSV_0_FWSDC_ARCHIVE \
+	KGL_NVP("name", m.name), \
+	KGL_NVP("loop", m.loop), \
+	KGL_NVP("start_pitch", m.start_pitch), \
+	KGL_NVP("end_pitch", m.end_pitch), \
+	KGL_NVP("volume", m.volume), \
+	KGL_NVP("loop", m.loop), \
+	KGL_NVP("volume_range_max", m.volume_range_max), \
+	KGL_NVP("volume_range_min", m.volume_range_min)
+
+template<class Archive>
+void serialize(Archive& archive,
+	FireworksSoundDesc& m, std::uint32_t const version)
+{
+	using namespace DirectX;
+	switch (SCAST<FIREWORKS_SOUND_VERSION>(version))
+	{
+		case FIREWORKS_SOUND_VERSION::FSV_0:
+		{
+			archive(FSV_0_FWSDC_ARCHIVE);
+			break;
+		}
+	}
+}
+CEREAL_CLASS_VERSION(FireworksSoundDesc, SCAST<UINT>(FIREWORKS_SOUND_VERSION::FSV_0));
 
 template<class Archive>
 void serialize(Archive& archive,
@@ -90,9 +126,14 @@ void serialize(Archive& archive,
 			archive(EV_2_EFDC_ARCHIVE);
 			break;
 		}
+		case EFFECT_VERSION::EV_3:
+		{
+			archive(EV_3_EFDC_ARCHIVE);
+			break;
+		}
 	}
 }
-CEREAL_CLASS_VERSION(EffectDesc, SCAST<UINT>(EFFECT_VERSION::EV_2));
+CEREAL_CLASS_VERSION(EffectDesc, SCAST<UINT>(EFFECT_VERSION::EV_3));
 
 template<class Archive>
 void serialize(Archive& archive,

@@ -701,6 +701,35 @@ FCManager::FWDESC_STATE FCManager::DescImGuiUpdate(
 	return result;
 }
 
+// FireworksSoundDesc 用
+
+static void FWSDescImguiUpdate(std::vector<EffectDesc>::iterator itr, bool* edited, bool* fresult)
+{
+	static const auto ParamGuiUpdate = [&](FireworksSoundDesc* fwsd, bool* edited, bool* fresult)
+	{
+		EditCheck(ImGui::Checkbox(u8"ループ", &fwsd->loop), (*edited), (*fresult));
+
+		UINT8 idx = 0u;
+
+		ImGui::Text(u8"ループ"); ImGui::SameLine();
+		HelpMarker(u8"サウンドがループされます。");
+		EditCheck(ImGui::Checkbox(("##" + std::to_string(idx++)).c_str(), &fwsd->loop), (*edited), (*fresult));
+	};
+
+	if (!edited || !fresult) return;
+
+	if (ImGui::TreeNode(u8"開始時サウンド"))
+	{
+		ParamGuiUpdate(&itr->start_sound, edited, fresult);
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode(u8"終了時サウンド"))
+	{
+		ParamGuiUpdate(&itr->end_sound, edited, fresult);
+		ImGui::TreePop();
+	}
+}
+
 bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::DescriptorHandle>& srv_gui_handles)
 {
 	bool edited = false;
@@ -866,6 +895,8 @@ bool FCManager::FWDescImGuiUpdate(FireworksDesc* desc, const std::vector<KGL::De
 						EditCheck(ImGui::InputFloat(("##" + std::to_string(sl_idx++)).c_str(), &itr->scale_resistivity), edited, fresult);
 
 						EditCheck(ImGui::Checkbox(u8"ブルーム", &itr->bloom), edited, fresult);
+
+						FWSDescImguiUpdate(itr, &edited, &fresult);
 
 						const auto imgui_window_size = ImGui::GetWindowSize();
 						if (ImGui::BeginChild("scrolling", ImVec2(imgui_window_size.x * 0.7f, imgui_window_size.y / 2), false, ImGuiWindowFlags_NoTitleBar))

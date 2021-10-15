@@ -6,6 +6,7 @@
 #include <Dx12/BlendState.hpp>
 #include <Dx12/Helper.hpp>
 #include <Math/Gaussian.hpp>
+#include <Helper/Math.hpp>
 #include <random>
 
 #include <imgui.h>
@@ -732,10 +733,6 @@ HRESULT TestScene04::Init(const SceneDesc& desc)
 	pl_shot_param->use_mass = false;
 	pl_shot_param->mass = PlayerShotParametor::BLACK_HOLL_MASS;
 
-	// Ä¶ŠJŽn
-	sound->Play(0.f);
-	sound_mgr->AddSound(sound);
-
 	return S_OK;
 }
 
@@ -1386,7 +1383,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	scene_buffer.mapped_data->zero_texture = gui_mgr->ptc_wire;
 
 	gui_mgr->tm_update.Count();
-	sound_mgr->Update(elapsed_time, camera_pos);
+	sound_mgr->Update(elapsed_time, camera_pos, camera_front);
 
 	if (ImGui::Begin("Sound Debug"))
 	{

@@ -12,12 +12,18 @@ enum class EFFECT_VERSION : UINT
 {
 	EV_0 = 1u,
 	EV_1,
-	EV_2
+	EV_2,
+	EV_3
 };
 enum class FIREWORKS_VERSION : UINT
 {
 	FV_0 = 1u,
 	FV_1
+};
+
+enum class FIREWORKS_SOUND_VERSION : UINT
+{
+	FSV_0 = 1u
 };
 
 struct Particle;
@@ -26,14 +32,15 @@ class Fireworks;
 struct AffectObjects;
 struct EffectDesc;
 
-struct FireworksSound
+struct FireworksSoundDesc
 {
 	std::string name;
-	bool loop;
+	bool loop;	// èIóπéûÇ…ÇÕê›íËïsâ¬
 	float start_pitch;
 	float end_pitch;
-	float start_volme;
-	float end_volme;
+	float volume;
+	float volume_range_max;
+	float volume_range_min;
 };
 
 struct FireworksDesc
@@ -80,6 +87,10 @@ struct EffectDesc
 	std::string			name;
 	std::string			set_name;
 	std::string			texture_name;
+
+	FireworksSoundDesc	start_sound;
+	FireworksSoundDesc	end_sound;
+
 	UINT32				id;
 };
 

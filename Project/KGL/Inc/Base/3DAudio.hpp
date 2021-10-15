@@ -52,7 +52,7 @@ namespace KGL
 					float alive_time = 0.f
 					);
 
-				void Update(float elapsed_time, const DirectX::XMFLOAT3& position);
+				void Update(float elapsed_time, const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& front_vec);
 			};
 		}
 	}
