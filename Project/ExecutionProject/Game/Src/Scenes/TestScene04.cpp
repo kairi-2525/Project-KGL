@@ -1043,7 +1043,7 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 	}
 
 	using namespace DirectX;
-
+	\
 	UINT32 particle_total_num;
 	UINT32 pl_shot_particle_total_num;
 	{
@@ -1384,22 +1384,6 @@ HRESULT TestScene04::Update(const SceneDesc& desc, float elapsed_time)
 
 	gui_mgr->tm_update.Count();
 	sound_mgr->Update(elapsed_time, camera_pos, camera_front);
-
-	if (ImGui::Begin("Sound Debug"))
-	{
-		float pitch = sound->GetPitch();
-		if (ImGui::SliderFloat("pitch", &pitch, 0.5f, 1.f))
-		{
-			sound->SetPitch(pitch);
-			sound->SetVolume((pitch - 0.5f) * 2);
-		}
-		float volume = sound->GetVolume();
-		if (ImGui::InputFloat("volume", &volume))
-		{
-			sound->SetVolume(pitch);
-		}
-	}
-	ImGui::End();
 
 	ImGui::Render();
 	return Render(desc);
