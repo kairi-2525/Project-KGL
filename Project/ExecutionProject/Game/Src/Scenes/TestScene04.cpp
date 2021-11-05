@@ -194,7 +194,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 
 	{	// スプライト用PSOの作成(半透明、加算、高輝度抽出)
 		auto renderer_desc = KGL::_2D::Renderer::DEFAULT_DESC;
-		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;	// アルファブレンド
 		sprite_renderers.emplace_back(std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc));
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
 		for (; renderer_desc.other_desc.sample_desc.Count < max_sample_desc.Count;)
@@ -205,7 +205,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.rastarizer_desc.MultisampleEnable = FALSE;
 
-		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ADD;	// 加算ブレンド
 		add_sprite_renderers.reserve(msaa_type_count);
 		add_sprite_renderers.push_back(std::make_shared<KGL::_2D::Renderer>(device, desc.dxc, renderer_desc));
 		renderer_desc.rastarizer_desc.MultisampleEnable = TRUE;
@@ -219,7 +219,7 @@ HRESULT TestScene04::Load(const SceneDesc& desc)
 		renderer_desc.other_desc.sample_desc.Count = 1u;
 		renderer_desc.ps_desc.entry_point = "PSMain";
 
-		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;
+		renderer_desc.blend_types[0] = KGL::BDTYPE::ALPHA;	// アルファブレンド
 		sprite = std::make_shared<KGL::Sprite>(device);
 
 		renderer_desc.render_targets.clear();
@@ -1711,12 +1711,14 @@ HRESULT TestScene04::UnInit(const SceneDesc& desc, std::shared_ptr<SceneBase> ne
 {
 	sky_mgr->Uninit(desc.imgui_heap_mgr);
 
+	// パーティクル用テクスチャシェーダーリソースビューの開放
 	for (auto& handle : ptc_tex_srv_gui_handles)
 	{
 		if (handle.Heap())
 			desc.imgui_heap_mgr->Free(handle);
 	}
 
+	// レンダーターゲットリソースの開放
 	for (const auto& rtrs : *rt_resources)
 	{
 		for (const auto& rt : rtrs.render_targets)
